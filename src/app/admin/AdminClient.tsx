@@ -187,15 +187,15 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">
-              <ChefHat className="h-4 w-4" />
-              <span>Campus Organizer & BD Hub</span>
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
+              <ChefHat className="h-4 w-4 text-[#B4213A]" />
+              <span>VISTEC Food Pool & BD Hub</span>
             </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-black text-gray-900">
-              One-Order Management
+              VEATEC Hub (VISTEC Eats)
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Open daily pooled delivery batches, onboard outside local shops, and oversee kitchen manifests.
+              ระบบจัดการรอบสั่งอาหารและร้านค้าสำหรับชาว VISTEC สถาบันวิทยสิริเมธี
             </p>
           </div>
 

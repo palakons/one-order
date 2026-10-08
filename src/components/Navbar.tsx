@@ -2,31 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Utensils, MapPin, ChefHat, Sparkles } from "lucide-react";
+import { MapPin, ChefHat } from "lucide-react";
 import CampusDesksModal from "./CampusDesksModal";
+import VeatecLogo from "./VeatecLogo";
 
 export default function Navbar() {
   const [showDesks, setShowDesks] = useState(false);
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-orange-100 bg-white/95 backdrop-blur-md shadow-xs">
+      <header className="sticky top-0 z-40 w-full border-b border-purple-100/80 bg-white/95 backdrop-blur-md shadow-2xs">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-3 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              <Utensils className="h-4.5 w-4.5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base sm:text-lg font-black tracking-tight text-gray-900">
-                  One<span className="text-orange-600">Order</span>
-                </span>
-                <span className="inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">
-                  รวมสั่งข้าว
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-500 font-medium hidden xs:block">ส่งถึงโต๊ะตึกเรียน</p>
-            </div>
+          <Link href="/" className="flex items-center group py-1">
+            <VeatecLogo size="sm" showSubtitle={true} />
           </Link>
 
           <div className="flex items-center gap-1.5 sm:gap-2">

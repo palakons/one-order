@@ -373,19 +373,19 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               onClick={() => setCurrentStep(1)}
               className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
                 currentStep === 1
-                  ? "bg-orange-600 text-white shadow-xs"
+                  ? "bg-[#5D3085] text-white shadow-xs"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                currentStep === 1 ? "bg-white text-orange-600" : "bg-gray-200 text-gray-700"
+                currentStep === 1 ? "bg-white text-[#5D3085]" : "bg-gray-200 text-gray-700"
               }`}>
                 1
               </span>
               <span>เลือกเมนู</span>
               {totalQuantity > 0 && (
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                  currentStep === 1 ? "bg-orange-700 text-white" : "bg-orange-100 text-orange-800"
+                  currentStep === 1 ? "bg-[#472266] text-white" : "bg-purple-100 text-[#5D3085]"
                 }`}>
                   {totalQuantity}
                 </span>
@@ -404,12 +404,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               }}
               className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
                 currentStep === 2
-                  ? "bg-blue-600 text-white shadow-xs"
+                  ? "bg-[#B4213A] text-white shadow-xs"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                currentStep === 2 ? "bg-white text-blue-600" : "bg-gray-200 text-gray-700"
+                currentStep === 2 ? "bg-white text-[#B4213A]" : "bg-gray-200 text-gray-700"
               }`}>
                 2
               </span>
@@ -634,7 +634,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="w-full rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 py-3 text-sm font-bold text-white shadow-md hover:from-orange-700 hover:to-amber-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                  className="w-full rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] py-3 text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
                 >
                   <span>ไปขั้นตอนที่ 2: สแกนจ่ายเงิน (฿{totalAmount})</span>
                   <ChevronRight className="h-4 w-4" />
@@ -849,7 +849,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               type="button"
               disabled={cartItemsList.length === 0}
               onClick={() => setCurrentStep(2)}
-              className="rounded-xl bg-orange-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 disabled:opacity-40"
+              className="rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40"
             >
               ไปสแกนจ่าย ➔
             </button>

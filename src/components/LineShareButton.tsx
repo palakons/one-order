@@ -35,7 +35,7 @@ export default function LineShareButton({ batch }: Props) {
   const currentHost = typeof window !== "undefined" ? window.location.origin : "https://one-order.app";
   const manifestUrl = `${currentHost}/shop/${batch.id}`;
 
-  const messageText = `🍱 [One-Order] สรุปออเดอร์ร้าน ${batch.shop.name}
+  const messageText = `🍱 [VEATEC @ VISTEC] สรุปออเดอร์ร้าน ${batch.shop.name}
 รอบส่งวันที่: ${batch.date} (ปิดรอบ ${batch.cutoffTime})
 สถานะส่ง: ${deliveryStatusText}
 

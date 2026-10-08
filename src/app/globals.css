@@ -10,6 +10,12 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-vistec-purple: #5D3085;
+  --color-vistec-red: #B4213A;
+  --color-vistec-purple-dark: #472266;
+  --color-vistec-red-dark: #8F182C;
+  --color-vistec-purple-light: #F4EFF8;
+  --color-vistec-red-light: #FBEAEC;
 }
 
 @media (prefers-color-scheme: dark) {

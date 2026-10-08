@@ -12,7 +12,7 @@ export default function HomePage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500 font-medium">
-          Loading One-Order campus pools...
+          กำลังโหลดข้อมูล VEATEC (VISTEC Eats)...
         </div>
       }
     >

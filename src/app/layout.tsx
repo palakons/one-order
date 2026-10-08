@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "One-Order — Uni Pooled Food Delivery",
-  description: "Frictionless pooled campus food ordering. Meet shop minimums and get delivered directly to campus desks.",
+  title: "VEATEC — VISTEC Campus Food Pooling & Delivery",
+  description: "VEATEC (VISTEC Eats) ระบบรวมสั่งข้าวเที่ยงชาว VISTEC สถาบันวิทยสิริเมธี ส่งถึงโต๊ะตึกเรียน V, M1-M4, K",
 };
 
 export default function RootLayout({

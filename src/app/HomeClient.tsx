@@ -5,6 +5,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import DeliveryProgressBar from "@/components/DeliveryProgressBar";
 import CampusDesksModal from "@/components/CampusDesksModal";
+import VeatecLogo from "@/components/VeatecLogo";
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { BatchWithDetails } from "@/lib/types";
 import {
@@ -48,22 +49,28 @@ export default function HomeClient({ initialBatches }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50/30 via-white to-gray-50 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50/20 via-white to-gray-50 text-gray-900">
       <Navbar />
 
-      {/* Top Banner: 1-2-3 Steps Flow */}
-      <section className="border-b border-orange-100/80 bg-gradient-to-b from-orange-50/60 to-white px-3 py-4 sm:py-6">
+      {/* Top Banner: VEATEC Brand & 1-2-3 Steps Flow */}
+      <section className="border-b border-purple-100/70 bg-gradient-to-b from-purple-50/50 via-white to-transparent px-3 py-5 sm:py-7">
         <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-0.5 text-xs font-bold text-orange-800">
-              <Sparkles className="h-3 w-3 text-orange-600" />
-              <span>สั่งข้าวเที่ยงรวมกัน ส่งฟรีถึงโต๊ะตึกเรียน</span>
+          <div className="flex flex-col items-center text-center">
+            {/* Main VEATEC Brand Display */}
+            <div className="mb-3.5 hover:scale-[1.02] transition-transform">
+              <VeatecLogo size="xl" showSubtitle={true} />
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-100/90 border border-purple-200/80 px-3 py-0.5 text-xs font-bold text-purple-900 shadow-2xs">
+              <Sparkles className="h-3 w-3 text-[#B4213A]" />
+              <span>ระบบรวมสั่งข้าวเที่ยงชาว VISTEC (สถาบันวิทยสิริเมธี)</span>
             </span>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              รวมสั่งให้ถึงยอด <span className="text-orange-600">฿200</span> ส่งถึงตึก!
+
+            <h1 className="mt-2 text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+              รวมสั่งให้ครบ <span className="text-[#B4213A]">฿200</span> ส่งฟรีถึงโต๊ะตึกเรียน!
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-600">
-              ไม่ต้องไปแย่งคิวโรงอาหาร โอนตรงเข้าบัญชีร้านค้า นำส่งที่โต๊ะประจำตึก (V, M1-M4, โรงอาหาร, K)
+            <p className="mt-1 text-xs sm:text-sm text-gray-600 max-w-lg">
+              ไม่ต้องไปต่อคิวนอกมอ โอนตรงเข้าบัญชีร้านค้า นำส่งที่โต๊ะประจำตึก (V, M1-M4, โรงอาหาร, K)
             </p>
           </div>
 
@@ -278,7 +285,7 @@ export default function HomeClient({ initialBatches }: Props) {
       <footer className="mt-12 border-t border-gray-200 bg-white py-6">
         <div className="mx-auto max-w-4xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <div>
-            <strong>One-Order ระบบรวมสั่งข้าวเที่ยง</strong> · เพื่อประชาคมชาวมหาวิทยาลัย
+            <strong>VEATEC (VISTEC Eats)</strong> · ระบบรวมสั่งอาหารเพื่อประชาคมชาววิทยสิริเมธี (VISTEC)
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => setShowDesksModal(true)} className="hover:text-orange-600">
