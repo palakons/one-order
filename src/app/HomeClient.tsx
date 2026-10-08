@@ -109,20 +109,23 @@ export default function HomeClient({ initialBatches }: Props) {
         <section>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Utensils className="h-5 w-5 text-orange-600" />
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Utensils className="h-4.5 w-4.5 text-purple-800" />
                 <span>ร้านเปิดรับออเดอร์วันนี้</span>
+                <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                  {batches.length} ร้าน
+                </span>
               </h2>
               <p className="text-xs text-gray-500">
-                สั่งก่อนเวลาปิดรับ เพื่อรวมยอดให้ครบ ฿200 ส่งฟรีถึงตึก
+                รวมออเดอร์ให้ครบขั้นต่ำ ส่งฟรีถึงโต๊ะกลางตึก M4
               </p>
             </div>
 
             <Link
               href="/admin"
-              className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-purple-800 hover:text-purple-950 hover:underline flex items-center gap-1"
             >
-              <span>+ เปิดรอบร้านใหม่</span>
+              <span>+ เปิดรอบร้าน</span>
               <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
@@ -136,93 +139,113 @@ export default function HomeClient({ initialBatches }: Props) {
               </p>
               <Link
                 href="/admin"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800"
               >
                 + เปิดรอบสั่งอาหารใหม่
               </Link>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {batches.map((batch) => (
-                <div
-                  key={batch.id}
-                  className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs hover:border-orange-300 hover:shadow-sm transition-all"
-                >
-                  <div>
-                    {/* Header: Shop Name & Status */}
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200/80 rounded px-1.5 py-0.5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {batches.map((batch) => {
+                const isUnlocked = batch.currentTotalAmount >= batch.targetMinAmount;
+                const remaining = Math.max(0, batch.targetMinAmount - batch.currentTotalAmount);
+                const percentage = Math.min(100, Math.round((batch.currentTotalAmount / batch.targetMinAmount) * 100));
+
+                return (
+                  <div
+                    key={batch.id}
+                    className="group relative flex flex-col justify-between rounded-2xl border border-gray-200/90 bg-white p-3.5 shadow-2xs hover:border-purple-300 hover:shadow-xs transition-all"
+                  >
+                    <div className="space-y-2">
+                      {/* Top row: Cuisine & Cutoff / Status */}
+                      <div className="flex items-center justify-between gap-1 text-xs">
+                        <span className="text-[10px] font-bold text-purple-900 bg-purple-50 border border-purple-100 rounded-md px-1.5 py-0.5 truncate max-w-[130px]">
                           {batch.shop.cuisine}
                         </span>
-                        <h3 className="text-base sm:text-lg font-black text-gray-900 mt-1">
+                        <div className="flex items-center gap-1 text-[11px] shrink-0">
+                          <span className="font-semibold text-gray-500 flex items-center gap-0.5">
+                            <Clock className="h-3 w-3 text-orange-500" />
+                            <span>ปิด {batch.cutoffTime}</span>
+                          </span>
+                          <span
+                            className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                              batch.status === "OPEN"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {batch.status === "OPEN" ? "เปิดรับ" : batch.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Shop Title & Description */}
+                      <div>
+                        <h3 className="text-base font-black text-gray-900 group-hover:text-purple-900 transition-colors leading-snug">
                           {batch.shop.name}
                         </h3>
-                        <p className="text-xs text-gray-500 line-clamp-1">
-                          {batch.shop.description}
-                        </p>
+                        {batch.shop.description && (
+                          <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">
+                            {batch.shop.description}
+                          </p>
+                        )}
                       </div>
 
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold shrink-0 ${
-                          batch.status === "OPEN"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {batch.status === "OPEN" ? "🟢 เปิดรับ" : batch.status}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar Component */}
-                    <div className="my-3">
-                      <DeliveryProgressBar
-                        currentAmount={batch.currentTotalAmount}
-                        targetAmount={batch.targetMinAmount}
-                        cutoffTime={batch.cutoffTime}
-                        orderCount={batch.orderCount}
-                      />
-                    </div>
-
-                    {/* Popular items teaser */}
-                    <div className="rounded-xl bg-gray-50/80 p-2.5 mb-3 border border-gray-100">
-                      <div className="text-[10px] font-bold text-gray-500 mb-1">
-                        ตัวอย่างเมนูยอดนิยม:
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {batch.shop.menuItems.slice(0, 4).map((item) => (
-                          <span
-                            key={item.id}
-                            className="rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700"
-                          >
-                            {item.name} (฿{item.price})
+                      {/* Compact Progress Bar */}
+                      <div className="rounded-xl bg-gray-50/90 p-2 border border-gray-100 space-y-1">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-gray-700">
+                            ฿{batch.currentTotalAmount} <span className="text-gray-400 font-normal">/ ฿{batch.targetMinAmount}</span>
+                            <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} ออเดอร์)</span>
                           </span>
-                        ))}
+                          <span
+                            className={`text-[11px] font-bold ${
+                              isUnlocked ? "text-emerald-700 font-black" : "text-amber-800"
+                            }`}
+                          >
+                            {isUnlocked ? "🎉 ส่งฟรี M4" : `ขาดอีก ฿${remaining}`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isUnlocked ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-orange-500"
+                            }`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Popular menu inline roll */}
+                      <div className="text-[11px] text-gray-600 line-clamp-1">
+                        <span className="font-bold text-gray-400 mr-1">แนะนำ:</span>
+                        <span>
+                          {batch.shop.menuItems.slice(0, 3).map((it) => `${it.name} (฿${it.price})`).join(" · ")}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                    <Link
-                      href={`/order/${batch.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:from-orange-700 hover:to-amber-700 transition-all active:scale-[0.98]"
-                    >
-                      <ShoppingBag className="h-4 w-4" />
-                      <span>สั่งอาหารร้านนี้ ➔</span>
-                    </Link>
+                    {/* Bottom Actions */}
+                    <div className="flex items-center gap-1.5 pt-2.5 mt-2 border-t border-gray-100">
+                      <Link
+                        href={`/order/${batch.id}`}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 px-3 py-2 text-xs font-bold text-white shadow-2xs transition-all active:scale-[0.98]"
+                      >
+                        <ShoppingBag className="h-3.5 w-3.5" />
+                        <span>สั่งอาหาร</span>
+                      </Link>
 
-                    <Link
-                      href={`/shop/${batch.id}`}
-                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                      title="ดูใบส่งครัว & สลิป"
-                    >
-                      <ChefHat className="h-3.5 w-3.5 text-orange-600" />
-                      <span>ใบส่งครัว</span>
-                    </Link>
+                      <Link
+                        href={`/shop/${batch.id}`}
+                        className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors"
+                        title="ดูใบส่งครัว & สลิป"
+                      >
+                        <ChefHat className="h-3.5 w-3.5 text-purple-700" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
