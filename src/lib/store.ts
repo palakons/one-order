@@ -2,6 +2,15 @@ import fs from "fs/promises";
 import path from "path";
 import { Shop, Batch, Order, BatchWithDetails, BatchStatus } from "./types";
 import { getLocationById } from "./locations";
+import { isFirebaseConfigured, db } from "./firebase";
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
@@ -130,6 +139,9 @@ const SEED_DATA: DatabaseSchema = {
   ],
 };
 
+// -------------------------------------------------------------
+// Local JSON File Helpers (Fallback when Firebase is not active)
+// -------------------------------------------------------------
 async function ensureDataFile(): Promise<DatabaseSchema> {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
@@ -147,17 +159,74 @@ async function writeData(data: DatabaseSchema): Promise<void> {
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
+// -------------------------------------------------------------
+// Firestore Helpers (Active when Firebase is configured)
+// -------------------------------------------------------------
+async function ensureFirestoreSeeded(): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    const shopsSnap = await getDocs(collection(db, "shops"));
+    if (shopsSnap.empty) {
+      // Seed shops
+      for (const shop of SEED_DATA.shops) {
+        await setDoc(doc(db, "shops", shop.id), shop);
+      }
+      // Seed batches
+      for (const batch of SEED_DATA.batches) {
+        await setDoc(doc(db, "batches", batch.id), batch);
+      }
+      // Seed orders
+      for (const order of SEED_DATA.orders) {
+        await setDoc(doc(db, "orders", order.id), order);
+      }
+    }
+  } catch (err) {
+    console.warn("Firestore seed check warning:", err);
+  }
+}
+
+// -------------------------------------------------------------
+// Public Data API (Automatic Firestore / Local Switch)
+// -------------------------------------------------------------
 export async function getShops(): Promise<Shop[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureFirestoreSeeded();
+      const snap = await getDocs(collection(db, "shops"));
+      return snap.docs.map((d) => d.data() as Shop);
+    } catch (err) {
+      console.warn("Firestore getShops failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   return data.shops;
 }
 
 export async function getShopById(id: string): Promise<Shop | undefined> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const snap = await getDoc(doc(db, "shops", id));
+      if (snap.exists()) return snap.data() as Shop;
+    } catch (err) {
+      console.warn("Firestore getShopById failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   return data.shops.find((s) => s.id === id);
 }
 
 export async function saveShop(shop: Shop): Promise<Shop> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "shops", shop.id), shop);
+      return shop;
+    } catch (err) {
+      console.warn("Firestore saveShop failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   const index = data.shops.findIndex((s) => s.id === shop.id);
   if (index >= 0) {
@@ -170,15 +239,73 @@ export async function saveShop(shop: Shop): Promise<Shop> {
 }
 
 export async function getBatches(): Promise<BatchWithDetails[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureFirestoreSeeded();
+      const [batchesSnap, ordersSnap, shopsSnap] = await Promise.all([
+        getDocs(collection(db, "batches")),
+        getDocs(collection(db, "orders")),
+        getDocs(collection(db, "shops")),
+      ]);
+
+      const batches = batchesSnap.docs.map((d) => d.data() as Batch);
+      const orders = ordersSnap.docs.map((d) => d.data() as Order);
+      const shops = shopsSnap.docs.map((d) => d.data() as Shop);
+
+      return batches.map((b) =>
+        enrichBatchFromData(b, shops, orders.filter((o) => o.batchId === b.id))
+      );
+    } catch (err) {
+      console.warn("Firestore getBatches failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   return data.batches.map((b) => enrichBatch(b, data));
 }
 
 export async function getBatchById(id: string): Promise<BatchWithDetails | undefined> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const batchSnap = await getDoc(doc(db, "batches", id));
+      if (batchSnap.exists()) {
+        const batch = batchSnap.data() as Batch;
+        const [ordersSnap, shopsSnap] = await Promise.all([
+          getDocs(collection(db, "orders")),
+          getDocs(collection(db, "shops")),
+        ]);
+        const orders = ordersSnap.docs
+          .map((d) => d.data() as Order)
+          .filter((o) => o.batchId === id);
+        const shops = shopsSnap.docs.map((d) => d.data() as Shop);
+        return enrichBatchFromData(batch, shops, orders);
+      }
+    } catch (err) {
+      console.warn("Firestore getBatchById failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   const batch = data.batches.find((b) => b.id === id);
   if (!batch) return undefined;
   return enrichBatch(batch, data);
+}
+
+function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {
+  const shop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
+  const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const isMinMet = currentTotalAmount >= batch.targetMinAmount;
+  const amountRemaining = Math.max(0, batch.targetMinAmount - currentTotalAmount);
+
+  return {
+    ...batch,
+    shop,
+    orders,
+    currentTotalAmount,
+    isMinMet,
+    amountRemaining,
+    orderCount: orders.length,
+  };
 }
 
 function enrichBatch(batch: Batch, data: DatabaseSchema): BatchWithDetails {
@@ -206,7 +333,6 @@ export async function createBatch(batchData: {
   targetMinAmount: number;
   notes?: string;
 }): Promise<BatchWithDetails> {
-  const data = await ensureDataFile();
   const id = `batch-${Date.now()}`;
   const newBatch: Batch = {
     id,
@@ -218,12 +344,33 @@ export async function createBatch(batchData: {
     createdAt: new Date().toISOString(),
     notes: batchData.notes,
   };
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "batches", id), newBatch);
+      const shops = await getShops();
+      return enrichBatchFromData(newBatch, shops, []);
+    } catch (err) {
+      console.warn("Firestore createBatch failed, using local fallback:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
   data.batches.unshift(newBatch);
   await writeData(data);
   return enrichBatch(newBatch, data);
 }
 
 export async function updateBatchStatus(batchId: string, status: BatchStatus): Promise<BatchWithDetails | undefined> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await updateDoc(doc(db, "batches", batchId), { status });
+      return getBatchById(batchId);
+    } catch (err) {
+      console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
+    }
+  }
+
   const data = await ensureDataFile();
   const batch = data.batches.find((b) => b.id === batchId);
   if (!batch) return undefined;
@@ -241,10 +388,23 @@ export async function createOrder(input: {
   totalAmount: number;
   slipImageUrl: string;
 }): Promise<Order> {
-  const data = await ensureDataFile();
-  const existingOrders = data.orders.filter((o) => o.batchId === input.batchId);
-  const orderNumber = existingOrders.length + 1;
+  let existingOrders: Order[] = [];
 
+  if (isFirebaseConfigured && db) {
+    try {
+      const snap = await getDocs(collection(db, "orders"));
+      existingOrders = snap.docs
+        .map((d) => d.data() as Order)
+        .filter((o) => o.batchId === input.batchId);
+    } catch (err) {
+      console.warn("Firestore check existing orders failed:", err);
+    }
+  } else {
+    const data = await ensureDataFile();
+    existingOrders = data.orders.filter((o) => o.batchId === input.batchId);
+  }
+
+  const orderNumber = existingOrders.length + 1;
   const loc = getLocationById(input.locationId);
   const locCode = loc ? loc.shortCode : input.locationId;
   const itemsSummary = input.items.map((i) => i.name).join(" + ");
@@ -270,6 +430,16 @@ export async function createOrder(input: {
     boxLabel,
   };
 
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "orders", newOrder.id), newOrder);
+      return newOrder;
+    } catch (err) {
+      console.warn("Firestore createOrder failed, using local fallback:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
   data.orders.push(newOrder);
   await writeData(data);
   return newOrder;
