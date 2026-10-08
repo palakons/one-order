@@ -101,7 +101,7 @@ const SEED_DATA: DatabaseSchema = {
       targetMinAmount: 200,
       status: "OPEN",
       createdAt: new Date(Date.now() - 3600000).toISOString(),
-      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของ V, M1-M4, Canteen, K",
+      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4",
     },
   ],
   orders: [
@@ -111,7 +111,7 @@ const SEED_DATA: DatabaseSchema = {
       batchId: "batch-today-01",
       customerName: "สมชาย (Somchai)",
       customerPhone: "081-111-2222",
-      locationId: "loc-m2",
+      locationId: "loc-m4",
       items: [
         { id: "item-1", name: "ข้าวกะเพราหมูกรอบ", price: 60, quantity: 1, customNote: "เผ็ดน้อย ไม่ใส่ถั่วฝักยาว" },
         { id: "item-2", name: "ไข่ดาวฟูกรอบ", price: 10, quantity: 1, customNote: "ไข่แดงไม่สุก" },
@@ -119,7 +119,7 @@ const SEED_DATA: DatabaseSchema = {
       totalAmount: 70,
       slipImageUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
       createdAt: new Date(Date.now() - 1800000).toISOString(),
-      boxLabel: "#01 สมชาย (Somchai) - M2 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]",
+      boxLabel: "#01 สมชาย (Somchai) - M4 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]",
     },
     {
       id: "ord-sample-2",
@@ -127,14 +127,14 @@ const SEED_DATA: DatabaseSchema = {
       batchId: "batch-today-01",
       customerName: "อลิสา (Alice)",
       customerPhone: "089-333-4444",
-      locationId: "loc-v",
+      locationId: "loc-m4",
       items: [
         { id: "item-3", name: "ข้าวผัดหมู", price: 50, quantity: 1, customNote: "ขอน้ำปลาพริกเยอะๆ" },
       ],
       totalAmount: 50,
       slipImageUrl: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
       createdAt: new Date(Date.now() - 900000).toISOString(),
-      boxLabel: "#02 อลิสา (Alice) - V Building [ข้าวผัดหมู]",
+      boxLabel: "#02 อลิสา (Alice) - M4 Building [ข้าวผัดหมู]",
     },
   ],
 };

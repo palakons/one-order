@@ -67,10 +67,10 @@ export default function HomeClient({ initialBatches }: Props) {
             </span>
 
             <h1 className="mt-2 text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-              รวมสั่งให้ครบ <span className="text-[#B4213A]">฿200</span> ส่งฟรีถึงโต๊ะตึกเรียน!
+              รวมสั่งให้ครบ <span className="text-[#B4213A]">฿200</span> ส่งฟรีถึงโต๊ะตึกเรียน M4!
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-gray-600 max-w-lg">
-              ไม่ต้องไปต่อคิวนอกมอ โอนตรงเข้าบัญชีร้านค้า นำส่งที่โต๊ะประจำตึก (V, M1-M4, โรงอาหาร, K)
+              ไม่ต้องไปต่อคิวนอกมอ โอนตรงเข้าบัญชีร้านค้า นำส่งที่โต๊ะประจำตึก M4
             </p>
           </div>
 
@@ -233,13 +233,13 @@ export default function HomeClient({ initialBatches }: Props) {
             <div>
               <div className="inline-flex items-center gap-1 text-xs font-bold text-orange-600">
                 <Building2 className="h-3.5 w-3.5" />
-                <span>จุดรับข้าวประจำตึก (7 จุดส่ง)</span>
+                <span>จุดรับข้าวประจำอาคาร (ตึก M4)</span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                โต๊ะรับส่งอาหารประจำแต่ละตึก
+                โต๊ะรับส่งอาหาร ตึก M4
               </h3>
               <p className="text-xs text-gray-500">
-                กล่องข้าวจะเขียนชื่อและเบอร์โทร นำไปวางส่งที่โต๊ะล็อบบี้ตึกที่คุณเลือก
+                กล่องข้าวจะเขียนชื่อและเบอร์โทร นำไปวางส่งที่โต๊ะวางอาหาร Delivery ชั้น 1 อาคาร M4
               </p>
             </div>
 
@@ -247,33 +247,35 @@ export default function HomeClient({ initialBatches }: Props) {
               onClick={() => setShowDesksModal(true)}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-800 transition-colors self-start sm:self-auto"
             >
-              <span>ดูรูปโต๊ะรับส่ง & แผนที่</span>
+              <span>ดูรูปโต๊ะรับส่ง M4</span>
               <ArrowRight className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 max-w-lg gap-3">
             {CAMPUS_LOCATIONS.map((loc) => (
               <div
                 key={loc.id}
                 onClick={() => setShowDesksModal(true)}
-                className="group cursor-pointer rounded-xl border border-gray-200 p-2 text-center hover:border-orange-500 hover:bg-orange-50/20 transition-all"
+                className="group cursor-pointer rounded-xl border border-gray-200 p-3 text-left hover:border-orange-500 hover:bg-orange-50/20 transition-all flex items-center gap-3"
               >
-                <div className="relative h-14 w-full overflow-hidden rounded-lg bg-gray-100 mb-1.5">
+                <div className="relative h-16 w-20 overflow-hidden rounded-lg bg-gray-100 shrink-0">
                   <img
                     src={loc.photoUrl}
                     alt={loc.name}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <span className="absolute top-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-bold text-white">
+                  <span className="absolute top-1 left-1 rounded bg-[#B4213A] px-1.5 py-0.5 text-[9px] font-bold text-white">
                     {loc.shortCode}
                   </span>
                 </div>
-                <div className="text-xs font-bold text-gray-900 group-hover:text-orange-600 truncate">
-                  {loc.name}
-                </div>
-                <div className="text-[10px] text-gray-500 truncate">
-                  โต๊ะล็อบบี้
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-gray-900 group-hover:text-orange-600 truncate">
+                    {loc.name}
+                  </div>
+                  <div className="text-[11px] text-gray-600 line-clamp-2">
+                    {loc.deskDetail}
+                  </div>
                 </div>
               </div>
             ))}
@@ -289,7 +291,7 @@ export default function HomeClient({ initialBatches }: Props) {
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => setShowDesksModal(true)} className="hover:text-orange-600">
-              จุดรับข้าว (7 ตึก)
+              จุดรับข้าว (ตึก M4)
             </button>
             <Link href="/admin" className="hover:text-orange-600">
               ระบบร้านค้า / แอดมิน

@@ -245,7 +245,7 @@ export default function MyOrdersClient() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
             >
               <MapPin className="h-3.5 w-3.5 text-purple-600" />
-              <span>ดูโต๊ะรับข้าว 7 ตึก</span>
+              <span>ดูโต๊ะรับข้าว ตึก M4</span>
             </button>
             <button
               onClick={handleRefresh}

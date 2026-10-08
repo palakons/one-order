@@ -274,8 +274,8 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               {/* Share to LINE button */}
               <a
                 href={`https://line.me/R/msg/text/?${encodeURIComponent(
-                  `🍱 [VEATEC @ VISTEC] ข้าวร้าน ${batch.shop.name} มาส่งถึงโต๊ะตึกเรียนแล้วครับ/ค่ะ! 🎉\n` +
-                  `นศ. และอาจารย์สามารถไปรับกล่องข้าวของตัวเองที่โต๊ะประจำตึก (V, M1-M4, K, โรงอาหาร) ได้เลย\n` +
+                  `🍱 [VEATEC @ VISTEC] ข้าวร้าน ${batch.shop.name} มาส่งถึงโต๊ะตึก M4 แล้วครับ/ค่ะ! 🎉\n` +
+                  `นศ. และอาจารย์สามารถไปรับกล่องข้าวของตัวเองที่โต๊ะประจำตึก M4 ได้เลย\n` +
                   `👉 ตรวจสอบรายการและรูปหลักฐาน: ${typeof window !== 'undefined' ? window.location.href : ''}`
                 )}`}
                 target="_blank"

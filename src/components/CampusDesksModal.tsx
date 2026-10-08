@@ -20,9 +20,9 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
               <Building2 className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">โต๊ะจุดรับข้าวประจำตึก (7 จุดส่ง)</h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">โต๊ะจุดรับข้าว ตึก M4</h2>
               <p className="text-xs text-gray-500">
-                จุดวางอาหารส่วนกลางสำหรับแต่ละอาคาร
+                จุดวางอาหารส่วนกลาง อาคาร M4 (ชั้น 1 โต๊ะวางอาหาร Delivery)
               </p>
             </div>
           </div>
@@ -38,7 +38,7 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
         <div className="bg-amber-50 px-4 sm:px-6 py-2 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-900">
           <Info className="h-4 w-4 shrink-0 text-amber-700" />
           <span>
-            ไรเดอร์จะนำถุง/กล่องอาหารติดชื่อของคุณไปวางส่งที่โต๊ะประจำตึก ตรวจสอบหมายเลขออเดอร์เมื่อมารับ
+            ไรเดอร์จะนำถุง/กล่องอาหารติดชื่อของคุณไปวางส่งที่โต๊ะประจำตึก M4 ตรวจสอบหมายเลขออเดอร์เมื่อมารับ
           </span>
         </div>
 

@@ -178,7 +178,7 @@
       "targetMinAmount": 200,
       "status": "OPEN",
       "createdAt": "2026-10-08T06:57:50.428Z",
-      "notes": "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของ V, M1-M4, Canteen, K"
+      "notes": "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4"
     }
   ],
   "orders": [
@@ -188,7 +188,7 @@
       "batchId": "batch-today-01",
       "customerName": "สมชาย (Somchai)",
       "customerPhone": "081-111-2222",
-      "locationId": "loc-m2",
+      "locationId": "loc-m4",
       "items": [
         {
           "id": "item-1",
@@ -208,7 +208,7 @@
       "totalAmount": 70,
       "slipImageUrl": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
       "createdAt": "2026-10-08T07:27:50.428Z",
-      "boxLabel": "#01 สมชาย (Somchai) - M2 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]"
+      "boxLabel": "#01 สมชาย (Somchai) - M4 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]"
     },
     {
       "id": "ord-sample-2",
@@ -216,7 +216,7 @@
       "batchId": "batch-today-01",
       "customerName": "อลิสา (Alice)",
       "customerPhone": "089-333-4444",
-      "locationId": "loc-v",
+      "locationId": "loc-m4",
       "items": [
         {
           "id": "item-3",
@@ -229,7 +229,7 @@
       "totalAmount": 50,
       "slipImageUrl": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
       "createdAt": "2026-10-08T07:42:50.428Z",
-      "boxLabel": "#02 อลิสา (Alice) - V Building [ข้าวผัดหมู]"
+      "boxLabel": "#02 อลิสา (Alice) - M4 Building [ข้าวผัดหมู]"
     },
     {
       "id": "ord-1791446282662",

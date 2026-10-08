@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "VEATEC — VISTEC Campus Food Pooling & Delivery",
-  description: "VEATEC (VISTEC Eats) ระบบรวมสั่งข้าวเที่ยงชาว VISTEC สถาบันวิทยสิริเมธี ส่งถึงโต๊ะตึกเรียน V, M1-M4, K",
+  description: "VEATEC (VISTEC Eats) ระบบรวมสั่งข้าวเที่ยงชาว VISTEC สถาบันวิทยสิริเมธี ส่งถึงโต๊ะตึกเรียน M4",
 };
 
 export default function RootLayout({

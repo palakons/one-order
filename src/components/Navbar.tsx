@@ -31,8 +31,8 @@ export default function Navbar() {
               className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
             >
               <MapPin className="h-3.5 w-3.5 text-orange-600" />
-              <span className="hidden sm:inline">จุดรับข้าว</span>
-              <span className="sm:hidden">7 ตึก</span>
+              <span className="hidden sm:inline">จุดรับข้าว (ตึก M4)</span>
+              <span className="sm:hidden">ตึก M4</span>
             </button>
 
             <Link

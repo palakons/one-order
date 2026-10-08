@@ -115,7 +115,7 @@ export default function DeliveryProgressBar({
           <>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-900 font-medium leading-relaxed">
-              <strong>จัดส่งถึงจุดรับข้าวทุกตึก!</strong> ข้าวจะนำไปส่งวางที่โต๊ะตึกเรียนของคุณ (V, M1-M4, โรงอาหาร, K)
+              <strong>จัดส่งถึงจุดรับข้าวตึก M4!</strong> ข้าวจะนำไปส่งวางที่โต๊ะประจำตึก M4
             </p>
           </>
         ) : (

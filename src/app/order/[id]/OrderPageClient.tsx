@@ -63,7 +63,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   // Customer state
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedLocationId, setSelectedLocationId] = useState("loc-v");
+  const [selectedLocationId, setSelectedLocationId] = useState("loc-m4");
   const [showDeskModal, setShowDeskModal] = useState(false);
 
   // Slip file
@@ -800,7 +800,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       onClick={() => setShowDeskModal(true)}
                       className="text-xs font-semibold text-orange-600 hover:underline flex items-center gap-0.5"
                     >
-                      <Info className="h-3 w-3" /> ดูรูปโต๊ะ 7 ตึก
+                      <Info className="h-3 w-3" /> ดูรูปโต๊ะตึก M4
                     </button>
                   </div>
 

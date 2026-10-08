@@ -43,7 +43,7 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [selectedShopId, setSelectedShopId] = useState(initialShops[0]?.id || "");
   const [batchCutoffTime, setBatchCutoffTime] = useState("11:15");
   const [batchTargetMin, setBatchTargetMin] = useState("200");
-  const [batchNotes, setBatchNotes] = useState("รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของ V, M1-M4, Canteen, K");
+  const [batchNotes, setBatchNotes] = useState("รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4");
   const [creatingBatch, setCreatingBatch] = useState(false);
 
   // New Shop Form State
@@ -266,7 +266,7 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
             }`}
           >
             <MapPin className="h-4 w-4" />
-            <span>Campus Desks (จุดรับข้าว 7 ตึก)</span>
+            <span>Campus Desk (จุดรับข้าวตึก M4)</span>
           </button>
         </div>
 
@@ -629,7 +629,7 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-purple-700" />
-                  <span>โต๊ะรับอาหารประจำอาคาร VISTEC (7 Campus Desks)</span>
+                  <span>โต๊ะรับอาหารประจำอาคาร VISTEC (ตึก M4)</span>
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
                   จุดวางอาหารส่วนกลางสำหรับไรเดอร์และร้านค้า พร้อมป้ายรหัสย่อสำหรับติดหน้ากล่อง
@@ -640,11 +640,11 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  const guideText = `📍 [VEATEC] คู่มือจุดส่งอาหาร VISTEC (7 ตึก):\n` +
+                  const guideText = `📍 [VEATEC] จุดส่งอาหาร VISTEC (ตึก M4):\n` +
                     CAMPUS_LOCATIONS.map(
                       (l) => `• [${l.shortCode}] ${l.name}: ${l.deskDetail}`
                     ).join("\n") +
-                    `\n\n⚠️ คำแนะนำไรเดอร์: นำกล่องอาหารวางแยกตามป้ายรหัสตึก และถ่ายรูปโต๊ะส่งเข้า LINE หลังจากส่งครบ`;
+                    `\n\n⚠️ คำแนะนำไรเดอร์: นำกล่องอาหารวางที่โต๊ะประจำตึก M4 และถ่ายรูปโต๊ะส่งเข้า LINE หลังจากส่งครบ`;
                   navigator.clipboard.writeText(guideText);
                   setCopiedDesk("ALL");
                   setTimeout(() => setCopiedDesk(null), 2500);
@@ -743,10 +743,10 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                   <strong>11:15 น. (ปิดรอบ):</strong> แอดมินหรือระบบสรุปยอด หากยอดถึงขั้นต่ำ ระบบจะแจ้งเตือนพร้อมส่งลิงก์ใบออเดอร์ครัวให้ร้าน
                 </li>
                 <li>
-                  <strong>การติดป้ายกล่อง:</strong> ให้ร้านเขียนรหัสตึกตามป้าย เช่น <code>[M2-01] สมชาย</code> เพื่อความสะดวกในการคัดแยก
+                  <strong>การติดป้ายกล่อง:</strong> ให้ร้านเขียนรหัสตึกตามป้าย เช่น <code>[M4-01] สมชาย</code> เพื่อความสะดวกในการคัดแยก
                 </li>
                 <li>
-                  <strong>การวางอาหาร:</strong> ไรเดอร์นำอาหารไปวางไว้บนโต๊ะรับอาหารประจำแต่ละอาคาร ไม่ต้องโทรตามทีละคน
+                  <strong>การวางอาหาร:</strong> ไรเดอร์นำอาหารไปวางไว้บนโต๊ะรับอาหารประจำตึก M4 ไม่ต้องโทรตามทีละคน
                 </li>
                 <li>
                   <strong>แจ้งเสร็จสิ้น:</strong> ร้านค้าหรือไรเดอร์เปิดหน้าออเดอร์ กดปุ่ม <em>"4. Completed"</em> ถ่ายรูปอาหารบนโต๊ะ 1 รูป แล้วกด <em>"แจ้ง LINE: อาหารส่งถึงโต๊ะแล้ว"</em> เพื่อแจ้งเตือนนักศึกษา/อาจารย์ในกลุ่มทันที
