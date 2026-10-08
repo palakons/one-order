@@ -1,0 +1,273 @@
+import fs from "fs/promises";
+import path from "path";
+import { Shop, Batch, Order, BatchWithDetails, BatchStatus } from "./types";
+import { getLocationById } from "./locations";
+
+const DATA_DIR = path.join(process.cwd(), "src", "data");
+const DATA_FILE = path.join(DATA_DIR, "store.json");
+
+interface DatabaseSchema {
+  shops: Shop[];
+  batches: Batch[];
+  orders: Order[];
+}
+
+const SEED_DATA: DatabaseSchema = {
+  shops: [
+    {
+      id: "shop-auntie-nee",
+      name: "ป้าณี อาหารตามสั่ง",
+      nameEn: "Auntie Nee Cook-to-Order",
+      cuisine: "Thai Street Food / Rice Dishes",
+      description: "อาหารตามสั่งจานด่วนหน้ามหาวิทยาลัย รสจัดจ้าน สะอาด ให้เยอะ คุ้มราคา",
+      phone: "081-987-6543",
+      lineId: "auntie_nee_food",
+      promptpayNumber: "0819876543",
+      promptpayAccountName: "สมณี ใจอารีย์ (Somnee J.)",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0819876543",
+      minDeliveryAmount: 200,
+      defaultCutoffTime: "11:15",
+      menuItems: [
+        { id: "m1", name: "ข้าวกะเพราหมูกรอบ", nameEn: "Crispy Pork Holy Basil Rice", price: 60, popular: true },
+        { id: "m2", name: "ข้าวผัดหมู / ไก่", nameEn: "Fried Rice (Pork / Chicken)", price: 50, popular: false },
+        { id: "m3", name: "ข้าวหมูกระเทียมพริกไทย", nameEn: "Garlic Pepper Pork with Rice", price: 55, popular: true },
+        { id: "m4", name: "ข้าวผัดพริกแกงหมูกรอบ", nameEn: "Crispy Pork Red Curry Paste Rice", price: 65, popular: false },
+        { id: "m5", name: "ผัดซีอิ๊วหมูนุ่ม", nameEn: "Stir-fried Wide Rice Noodles (Pad See Ew)", price: 55, popular: false },
+        { id: "m6", name: "ข้าวไข่เจียวทรงเครื่อง", nameEn: "Thai Minced Pork Omelette Rice", price: 45, popular: false },
+        { id: "m7", name: "ไข่ดาวฟูกรอบ", nameEn: "Crispy Fried Egg (Add-on)", price: 10, popular: true },
+        { id: "m8", name: "ไข่เจียว", nameEn: "Omelette (Add-on)", price: 15, popular: false },
+      ],
+    },
+    {
+      id: "shop-uncle-chai",
+      name: "ข้าวมันไก่เฮียไช้",
+      nameEn: "Uncle Chai Hainanese Chicken Rice",
+      cuisine: "Hainanese Chicken Rice",
+      description: "ไก่นุ่มชุ่มฉ่ำ ข้าวมันหอม น้ำจิ้มเต้าเจี้ยวรสเด็ด แถมน้ำซุปมะนาวดอง",
+      phone: "089-123-4567",
+      lineId: "chai_chickenrice",
+      promptpayNumber: "0891234567",
+      promptpayAccountName: "สมชาย วัฒนากูล (Somchai W.)",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0891234567",
+      minDeliveryAmount: 200,
+      defaultCutoffTime: "11:20",
+      menuItems: [
+        { id: "c1", name: "ข้าวมันไก่ต้มพิเศษ", nameEn: "Boiled Chicken Rice (Special)", price: 55, popular: true },
+        { id: "c2", name: "ข้าวมันไก่ทอดกรอบ", nameEn: "Crispy Fried Chicken Rice", price: 55, popular: true },
+        { id: "c3", name: "ข้าวมันไก่ผสม (ต้ม+ทอด)", nameEn: "Combo Chicken Rice (Boiled + Fried)", price: 65, popular: true },
+        { id: "c4", name: "ข้าวหมูแดงหมูกรอบ", nameEn: "BBQ Pork & Crispy Pork Rice", price: 65, popular: false },
+        { id: "c5", name: "เพิ่มตับไก่", nameEn: "Extra Chicken Liver", price: 15, popular: false },
+      ],
+    },
+    {
+      id: "shop-mae-wan",
+      name: "แม่วรรณ ก๋วยเตี๋ยวเรือ & บะหมี่เกี๊ยว",
+      nameEn: "Mae Wan Boat Noodles",
+      cuisine: "Noodles & Dumplings",
+      description: "ก๋วยเตี๋ยวเรือน้ำตกเข้มข้น ไม่ต้องปรุง เกี๊ยวหมูแน่นคำโต",
+      phone: "086-555-8888",
+      lineId: "maewan_noodles",
+      promptpayNumber: "0865558888",
+      promptpayAccountName: "วรรณเพ็ญ ศรีสุข (Wanpen S.)",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0865558888",
+      minDeliveryAmount: 200,
+      defaultCutoffTime: "11:30",
+      menuItems: [
+        { id: "n1", name: "ก๋วยเตี๋ยวเรือน้ำตกหมูสด-หมูตุ๋น", nameEn: "Pork Boat Noodles with Thick Broth", price: 50, popular: true },
+        { id: "n2", name: "บะหมี่แห้งเกี๊ยวหมูแดง", nameEn: "Egg Noodles with Pork Dumplings & BBQ Pork", price: 60, popular: true },
+        { id: "n3", name: "เกี๊ยวหมูทอดกรอบ", nameEn: "Crispy Fried Dumplings", price: 35, popular: false },
+        { id: "n4", name: "กากหมูเจียวหอมกรอบ", nameEn: "Crispy Pork Crackling", price: 20, popular: true },
+      ],
+    },
+  ],
+  batches: [
+    {
+      id: "batch-today-01",
+      shopId: "shop-auntie-nee",
+      date: new Date().toISOString().split("T")[0],
+      cutoffTime: "11:15",
+      targetMinAmount: 200,
+      status: "OPEN",
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของ V, M1-M4, Canteen, K",
+    },
+  ],
+  orders: [
+    {
+      id: "ord-sample-1",
+      orderNumber: 1,
+      batchId: "batch-today-01",
+      customerName: "สมชาย (Somchai)",
+      customerPhone: "081-111-2222",
+      locationId: "loc-m2",
+      items: [
+        { id: "item-1", name: "ข้าวกะเพราหมูกรอบ", price: 60, quantity: 1, customNote: "เผ็ดน้อย ไม่ใส่ถั่วฝักยาว" },
+        { id: "item-2", name: "ไข่ดาวฟูกรอบ", price: 10, quantity: 1, customNote: "ไข่แดงไม่สุก" },
+      ],
+      totalAmount: 70,
+      slipImageUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
+      createdAt: new Date(Date.now() - 1800000).toISOString(),
+      boxLabel: "#01 สมชาย (Somchai) - M2 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]",
+    },
+    {
+      id: "ord-sample-2",
+      orderNumber: 2,
+      batchId: "batch-today-01",
+      customerName: "อลิสา (Alice)",
+      customerPhone: "089-333-4444",
+      locationId: "loc-v",
+      items: [
+        { id: "item-3", name: "ข้าวผัดหมู", price: 50, quantity: 1, customNote: "ขอน้ำปลาพริกเยอะๆ" },
+      ],
+      totalAmount: 50,
+      slipImageUrl: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
+      createdAt: new Date(Date.now() - 900000).toISOString(),
+      boxLabel: "#02 อลิสา (Alice) - V Building [ข้าวผัดหมู]",
+    },
+  ],
+};
+
+async function ensureDataFile(): Promise<DatabaseSchema> {
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    const content = await fs.readFile(DATA_FILE, "utf-8");
+    return JSON.parse(content) as DatabaseSchema;
+  } catch {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DATA_FILE, JSON.stringify(SEED_DATA, null, 2), "utf-8");
+    return SEED_DATA;
+  }
+}
+
+async function writeData(data: DatabaseSchema): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+}
+
+export async function getShops(): Promise<Shop[]> {
+  const data = await ensureDataFile();
+  return data.shops;
+}
+
+export async function getShopById(id: string): Promise<Shop | undefined> {
+  const data = await ensureDataFile();
+  return data.shops.find((s) => s.id === id);
+}
+
+export async function saveShop(shop: Shop): Promise<Shop> {
+  const data = await ensureDataFile();
+  const index = data.shops.findIndex((s) => s.id === shop.id);
+  if (index >= 0) {
+    data.shops[index] = shop;
+  } else {
+    data.shops.push(shop);
+  }
+  await writeData(data);
+  return shop;
+}
+
+export async function getBatches(): Promise<BatchWithDetails[]> {
+  const data = await ensureDataFile();
+  return data.batches.map((b) => enrichBatch(b, data));
+}
+
+export async function getBatchById(id: string): Promise<BatchWithDetails | undefined> {
+  const data = await ensureDataFile();
+  const batch = data.batches.find((b) => b.id === id);
+  if (!batch) return undefined;
+  return enrichBatch(batch, data);
+}
+
+function enrichBatch(batch: Batch, data: DatabaseSchema): BatchWithDetails {
+  const shop = data.shops.find((s) => s.id === batch.shopId) || data.shops[0];
+  const orders = data.orders.filter((o) => o.batchId === batch.id);
+  const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const isMinMet = currentTotalAmount >= batch.targetMinAmount;
+  const amountRemaining = Math.max(0, batch.targetMinAmount - currentTotalAmount);
+
+  return {
+    ...batch,
+    shop,
+    orders,
+    currentTotalAmount,
+    isMinMet,
+    amountRemaining,
+    orderCount: orders.length,
+  };
+}
+
+export async function createBatch(batchData: {
+  shopId: string;
+  date: string;
+  cutoffTime: string;
+  targetMinAmount: number;
+  notes?: string;
+}): Promise<BatchWithDetails> {
+  const data = await ensureDataFile();
+  const id = `batch-${Date.now()}`;
+  const newBatch: Batch = {
+    id,
+    shopId: batchData.shopId,
+    date: batchData.date,
+    cutoffTime: batchData.cutoffTime,
+    targetMinAmount: batchData.targetMinAmount,
+    status: "OPEN",
+    createdAt: new Date().toISOString(),
+    notes: batchData.notes,
+  };
+  data.batches.unshift(newBatch);
+  await writeData(data);
+  return enrichBatch(newBatch, data);
+}
+
+export async function updateBatchStatus(batchId: string, status: BatchStatus): Promise<BatchWithDetails | undefined> {
+  const data = await ensureDataFile();
+  const batch = data.batches.find((b) => b.id === batchId);
+  if (!batch) return undefined;
+  batch.status = status;
+  await writeData(data);
+  return enrichBatch(batch, data);
+}
+
+export async function createOrder(input: {
+  batchId: string;
+  customerName: string;
+  customerPhone: string;
+  locationId: string;
+  items: Array<{ id?: string; name: string; price: number; quantity: number; customNote?: string }>;
+  totalAmount: number;
+  slipImageUrl: string;
+}): Promise<Order> {
+  const data = await ensureDataFile();
+  const existingOrders = data.orders.filter((o) => o.batchId === input.batchId);
+  const orderNumber = existingOrders.length + 1;
+
+  const loc = getLocationById(input.locationId);
+  const locCode = loc ? loc.shortCode : input.locationId;
+  const itemsSummary = input.items.map((i) => i.name).join(" + ");
+  const boxLabel = `#${String(orderNumber).padStart(2, "0")} ${input.customerName} - ${locCode} [${itemsSummary}]`;
+
+  const newOrder: Order = {
+    id: `ord-${Date.now()}`,
+    orderNumber,
+    batchId: input.batchId,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    locationId: input.locationId,
+    items: input.items.map((it, idx) => ({
+      id: it.id || `item-${Date.now()}-${idx}`,
+      name: it.name,
+      price: it.price,
+      quantity: it.quantity,
+      customNote: it.customNote,
+    })),
+    totalAmount: input.totalAmount,
+    slipImageUrl: input.slipImageUrl,
+    createdAt: new Date().toISOString(),
+    boxLabel,
+  };
+
+  data.orders.push(newOrder);
+  await writeData(data);
+  return newOrder;
+}

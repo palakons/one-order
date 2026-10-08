@@ -1,0 +1,766 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import LineShareButton from "@/components/LineShareButton";
+import { BatchWithDetails, BatchStatus } from "@/lib/types";
+import { getLocationById } from "@/lib/locations";
+import { changeBatchStatus } from "@/lib/services";
+import {
+  ChefHat,
+  ArrowLeft,
+  Truck,
+  ShoppingBag,
+  CheckCircle2,
+  Phone,
+  Clock,
+  Printer,
+  Eye,
+  X,
+  Building2,
+  Calendar,
+  AlertTriangle,
+  Package,
+  User,
+} from "lucide-react";
+
+interface Props {
+  batchId: string;
+  initialBatch: BatchWithDetails | null;
+}
+
+export default function ShopManifestClient({ batchId, initialBatch }: Props) {
+  const [batch, setBatch] = useState<BatchWithDetails | null>(initialBatch);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSlip, setSelectedSlip] = useState<{ url: string; name: string; amount: number } | null>(null);
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [viewMode, setViewMode] = useState<"order" | "customer">("order");
+
+  useEffect(() => {
+    fetchBatch();
+    const interval = setInterval(fetchBatch, 4000);
+    return () => clearInterval(interval);
+  }, [batchId]);
+
+  const fetchBatch = async () => {
+    try {
+      const res = await fetch(`/api/batches/${batchId}`);
+      const data = await res.json();
+      if (data.success) {
+        setBatch(data.batch);
+      } else {
+        if (!batch) setError(data.error || "Batch not found");
+      }
+    } catch (err: any) {
+      if (!batch) setError(err.message || "Failed to load batch");
+    }
+  };
+
+  const handleStatusChange = async (newStatus: BatchStatus) => {
+    try {
+      const updated = await changeBatchStatus(batchId, newStatus);
+      setBatch(updated);
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
+    }
+  };
+
+  const toggleCheck = (id: string) => {
+    setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  if (!batch) {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <div className="mx-auto max-w-4xl p-8 text-center text-gray-500">
+            Loading shop manifest...
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="mx-auto max-w-md p-8 text-center">
+          <h2 className="text-xl font-bold text-gray-900">Batch Not Found</h2>
+          <p className="text-sm text-gray-500 mt-1">{error}</p>
+          <Link
+            href="/"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Aggregate cooking items
+  const cookingSummary: { name: string; quantity: number; notes: string[] }[] = [];
+  const itemMap: Record<string, { quantity: number; notes: string[] }> = {};
+
+  batch.orders.forEach((ord) => {
+    ord.items.forEach((it) => {
+      if (!itemMap[it.name]) {
+        itemMap[it.name] = { quantity: 0, notes: [] };
+      }
+      itemMap[it.name].quantity += it.quantity;
+      if (it.customNote) {
+        itemMap[it.name].notes.push(it.customNote);
+      }
+    });
+  });
+
+  Object.entries(itemMap).forEach(([name, data]) => {
+    cookingSummary.push({
+      name,
+      quantity: data.quantity,
+      notes: data.notes,
+    });
+  });
+
+  // Building delivery counts
+  const buildingBreakdown: Record<string, { count: number; desk: string }> = {};
+  batch.orders.forEach((ord) => {
+    const loc = getLocationById(ord.locationId);
+    const locName = loc ? loc.name : ord.locationId;
+    const desk = loc ? loc.deskDetail : "Lobby";
+    if (!buildingBreakdown[locName]) {
+      buildingBreakdown[locName] = { count: 0, desk };
+    }
+    buildingBreakdown[locName].count += 1;
+  });
+
+  // Group orders by Customer (keyed by phone or name)
+  const customerMap: Record<
+    string,
+    {
+      customerName: string;
+      customerPhone: string;
+      locationId: string;
+      orders: typeof batch.orders;
+      totalAmount: number;
+      items: Array<{ name: string; quantity: number; price: number; notes: string[] }>;
+    }
+  > = {};
+
+  batch.orders.forEach((ord) => {
+    const key = `${ord.customerName}_${ord.customerPhone}`.trim();
+    if (!customerMap[key]) {
+      customerMap[key] = {
+        customerName: ord.customerName,
+        customerPhone: ord.customerPhone,
+        locationId: ord.locationId,
+        orders: [],
+        totalAmount: 0,
+        items: [],
+      };
+    }
+    customerMap[key].orders.push(ord);
+    customerMap[key].totalAmount += ord.totalAmount;
+
+    ord.items.forEach((it) => {
+      const existing = customerMap[key].items.find((i) => i.name === it.name);
+      if (existing) {
+        existing.quantity += it.quantity;
+        if (it.customNote) existing.notes.push(it.customNote);
+      } else {
+        customerMap[key].items.push({
+          name: it.name,
+          quantity: it.quantity,
+          price: it.price,
+          notes: it.customNote ? [it.customNote] : [],
+        });
+      }
+    });
+  });
+
+  const customerList = Object.values(customerMap);
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 pb-16">
+      <Navbar />
+
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6">
+        {/* Top Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-orange-600"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Pools</span>
+          </Link>
+
+          {/* 1-Click LINE Share and Print */}
+          <div className="flex flex-wrap items-center gap-2">
+            <LineShareButton batch={batch} />
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" />
+              <span>Print Sheet</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Big Delivery Decision Banner */}
+        <div
+          className={`rounded-3xl border p-6 sm:p-7 shadow-sm transition-all ${
+            batch.isMinMet
+              ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50/50"
+              : "border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50/50"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black tracking-wide ${
+                    batch.isMinMet
+                      ? "bg-emerald-600 text-white"
+                      : "bg-amber-600 text-white"
+                  }`}
+                >
+                  {batch.isMinMet ? (
+                    <>
+                      <Truck className="h-4 w-4" />
+                      <span>CAMPUS DELIVERY TO DESKS</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="h-4 w-4" />
+                      <span>SELF PICK-UP AT SHOP (UNDER ฿{batch.targetMinAmount})</span>
+                    </>
+                  )}
+                </span>
+                <span className="text-xs font-bold text-gray-600">
+                  Batch: {batch.date} (Cutoff: {batch.cutoffTime})
+                </span>
+              </div>
+
+              <h1 className="mt-3 text-2xl sm:text-3xl font-black text-gray-900">
+                {batch.shop.name} — Kitchen Manifest
+              </h1>
+
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
+                {batch.isMinMet ? (
+                  <>
+                    🎉 <strong>Minimum met! (฿{batch.currentTotalAmount} &ge; ฿{batch.targetMinAmount})</strong>. Please cook and deliver the labeled boxes to the designated campus tables below.
+                  </>
+                ) : (
+                  <>
+                    ⚠️ <strong>Total: ฿{batch.currentTotalAmount}</strong> (under ฿{batch.targetMinAmount} delivery threshold). Meals are already 100% pre-paid; keep them ready for self pick-up at the shop.
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Total orders and amount */}
+            <div className="rounded-2xl bg-white border border-gray-200/80 p-4 shrink-0 text-center sm:text-right shadow-2xs">
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Total Pre-paid (100% Slips)
+              </div>
+              <div className="text-3xl font-black text-orange-600">
+                ฿{batch.currentTotalAmount}
+              </div>
+              <div className="text-xs font-semibold text-gray-700 mt-0.5">
+                {batch.orders.length} Boxes / Orders
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Buildings Breakdown */}
+          {batch.isMinMet && (
+            <div className="mt-6 pt-5 border-t border-emerald-200/60">
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-950 mb-2.5 flex items-center gap-1.5">
+                <Building2 className="h-4 w-4 text-emerald-700" />
+                <span>Delivery Drop-off Desks & Quantities:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                {Object.entries(buildingBreakdown).map(([building, info]) => (
+                  <div
+                    key={building}
+                    className="rounded-xl bg-white/90 border border-emerald-200 p-3 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-gray-900">{building}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-800">
+                        {info.count} {info.count === 1 ? "box" : "boxes"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-500 line-clamp-1">
+                      Desk: {info.desk}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 1: Kitchen Cooking Sheet */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
+                <ChefHat className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  Kitchen Cooking Sheet (สรุปรายการอาหารสำหรับครัว)
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Total items aggregated across all orders. Tap checkmark as you cook!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {cookingSummary.map((item, idx) => {
+              const isDone = Boolean(checkedItems[`cook-${idx}`]);
+              return (
+                <div
+                  key={idx}
+                  onClick={() => toggleCheck(`cook-${idx}`)}
+                  className={`flex items-start justify-between py-3 cursor-pointer rounded-lg px-2 transition-colors ${
+                    isDone ? "bg-gray-50 opacity-60 line-through" : "hover:bg-orange-50/30"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isDone}
+                      onChange={() => {}}
+                      className="mt-1 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <div>
+                      <div className="font-bold text-sm text-gray-900">{item.name}</div>
+                      {item.notes.length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {item.notes.map((note, nIdx) => (
+                            <span
+                              key={nIdx}
+                              className="inline-block mr-2 text-[11px] bg-amber-50 text-amber-900 border border-amber-200 rounded px-1.5 py-0.5"
+                            >
+                              Note: {note}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <span className="text-base font-black text-orange-600">
+                    x {item.quantity}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Section 2: Box Labels & Packaging Guide with Toggle */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-gray-100 pb-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                Packaging & Labeling Guide (จัดอาหาร & ป้ายหน้ากล่อง)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Switch between single box labels or customer-grouped packaging bags
+              </p>
+            </div>
+
+            {/* View Mode Toggle: By Order vs By Customer */}
+            <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setViewMode("order")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === "order"
+                    ? "bg-white text-orange-600 shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Package className="h-3.5 w-3.5" />
+                <span>By Order / Box ({batch.orders.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("customer")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === "customer"
+                    ? "bg-white text-orange-600 shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <User className="h-3.5 w-3.5" />
+                <span>By Customer ({customerList.length})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* View 1: By Order (Individual Boxes) */}
+          {viewMode === "order" && (
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-gray-500">
+                Showing {batch.orders.length} individual boxes for cooking &amp; writing box numbers:
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {batch.orders.map((ord) => {
+                  const loc = getLocationById(ord.locationId);
+                  const locName = loc ? loc.name : ord.locationId;
+                  const isChecked = Boolean(checkedItems[`order-${ord.id}`]);
+
+                  return (
+                    <div
+                      key={ord.id}
+                      className={`rounded-xl border p-4 space-y-2.5 transition-all ${
+                        isChecked
+                          ? "border-emerald-300 bg-emerald-50/30 opacity-70"
+                          : "border-gray-200 bg-gray-50/60 hover:border-orange-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleCheck(`order-${ord.id}`)}
+                            className="h-4 w-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer"
+                          />
+                          <span className="inline-flex items-center rounded-md bg-gray-900 text-white px-2 py-0.5 text-xs font-mono font-bold">
+                            #{String(ord.orderNumber).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded">
+                          {locName}
+                        </span>
+                      </div>
+
+                      {/* Recipient */}
+                      <div>
+                        <div className="font-bold text-sm text-gray-900">
+                          {ord.customerName}
+                        </div>
+                        <a
+                          href={`tel:${ord.customerPhone}`}
+                          className="text-xs text-gray-600 hover:text-orange-600 flex items-center gap-1 font-medium mt-0.5"
+                        >
+                          <Phone className="h-3 w-3" /> {ord.customerPhone}
+                        </a>
+                      </div>
+
+                      {/* Food items */}
+                      <div className="pt-2 border-t border-gray-200/80 text-xs text-gray-800 space-y-1">
+                        {ord.items.map((it, idx) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>
+                              {it.quantity}x <strong>{it.name}</strong>
+                              {it.customNote && (
+                                <span className="text-amber-800 italic"> ({it.customNote})</span>
+                              )}
+                            </span>
+                            <span className="font-semibold text-gray-600">฿{it.price * it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Box Label text to write */}
+                      <div className="rounded-lg bg-white border border-gray-200 p-2 text-[11px] font-mono text-gray-700">
+                        <strong className="text-gray-900">Write on Box:</strong> {ord.boxLabel}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* View 2: By Customer (Grouped Bags) */}
+          {viewMode === "customer" && (
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-gray-500">
+                Showing {customerList.length} customers with all their items grouped into packaging bags:
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {customerList.map((customer, cIdx) => {
+                  const loc = getLocationById(customer.locationId);
+                  const locName = loc ? loc.name : customer.locationId;
+                  const isChecked = Boolean(checkedItems[`cust-${cIdx}`]);
+                  const boxNumbers = customer.orders
+                    .map((o) => `#${String(o.orderNumber).padStart(2, "0")}`)
+                    .join(", ");
+
+                  return (
+                    <div
+                      key={cIdx}
+                      className={`rounded-2xl border p-5 space-y-3 transition-all ${
+                        isChecked
+                          ? "border-emerald-300 bg-emerald-50/30 opacity-70"
+                          : "border-gray-200 bg-white hover:border-orange-300 shadow-2xs"
+                      }`}
+                    >
+                      {/* Customer Header */}
+                      <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                        <div className="flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleCheck(`cust-${cIdx}`)}
+                            className="mt-1 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-base text-gray-900">
+                                {customer.customerName}
+                              </h3>
+                              <span className="rounded bg-orange-100 text-orange-800 text-[11px] font-bold px-2 py-0.5">
+                                {customer.orders.length} {customer.orders.length === 1 ? "box" : "boxes"}
+                              </span>
+                            </div>
+                            <a
+                              href={`tel:${customer.customerPhone}`}
+                              className="text-xs text-orange-600 font-semibold hover:underline flex items-center gap-1 mt-0.5"
+                            >
+                              <Phone className="h-3 w-3" /> {customer.customerPhone}
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Location Desk Badge */}
+                        <div className="text-right">
+                          <span className="inline-block text-xs font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-md">
+                            {locName}
+                          </span>
+                          <div className="text-[10px] text-gray-500 mt-0.5">
+                            Boxes: <strong>{boxNumbers}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Aggregated food items for this customer */}
+                      <div className="space-y-1.5 text-xs text-gray-800">
+                        <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                          Items for this bag:
+                        </div>
+                        {customer.items.map((it, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-start rounded-lg bg-gray-50 px-2.5 py-1.5"
+                          >
+                            <div>
+                              <span className="font-bold text-gray-900">
+                                {it.quantity}x {it.name}
+                              </span>
+                              {it.notes.length > 0 && (
+                                <div className="text-[11px] text-amber-800 italic">
+                                  ↳ {it.notes.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                            <span className="font-semibold text-gray-700">
+                              ฿{it.price * it.quantity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Customer total amount and slips */}
+                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Paid Total:</span>
+                          <span className="font-black text-sm text-orange-600">
+                            ฿{customer.totalAmount}
+                          </span>
+                        </div>
+
+                        {/* Slips preview button */}
+                        <div className="flex gap-1.5">
+                          {customer.orders.map((ord, oIdx) => (
+                            <button
+                              key={oIdx}
+                              type="button"
+                              onClick={() =>
+                                setSelectedSlip({
+                                  url: ord.slipImageUrl,
+                                  name: customer.customerName,
+                                  amount: ord.totalAmount,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-orange-50 hover:border-orange-300 transition-colors"
+                            >
+                              <Eye className="h-3 w-3 text-orange-600" />
+                              <span>Slip #{ord.orderNumber}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Section 3: Transfer Slip Evidence Gallery */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                Payment Slip Verification Gallery (หลักฐานสลิปโอนเงิน)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Click any slip to view full high-resolution image and verify against your banking app
+              </p>
+            </div>
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+              {batch.orders.length} Verified Slips
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {batch.orders.map((ord) => (
+              <div
+                key={ord.id}
+                onClick={() =>
+                  setSelectedSlip({
+                    url: ord.slipImageUrl,
+                    name: ord.customerName,
+                    amount: ord.totalAmount,
+                  })
+                }
+                className="group cursor-pointer rounded-xl border border-gray-200 p-2.5 hover:border-orange-500 hover:shadow-md transition-all bg-white"
+              >
+                {/* Thumbnail */}
+                <div className="relative h-44 w-full overflow-hidden rounded-lg bg-gray-100">
+                  <img
+                    src={ord.slipImageUrl}
+                    alt={`Slip ${ord.customerName}`}
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                    <span className="opacity-0 group-hover:opacity-100 rounded-full bg-black/70 p-2 text-white">
+                      <Eye className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white">
+                    #{String(ord.orderNumber).padStart(2, "0")}
+                  </span>
+                </div>
+
+                <div className="mt-2 text-xs">
+                  <div className="font-bold text-gray-900 truncate">
+                    {ord.customerName}
+                  </div>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className="font-black text-orange-600">฿{ord.totalAmount}</span>
+                    <span className="text-[10px] text-gray-600 font-semibold">
+                      {new Date(ord.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Section 4: Batch Management (BD / Shop status controls) */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">Batch Lifecycle Controls</h3>
+              <p className="text-xs text-gray-500">
+                Update status to keep students informed of cooking and delivery progress
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleStatusChange("OPEN")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  batch.status === "OPEN"
+                    ? "bg-emerald-600 text-white"
+                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                1. Open (รับออเดอร์)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatusChange("LOCKED")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  batch.status === "LOCKED"
+                    ? "bg-amber-600 text-white"
+                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                2. Locked / Cooking (กำลังปรุง)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatusChange("DELIVERING")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  batch.status === "DELIVERING"
+                    ? "bg-blue-600 text-white"
+                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                3. Delivering (กำลังส่ง)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatusChange("COMPLETED")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  batch.status === "COMPLETED"
+                    ? "bg-gray-900 text-white"
+                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                4. Completed (ส่งถึงโต๊ะเรียบร้อย)
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* High-Res Slip Zoom Modal */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="relative max-h-[90vh] max-w-lg rounded-2xl bg-white p-4 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-sm text-gray-900">{selectedSlip.name}</h3>
+                <span className="text-xs font-black text-orange-600">
+                  Amount: ฿{selectedSlip.amount}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedSlip(null)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-3 overflow-y-auto max-h-[75vh] flex items-center justify-center bg-gray-50 rounded-lg">
+              <img
+                src={selectedSlip.url}
+                alt="Full Transfer Slip"
+                className="max-h-[70vh] w-auto object-contain rounded"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

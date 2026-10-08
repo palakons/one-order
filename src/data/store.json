@@ -1,0 +1,261 @@
+{
+  "shops": [
+    {
+      "id": "shop-auntie-nee",
+      "name": "ป้าณี อาหารตามสั่ง",
+      "nameEn": "Auntie Nee Cook-to-Order",
+      "cuisine": "Thai Street Food / Rice Dishes",
+      "description": "อาหารตามสั่งจานด่วนหน้ามหาวิทยาลัย รสจัดจ้าน สะอาด ให้เยอะ คุ้มราคา",
+      "phone": "081-987-6543",
+      "lineId": "auntie_nee_food",
+      "promptpayNumber": "0819876543",
+      "promptpayAccountName": "สมณี ใจอารีย์ (Somnee J.)",
+      "promptpayQrUrl": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0819876543",
+      "minDeliveryAmount": 200,
+      "defaultCutoffTime": "11:15",
+      "menuItems": [
+        {
+          "id": "m1",
+          "name": "ข้าวกะเพราหมูกรอบ",
+          "nameEn": "Crispy Pork Holy Basil Rice",
+          "price": 60,
+          "popular": true
+        },
+        {
+          "id": "m2",
+          "name": "ข้าวผัดหมู / ไก่",
+          "nameEn": "Fried Rice (Pork / Chicken)",
+          "price": 50,
+          "popular": false
+        },
+        {
+          "id": "m3",
+          "name": "ข้าวหมูกระเทียมพริกไทย",
+          "nameEn": "Garlic Pepper Pork with Rice",
+          "price": 55,
+          "popular": true
+        },
+        {
+          "id": "m4",
+          "name": "ข้าวผัดพริกแกงหมูกรอบ",
+          "nameEn": "Crispy Pork Red Curry Paste Rice",
+          "price": 65,
+          "popular": false
+        },
+        {
+          "id": "m5",
+          "name": "ผัดซีอิ๊วหมูนุ่ม",
+          "nameEn": "Stir-fried Wide Rice Noodles (Pad See Ew)",
+          "price": 55,
+          "popular": false
+        },
+        {
+          "id": "m6",
+          "name": "ข้าวไข่เจียวทรงเครื่อง",
+          "nameEn": "Thai Minced Pork Omelette Rice",
+          "price": 45,
+          "popular": false
+        },
+        {
+          "id": "m7",
+          "name": "ไข่ดาวฟูกรอบ",
+          "nameEn": "Crispy Fried Egg (Add-on)",
+          "price": 10,
+          "popular": true
+        },
+        {
+          "id": "m8",
+          "name": "ไข่เจียว",
+          "nameEn": "Omelette (Add-on)",
+          "price": 15,
+          "popular": false
+        }
+      ]
+    },
+    {
+      "id": "shop-uncle-chai",
+      "name": "ข้าวมันไก่เฮียไช้",
+      "nameEn": "Uncle Chai Hainanese Chicken Rice",
+      "cuisine": "Hainanese Chicken Rice",
+      "description": "ไก่นุ่มชุ่มฉ่ำ ข้าวมันหอม น้ำจิ้มเต้าเจี้ยวรสเด็ด แถมน้ำซุปมะนาวดอง",
+      "phone": "089-123-4567",
+      "lineId": "chai_chickenrice",
+      "promptpayNumber": "0891234567",
+      "promptpayAccountName": "สมชาย วัฒนากูล (Somchai W.)",
+      "promptpayQrUrl": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0891234567",
+      "minDeliveryAmount": 200,
+      "defaultCutoffTime": "11:20",
+      "menuItems": [
+        {
+          "id": "c1",
+          "name": "ข้าวมันไก่ต้มพิเศษ",
+          "nameEn": "Boiled Chicken Rice (Special)",
+          "price": 55,
+          "popular": true
+        },
+        {
+          "id": "c2",
+          "name": "ข้าวมันไก่ทอดกรอบ",
+          "nameEn": "Crispy Fried Chicken Rice",
+          "price": 55,
+          "popular": true
+        },
+        {
+          "id": "c3",
+          "name": "ข้าวมันไก่ผสม (ต้ม+ทอด)",
+          "nameEn": "Combo Chicken Rice (Boiled + Fried)",
+          "price": 65,
+          "popular": true
+        },
+        {
+          "id": "c4",
+          "name": "ข้าวหมูแดงหมูกรอบ",
+          "nameEn": "BBQ Pork & Crispy Pork Rice",
+          "price": 65,
+          "popular": false
+        },
+        {
+          "id": "c5",
+          "name": "เพิ่มตับไก่",
+          "nameEn": "Extra Chicken Liver",
+          "price": 15,
+          "popular": false
+        }
+      ]
+    },
+    {
+      "id": "shop-mae-wan",
+      "name": "แม่วรรณ ก๋วยเตี๋ยวเรือ & บะหมี่เกี๊ยว",
+      "nameEn": "Mae Wan Boat Noodles",
+      "cuisine": "Noodles & Dumplings",
+      "description": "ก๋วยเตี๋ยวเรือน้ำตกเข้มข้น ไม่ต้องปรุง เกี๊ยวหมูแน่นคำโต",
+      "phone": "086-555-8888",
+      "lineId": "maewan_noodles",
+      "promptpayNumber": "0865558888",
+      "promptpayAccountName": "วรรณเพ็ญ ศรีสุข (Wanpen S.)",
+      "promptpayQrUrl": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0865558888",
+      "minDeliveryAmount": 200,
+      "defaultCutoffTime": "11:30",
+      "menuItems": [
+        {
+          "id": "n1",
+          "name": "ก๋วยเตี๋ยวเรือน้ำตกหมูสด-หมูตุ๋น",
+          "nameEn": "Pork Boat Noodles with Thick Broth",
+          "price": 50,
+          "popular": true
+        },
+        {
+          "id": "n2",
+          "name": "บะหมี่แห้งเกี๊ยวหมูแดง",
+          "nameEn": "Egg Noodles with Pork Dumplings & BBQ Pork",
+          "price": 60,
+          "popular": true
+        },
+        {
+          "id": "n3",
+          "name": "เกี๊ยวหมูทอดกรอบ",
+          "nameEn": "Crispy Fried Dumplings",
+          "price": 35,
+          "popular": false
+        },
+        {
+          "id": "n4",
+          "name": "กากหมูเจียวหอมกรอบ",
+          "nameEn": "Crispy Pork Crackling",
+          "price": 20,
+          "popular": true
+        }
+      ]
+    }
+  ],
+  "batches": [
+    {
+      "id": "batch-today-01",
+      "shopId": "shop-auntie-nee",
+      "date": "2026-10-08",
+      "cutoffTime": "11:15",
+      "targetMinAmount": 200,
+      "status": "OPEN",
+      "createdAt": "2026-10-08T06:57:50.428Z",
+      "notes": "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของ V, M1-M4, Canteen, K"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-sample-1",
+      "orderNumber": 1,
+      "batchId": "batch-today-01",
+      "customerName": "สมชาย (Somchai)",
+      "customerPhone": "081-111-2222",
+      "locationId": "loc-m2",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "ข้าวกะเพราหมูกรอบ",
+          "price": 60,
+          "quantity": 1,
+          "customNote": "เผ็ดน้อย ไม่ใส่ถั่วฝักยาว"
+        },
+        {
+          "id": "item-2",
+          "name": "ไข่ดาวฟูกรอบ",
+          "price": 10,
+          "quantity": 1,
+          "customNote": "ไข่แดงไม่สุก"
+        }
+      ],
+      "totalAmount": 70,
+      "slipImageUrl": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
+      "createdAt": "2026-10-08T07:27:50.428Z",
+      "boxLabel": "#01 สมชาย (Somchai) - M2 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]"
+    },
+    {
+      "id": "ord-sample-2",
+      "orderNumber": 2,
+      "batchId": "batch-today-01",
+      "customerName": "อลิสา (Alice)",
+      "customerPhone": "089-333-4444",
+      "locationId": "loc-v",
+      "items": [
+        {
+          "id": "item-3",
+          "name": "ข้าวผัดหมู",
+          "price": 50,
+          "quantity": 1,
+          "customNote": "ขอน้ำปลาพริกเยอะๆ"
+        }
+      ],
+      "totalAmount": 50,
+      "slipImageUrl": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
+      "createdAt": "2026-10-08T07:42:50.428Z",
+      "boxLabel": "#02 อลิสา (Alice) - V Building [ข้าวผัดหมู]"
+    },
+    {
+      "id": "ord-1791446282662",
+      "orderNumber": 3,
+      "batchId": "batch-today-01",
+      "customerName": "ธีรพัฒน์ (Golf)",
+      "customerPhone": "082-999-8888",
+      "locationId": "loc-m1",
+      "items": [
+        {
+          "id": "item-1791446282662-0",
+          "name": "ข้าวผัดพริกแกงหมูกรอบ",
+          "price": 65,
+          "quantity": 1,
+          "customNote": "ขอเผ็ดปกติ"
+        },
+        {
+          "id": "item-1791446282662-1",
+          "name": "กากหมูเจียว",
+          "price": 20,
+          "quantity": 1
+        }
+      ],
+      "totalAmount": 85,
+      "slipImageUrl": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
+      "createdAt": "2026-10-08T07:58:02.662Z",
+      "boxLabel": "#03 ธีรพัฒน์ (Golf) - M1 [ข้าวผัดพริกแกงหมูกรอบ + กากหมูเจียว]"
+    }
+  ]
+}
