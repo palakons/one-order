@@ -21,6 +21,8 @@ import {
   Users,
   CheckCircle2,
   ShoppingBag,
+  X,
+  ChevronRight,
 } from "lucide-react";
 
 interface Props {
@@ -30,6 +32,22 @@ interface Props {
 export default function HomeClient({ initialBatches }: Props) {
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [showDesksModal, setShowDesksModal] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<any | null>(null);
+  const [dismissedOrder, setDismissedOrder] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("veatec_user_orders");
+      if (stored) {
+        const orders = JSON.parse(stored);
+        if (Array.isArray(orders) && orders.length > 0) {
+          setActiveOrder(orders[0]);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not read recent order", e);
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(fetchBatches, 4000);
@@ -51,6 +69,72 @@ export default function HomeClient({ initialBatches }: Props) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50/20 via-white to-gray-50 text-gray-900">
       <Navbar />
+
+      {/* Active Order Live Polling Sticky Bar */}
+      {activeOrder && !dismissedOrder && (() => {
+        const matchingBatch = batches.find((b) => b.id === activeOrder.batchId);
+        const status = matchingBatch ? matchingBatch.status : "OPEN";
+        const isCompleted = status === "COMPLETED";
+        const isDelivering = status === "DELIVERING";
+        const isCooking = status === "LOCKED";
+
+        const bgClass = isCompleted
+          ? "bg-gradient-to-r from-emerald-600 via-teal-700 to-purple-900 text-white shadow-md shadow-emerald-900/10"
+          : isDelivering
+          ? "bg-gradient-to-r from-blue-600 to-indigo-800 text-white shadow-md shadow-blue-900/10"
+          : isCooking
+          ? "bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-md shadow-amber-900/10"
+          : "bg-gradient-to-r from-purple-900 via-purple-800 to-[#B4213A] text-white shadow-md shadow-purple-900/10";
+
+        const titleText = isCompleted
+          ? `🎉 ข้าวของคุณส่งถึงตึก M4 แล้ว! (#${activeOrder.orderNumber} ${activeOrder.customerName})`
+          : isDelivering
+          ? `🛵 ไรเดอร์กำลังเดินทางมาส่งที่ตึก M4 (${activeOrder.shopName})`
+          : isCooking
+          ? `👨‍🍳 ร้านกำลังปรุงอาหาร (${activeOrder.shopName})`
+          : `⏳ ออเดอร์ #${activeOrder.orderNumber} บันทึกแล้ว (${activeOrder.shopName})`;
+
+        const subText = isCompleted
+          ? `ป้ายกล่อง: ${activeOrder.boxLabel || 'ตึก M4'} • แตะเพื่อดูรูปถ่าย & ไปรับข้าว ➔`
+          : isDelivering
+          ? `กำลังนำอาหารมาที่โต๊ะรับของชั้น 1 ตึก M4 • แตะดูสถานะ ➔`
+          : isCooking
+          ? `ครัวกำลังทำตามคิว • แตะดูสถานะ ➔`
+          : `รอปิดรอบเวลา ${matchingBatch?.cutoffTime || '11:15'} น. • แตะดูรายละเอียด ➔`;
+
+        return (
+          <div className="sticky top-14 z-30 w-full px-2 sm:px-4 py-1.5 transition-all animate-in fade-in slide-in-from-top-2">
+            <div className={`mx-auto max-w-4xl rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 ${bgClass}`}>
+              <Link href="/orders" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-95">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white shrink-0 backdrop-blur-xs">
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-5 w-5 animate-pulse" />
+                  ) : isDelivering ? (
+                    <Truck className="h-5 w-5" />
+                  ) : isCooking ? (
+                    <ChefHat className="h-5 w-5" />
+                  ) : (
+                    <Clock className="h-5 w-5" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="text-xs sm:text-sm font-black truncate">{titleText}</div>
+                  <div className="text-[11px] text-white/85 truncate">{subText}</div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-white/70 shrink-0 hidden sm:block" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDismissedOrder(true)}
+                className="rounded-lg p-1 text-white/70 hover:text-white hover:bg-white/10 shrink-0 transition-colors"
+                title="ซ่อนแถบแจ้งเตือน"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Top Banner: VEATEC Brand & 1-2-3 Steps Flow */}
       <section className="border-b border-purple-100/70 bg-gradient-to-b from-purple-50/50 via-white to-transparent px-3 py-5 sm:py-7">
