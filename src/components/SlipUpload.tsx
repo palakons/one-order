@@ -30,16 +30,16 @@ export default function SlipUpload({ onFileSelect, selectedFile }: Props) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-          <span>Upload Transfer Slip (สลิปโอนเงิน)</span>
+        <label className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1">
+          <span>แนบสลิปโอนเงิน PromptPay</span>
           <span className="text-rose-500">*</span>
         </label>
         {selectedFile && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-            <CheckCircle className="h-3.5 w-3.5" />
-            Slip Attached
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <CheckCircle className="h-3 w-3" />
+            แนบสลิปแล้ว
           </span>
         )}
       </div>
@@ -53,38 +53,38 @@ export default function SlipUpload({ onFileSelect, selectedFile }: Props) {
       />
 
       {previewUrl ? (
-        <div className="relative overflow-hidden rounded-xl border-2 border-emerald-500 bg-emerald-50/20 p-3">
-          <div className="flex items-center gap-4">
-            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+        <div className="relative overflow-hidden rounded-xl border-2 border-emerald-500 bg-emerald-50/30 p-2.5">
+          <div className="flex items-center gap-3">
+            <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-2xs">
               <img
                 src={previewUrl}
-                alt="Transfer Slip Preview"
+                alt="สลิปโอนเงิน"
                 className="h-full w-full object-cover"
               />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                <CheckCircle className="h-4 w-4 shrink-0" />
-                <span className="truncate">{selectedFile?.name || "Slip uploaded"}</span>
+              <div className="flex items-center gap-1 text-xs font-bold text-emerald-800">
+                <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{selectedFile?.name || "สลิปโอนเงิน"}</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                {(selectedFile ? (selectedFile.size / 1024).toFixed(0) : "0")} KB · Ready for verification
+              <p className="mt-0.5 text-[11px] text-gray-500">
+                {(selectedFile ? (selectedFile.size / 1024).toFixed(0) : "0")} KB · พร้อมส่งตรวจสอบ
               </p>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-2.5 flex gap-2">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                 >
-                  Change Photo
+                  เปลี่ยนรูป
                 </button>
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                 >
                   <Trash2 className="h-3 w-3" />
-                  Remove
+                  ลบออก
                 </button>
               </div>
             </div>
@@ -93,22 +93,18 @@ export default function SlipUpload({ onFileSelect, selectedFile }: Props) {
       ) : (
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 p-6 transition-all hover:border-orange-500 hover:bg-orange-50/20"
+          className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-4 transition-all hover:border-orange-500 hover:bg-orange-50/30 active:scale-[0.99]"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600 group-hover:scale-110 transition-transform">
-            <Camera className="h-6 w-6" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 text-orange-600 group-hover:scale-105 transition-transform">
+            <Camera className="h-5 w-5" />
           </div>
-          <div className="mt-3 text-center">
-            <p className="text-sm font-bold text-gray-800 group-hover:text-orange-600 transition-colors">
-              Tap to take photo or choose slip
+          <div className="mt-2 text-center">
+            <p className="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-orange-600 transition-colors">
+              กดเพื่อเลือกรูปสลิป หรือ ถ่ายรูป
             </p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              PNG, JPG, HEIC from mobile banking app
+            <p className="mt-0.5 text-[11px] text-gray-500">
+              รูปสลิปจากแอปธนาคาร (ย่อขนาดอัตโนมัติ ไม่เปลืองเน็ต)
             </p>
-          </div>
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs group-hover:border-orange-300">
-            <UploadCloud className="h-3.5 w-3.5 text-orange-600" />
-            <span>Select Slip Image</span>
           </div>
         </div>
       )}
