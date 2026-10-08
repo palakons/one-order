@@ -16,147 +16,207 @@ export default function VeatecLogo({
   variant = "horizontal",
 }: Props) {
   // Brand Colors from VISTEC CI
-  const VISTEC_PURPLE = "#5D3085";
-  const VISTEC_RED = "#B4213A";
-
-  if (variant === "icon-only") {
-    const iconSize = size === "sm" ? 28 : size === "lg" ? 44 : size === "xl" ? 56 : 36;
-    return (
-      <svg
-        width={iconSize}
-        height={iconSize}
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`shrink-0 ${className}`}
-      >
-        {/* Geometric Hexagonal Shield with subtle food curve */}
-        <defs>
-          <linearGradient id="veatec-grad-p" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#6C399B" />
-            <stop offset="100%" stopColor="#5D3085" />
-          </linearGradient>
-          <linearGradient id="veatec-grad-r" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#C92A45" />
-            <stop offset="100%" stopColor="#B4213A" />
-          </linearGradient>
-        </defs>
-
-        {/* Background rounded squircle / geometric tile */}
-        <rect width="100" height="100" rx="24" fill="#FAF7FB" stroke="#EFE6F3" strokeWidth="2" />
-
-        {/* Geometric V Outer Facets (Purple) */}
-        {/* Left wing of geometric V */}
-        <path
-          d="M20 22 L38 22 L50 62 L40 62 Z"
-          fill={VISTEC_PURPLE}
-        />
-        {/* Right wing of geometric V (Red) */}
-        <path
-          d="M80 22 L62 22 L50 62 L60 62 Z"
-          fill={VISTEC_RED}
-        />
-
-        {/* Subtle curve in otherwise geometric: The Smiling Dining Bowl Arc */}
-        <path
-          d="M26 62 Q50 86 74 62"
-          stroke={VISTEC_RED}
-          strokeWidth="7"
-          strokeLinecap="round"
-          fill="none"
-        />
-
-        {/* Center food dot / steam accent */}
-        <circle cx="50" cy="40" r="5" fill={VISTEC_RED} />
-      </svg>
-    );
-  }
+  const VISTEC_PURPLE = "#5D3085"; // Deep Purple
+  const VISTEC_RED = "#B4213A"; // Crimson Red
 
   // Text scaling factors
   const isSm = size === "sm";
+  const isMd = size === "md";
   const isLg = size === "lg";
   const isXl = size === "xl";
 
-  const iconDim = isSm ? 32 : isLg ? 44 : isXl ? 52 : 38;
+  const iconDim = isSm ? 32 : isLg ? 46 : isXl ? 56 : 40;
+  const wordFontSize = isSm ? "1.25rem" : isLg ? "1.9rem" : isXl ? "2.4rem" : "1.55rem";
+
+  // Reusable SVG Icon: Geometric VISTEC V with the "Fun Eat / Happy Food Smile" inside!
+  const LogoIcon = ({ dim }: { dim: number }) => (
+    <svg
+      width={dim}
+      height={dim}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0 drop-shadow-2xs select-none"
+    >
+      <defs>
+        {/* Soft appetizing glow */}
+        <linearGradient id="veatec-tile-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FCF8FE" />
+          <stop offset="100%" stopColor="#F8EEF5" />
+        </linearGradient>
+      </defs>
+
+      {/* Rounded Squircle Tile */}
+      <rect
+        width="100"
+        height="100"
+        rx="24"
+        fill="url(#veatec-tile-grad)"
+        stroke="#EBE0F0"
+        strokeWidth="2.5"
+      />
+
+      {/* 1. Geometric University Wings (VISTEC "V") */}
+      {/* Left geometric arm (VISTEC Purple) */}
+      <path
+        d="M17 22 L34 22 L46 64 L33 64 Z"
+        fill={VISTEC_PURPLE}
+      />
+
+      {/* Right geometric arm (VISTEC Crimson) */}
+      <path
+        d="M83 22 L66 22 L54 64 L67 64 Z"
+        fill={VISTEC_RED}
+      />
+
+      {/* 2. THE FUN EAT INSIDE: Smiling Dining Bowl & Happy Face */}
+      {/* Translucent delicious bowl interior */}
+      <path
+        d="M26 56 Q50 86 74 56 Z"
+        fill={VISTEC_RED}
+        fillOpacity="0.14"
+      />
+
+      {/* Smiling Dining Bowl Bottom Arc (Happy Smile Curve) */}
+      <path
+        d="M25 56 Q50 86 75 56"
+        stroke={VISTEC_RED}
+        strokeWidth="6.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Cute Little Tongue (Yum / Delicious Bite) */}
+      <path
+        d="M45 68 Q50 78 55 68 Z"
+        fill={VISTEC_RED}
+      />
+
+      {/* Two Happy Cheerful Eyes inside the V (Playful Anime Yum Face: ^ ^) */}
+      <path
+        d="M37 42 Q41 35 45 42"
+        stroke={VISTEC_PURPLE}
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M55 42 Q59 35 63 42"
+        stroke={VISTEC_RED}
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Rising Steam Wisps (Hot & Fresh Food) */}
+      <path
+        d="M45 23 Q42 16 46 12"
+        stroke={VISTEC_PURPLE}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        fill="none"
+        strokeOpacity="0.85"
+      />
+      <path
+        d="M55 23 Q58 16 54 12"
+        stroke={VISTEC_RED}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        fill="none"
+        strokeOpacity="0.85"
+      />
+
+      {/* Tiny appetizing sparkle dot */}
+      <circle cx="50" cy="27" r="2" fill="#E8604C" />
+    </svg>
+  );
+
+  if (variant === "icon-only") {
+    return <LogoIcon dim={iconDim} />;
+  }
 
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* Brand Icon: Geometric V + Dining Smile Arc */}
-      <svg
-        width={iconDim}
-        height={iconDim}
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="shrink-0 drop-shadow-2xs"
-      >
-        <rect width="100" height="100" rx="22" fill="#FAF6FB" stroke="#EDE4F2" strokeWidth="2.5" />
-        
-        {/* Left geometric arm: VISTEC Purple */}
-        <path d="M22 24 L38 24 L49 60 L37 60 Z" fill={VISTEC_PURPLE} />
+      {/* Visual Icon: V with Fun Eat Inside */}
+      <LogoIcon dim={iconDim} />
 
-        {/* Right geometric arm: VISTEC Crimson */}
-        <path d="M78 24 L62 24 L51 60 L63 60 Z" fill={VISTEC_RED} />
-
-        {/* Subtle curve: Dining Bowl / Smile Arc */}
-        <path
-          d="M25 60 Q50 85 75 60"
-          stroke={VISTEC_RED}
-          strokeWidth="6.5"
-          strokeLinecap="round"
-          fill="none"
-        />
-
-        {/* Golden/Warm accent dot in center */}
-        <circle cx="50" cy="42" r="5" fill={VISTEC_PURPLE} />
-      </svg>
-
-      {/* Brand Wordmark & CI Subtitle */}
-      <div className="flex flex-col justify-center">
-        {/* VEATEC Wordmark */}
+      {/* Brand Wordmark: V · EAT · EC */}
+      <div className="flex flex-col justify-center text-left">
+        {/* Wordmark row emphasizing the FUN "EAT" in the middle */}
         <div className="flex items-baseline leading-none font-black tracking-tight">
-          {/* VEA in VISTEC Purple */}
+          {/* 'V' (VISTEC Tech Purple) */}
           <span
-            className="tracking-tighter"
+            className="tracking-tighter transition-colors"
             style={{
               color: VISTEC_PURPLE,
-              fontSize: isSm ? "1.25rem" : isLg ? "1.85rem" : isXl ? "2.25rem" : "1.5rem",
+              fontSize: wordFontSize,
               fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              letterSpacing: "-0.03em",
             }}
           >
-            VEA
-          </span>
-          {/* TEC in VISTEC Crimson */}
-          <span
-            className="tracking-tighter relative"
-            style={{
-              color: VISTEC_RED,
-              fontSize: isSm ? "1.25rem" : isLg ? "1.85rem" : isXl ? "2.25rem" : "1.5rem",
-              fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              letterSpacing: "-0.03em",
-            }}
-          >
-            TEC
+            V
           </span>
 
-          {/* Badge: VISTEC EATS */}
+          {/* 'EAT' (FUN, BOLD, APPETIZING CRIMSON WITH FOOD SMILE ARC!) */}
+          <span className="relative inline-flex flex-col items-center mx-0.5 group">
+            {/* Playful mini food steam sparkle indicator on hover/display */}
+            <span
+              className="relative z-10 font-black tracking-tight italic"
+              style={{
+                color: VISTEC_RED,
+                fontSize: wordFontSize,
+                fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                textShadow: "0 1px 2px rgba(180, 33, 58, 0.15)",
+              }}
+            >
+              EAT
+            </span>
+
+            {/* Cheerful dining smile curve directly under EAT */}
+            <svg
+              className="absolute -bottom-1.5 w-[92%] h-2 text-[#B4213A]"
+              viewBox="0 0 36 7"
+              fill="none"
+            >
+              <path
+                d="M2 1.5 Q18 7 34 1.5"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+
+          {/* 'EC' (VISTEC Tech Purple) */}
           <span
-            className="ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
+            className="tracking-tighter transition-colors"
             style={{
-              backgroundColor: "#FBECEE",
+              color: VISTEC_PURPLE,
+              fontSize: wordFontSize,
+              fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            }}
+          >
+            EC
+          </span>
+
+          {/* Fun Tag Badge: V · EAT · TEC */}
+          <span
+            className="ml-2 rounded-full px-1.5 sm:px-2 py-0.5 font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-2xs self-center"
+            style={{
+              fontSize: isSm ? "8px" : "9px",
+              backgroundColor: "#FCECEF",
               color: VISTEC_RED,
               border: "1px solid #F5CDD3",
             }}
           >
-            Eats
+            <span>V·EAT·TEC</span>
+            <span className="text-[10px] leading-none">😋</span>
           </span>
         </div>
 
-        {/* Subtitle in VISTEC CI Tracked Style */}
+        {/* Subtitle with VISTEC CI Tracked Style */}
         {showSubtitle && (
           <div
-            className="flex items-center gap-1 mt-0.5 font-bold uppercase tracking-widest leading-none"
+            className="flex items-center gap-1.5 mt-0.5 font-bold uppercase tracking-widest leading-none"
             style={{
               fontSize: isSm ? "8px" : isLg ? "10px" : "9px",
               color: VISTEC_PURPLE,
@@ -165,7 +225,7 @@ export default function VeatecLogo({
           >
             <span>VISTEC</span>
             <span style={{ color: VISTEC_RED }}>·</span>
-            <span>Campus Food Pool</span>
+            <span>CAMPUS FOOD POOL</span>
           </div>
         )}
       </div>
