@@ -24,7 +24,8 @@ const SEED_DATA: DatabaseSchema = {
       lineId: "auntie_nee_food",
       promptpayNumber: "0819876543",
       promptpayAccountName: "สมณี ใจอารีย์ (Somnee J.)",
-      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0819876543",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=0819876543",
+      menuImageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:15",
       menuItems: [
@@ -48,7 +49,8 @@ const SEED_DATA: DatabaseSchema = {
       lineId: "chai_chickenrice",
       promptpayNumber: "0891234567",
       promptpayAccountName: "สมชาย วัฒนากูล (Somchai W.)",
-      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0891234567",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=0891234567",
+      menuImageUrl: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:20",
       menuItems: [
@@ -69,7 +71,8 @@ const SEED_DATA: DatabaseSchema = {
       lineId: "maewan_noodles",
       promptpayNumber: "0865558888",
       promptpayAccountName: "วรรณเพ็ญ ศรีสุข (Wanpen S.)",
-      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0865558888",
+      promptpayQrUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=0865558888",
+      menuImageUrl: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:30",
       menuItems: [

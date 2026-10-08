@@ -49,6 +49,8 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [shopLineId, setShopLineId] = useState("");
   const [shopPromptPayNumber, setShopPromptPayNumber] = useState("");
   const [shopPromptPayName, setShopPromptPayName] = useState("");
+  const [shopPromptPayQrUrl, setShopPromptPayQrUrl] = useState("");
+  const [shopMenuImageUrl, setShopMenuImageUrl] = useState("");
   const [shopMinDelivery, setShopMinDelivery] = useState("200");
   const [shopMenuItems, setShopMenuItems] = useState<Array<{ name: string; price: number; popular: boolean }>>([
     { name: "ข้าวกะเพราหมูกรอบ", price: 60, popular: true },
@@ -146,6 +148,8 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           lineId: shopLineId.trim(),
           promptpayNumber: shopPromptPayNumber.trim(),
           promptpayAccountName: shopPromptPayName.trim(),
+          promptpayQrUrl: shopPromptPayQrUrl.trim() || undefined,
+          menuImageUrl: shopMenuImageUrl.trim() || undefined,
           minDeliveryAmount: Number(shopMinDelivery) || 200,
           menuItems: shopMenuItems.map((it, idx) => ({
             id: `dish-${Date.now()}-${idx}`,
@@ -163,6 +167,8 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
       setShopName("");
       setShopPromptPayNumber("");
       setShopPromptPayName("");
+      setShopPromptPayQrUrl("");
+      setShopMenuImageUrl("");
       setShopPhone("");
       setActiveTab("batches");
       refreshData();
@@ -503,6 +509,39 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700">
+                    Official PromptPay QR Image URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://... (leave blank to auto-generate from PromptPay ID)"
+                    value={shopPromptPayQrUrl}
+                    onChange={(e) => setShopPromptPayQrUrl(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-900 focus:outline-blue-500"
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    หากไม่ใส่ ระบบจะสร้าง QR code อัตโนมัติจากเบอร์พร้อมเพย์
+                  </p>
+                </div>
+              </div>
+
+              {/* Official Menu Photo Box */}
+              <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 space-y-2">
+                <label className="text-xs font-bold text-orange-950 uppercase tracking-wide block">
+                  Official Shop Menu Photo URL (ภาพถ่ายป้ายเมนูจริงของร้าน)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://... (URL ภาพถ่ายป้ายเมนูจริงของร้าน)"
+                  value={shopMenuImageUrl}
+                  onChange={(e) => setShopMenuImageUrl(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-900 focus:outline-orange-500"
+                />
+                <p className="text-[11px] text-gray-500">
+                  💡 ลูกค้าจะเห็นภาพนี้บนหน้าสั่งอาหาร และสามารถกดขยายดูเมนูจริงและราคาปัจจุบันได้
+                </p>
               </div>
 
               {/* Initial Menu Dishes */}

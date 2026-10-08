@@ -18,6 +18,7 @@ export interface Shop {
   promptpayNumber: string;
   promptpayAccountName: string;
   promptpayQrUrl?: string;
+  menuImageUrl?: string;
   minDeliveryAmount: number; // default 200 THB
   defaultCutoffTime: string; // e.g. "11:15"
   menuItems: MenuItem[];

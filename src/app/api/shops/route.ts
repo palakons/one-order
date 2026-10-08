@@ -23,6 +23,8 @@ export async function POST(request: Request) {
       lineId,
       promptpayNumber,
       promptpayAccountName,
+      promptpayQrUrl,
+      menuImageUrl,
       minDeliveryAmount,
       defaultCutoffTime,
       menuItems,
@@ -45,7 +47,10 @@ export async function POST(request: Request) {
       lineId: lineId || "",
       promptpayNumber,
       promptpayAccountName,
-      promptpayQrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${promptpayNumber}`,
+      promptpayQrUrl:
+        promptpayQrUrl ||
+        `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${promptpayNumber}`,
+      menuImageUrl: menuImageUrl || "",
       minDeliveryAmount: Number(minDeliveryAmount) || 200,
       defaultCutoffTime: defaultCutoffTime || "11:15",
       menuItems: menuItems || [],
