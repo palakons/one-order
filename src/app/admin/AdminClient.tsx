@@ -20,7 +20,12 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
+  MapPin,
+  Building2,
+  Copy,
+  Check,
 } from "lucide-react";
+import { CAMPUS_LOCATIONS } from "@/lib/locations";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -28,7 +33,8 @@ interface Props {
 }
 
 export default function AdminClient({ initialBatches, initialShops }: Props) {
-  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop">("batches");
+  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks">("batches");
+  const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [shops, setShops] = useState<Shop[]>(initialShops);
   const [loading, setLoading] = useState(false);
@@ -220,12 +226,12 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-200 gap-2">
+        <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
           <button
             onClick={() => setActiveTab("batches")}
-            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === "batches"
-                ? "border-orange-600 text-orange-600"
+                ? "border-purple-800 text-purple-900"
                 : "border-transparent text-gray-500 hover:text-gray-800"
             }`}
           >
@@ -233,9 +239,9 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           </button>
           <button
             onClick={() => setActiveTab("newBatch")}
-            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === "newBatch"
-                ? "border-orange-600 text-orange-600"
+                ? "border-purple-800 text-purple-900"
                 : "border-transparent text-gray-500 hover:text-gray-800"
             }`}
           >
@@ -243,13 +249,24 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           </button>
           <button
             onClick={() => setActiveTab("newShop")}
-            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === "newShop"
-                ? "border-orange-600 text-orange-600"
+                ? "border-purple-800 text-purple-900"
                 : "border-transparent text-gray-500 hover:text-gray-800"
             }`}
           >
             + Onboard Shop (BD)
+          </button>
+          <button
+            onClick={() => setActiveTab("desks")}
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "desks"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <MapPin className="h-4 w-4" />
+            <span>Campus Desks (จุดรับข้าว 7 ตึก)</span>
           </button>
         </div>
 
@@ -602,6 +619,140 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                 {creatingShop ? "Saving Shop..." : "Save & Onboard Shop"}
               </button>
             </form>
+          </div>
+        )}
+
+        {/* Tab 4: Campus Desks Management */}
+        {activeTab === "desks" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-purple-700" />
+                  <span>โต๊ะรับอาหารประจำอาคาร VISTEC (7 Campus Desks)</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  จุดวางอาหารส่วนกลางสำหรับไรเดอร์และร้านค้า พร้อมป้ายรหัสย่อสำหรับติดหน้ากล่อง
+                </p>
+              </div>
+
+              {/* Copy all desks guide for Rider / LINE */}
+              <button
+                type="button"
+                onClick={() => {
+                  const guideText = `📍 [VEATEC] คู่มือจุดส่งอาหาร VISTEC (7 ตึก):\n` +
+                    CAMPUS_LOCATIONS.map(
+                      (l) => `• [${l.shortCode}] ${l.name}: ${l.deskDetail}`
+                    ).join("\n") +
+                    `\n\n⚠️ คำแนะนำไรเดอร์: นำกล่องอาหารวางแยกตามป้ายรหัสตึก และถ่ายรูปโต๊ะส่งเข้า LINE หลังจากส่งครบ`;
+                  navigator.clipboard.writeText(guideText);
+                  setCopiedDesk("ALL");
+                  setTimeout(() => setCopiedDesk(null), 2500);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs self-start sm:self-auto"
+              >
+                {copiedDesk === "ALL" ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    <span>คัดลอกคู่มือส่งร้านแล้ว!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    <span>คัดลอกคู่มือส่งร้าน/ไรเดอร์ (LINE)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Desks Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {CAMPUS_LOCATIONS.map((loc) => {
+                const isCopied = copiedDesk === loc.id;
+                return (
+                  <div
+                    key={loc.id}
+                    className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:shadow-sm transition-all space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black text-white shadow-xs ${loc.color}`}
+                        >
+                          {loc.shortCode}
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-sm text-gray-900">{loc.name}</h3>
+                          <p className="text-[11px] text-gray-500">{loc.description}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const singleText = `📍 [${loc.shortCode}] ${loc.name}: ${loc.deskDetail}`;
+                          navigator.clipboard.writeText(singleText);
+                          setCopiedDesk(loc.id);
+                          setTimeout(() => setCopiedDesk(null), 2000);
+                        }}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                        title="คัดลอกพิกัดจุดส่งนี้"
+                      >
+                        {isCopied ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Desk details */}
+                    <div className="rounded-xl bg-purple-50/50 border border-purple-100 p-2.5 space-y-1">
+                      <div className="text-[10px] font-bold text-purple-900 uppercase tracking-wide">
+                        ตำแหน่งโต๊ะวางอาหาร (Desk Details):
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800 leading-relaxed">
+                        {loc.deskDetail}
+                      </p>
+                    </div>
+
+                    {/* Desk photo */}
+                    <div className="relative h-36 w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                      <img
+                        src={loc.photoUrl}
+                        alt={`Campus Desk ${loc.name}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute bottom-2 left-2 rounded-md bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-semibold text-white">
+                        รหัสกล่อง: [{loc.shortCode}-XX]
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Coordinator Workflow Tips */}
+            <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 sm:p-5 space-y-2">
+              <h3 className="text-xs sm:text-sm font-bold text-purple-950 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-purple-700" />
+                <span>ขั้นตอนการทำงานสำหรับผู้ดูแลระบบ & ไรเดอร์ (Standard Operating Procedure)</span>
+              </h3>
+              <ol className="text-xs text-purple-900 space-y-1.5 list-decimal list-inside leading-relaxed pl-1">
+                <li>
+                  <strong>11:15 น. (ปิดรอบ):</strong> แอดมินหรือระบบสรุปยอด หากยอดถึงขั้นต่ำ ระบบจะแจ้งเตือนพร้อมส่งลิงก์ใบออเดอร์ครัวให้ร้าน
+                </li>
+                <li>
+                  <strong>การติดป้ายกล่อง:</strong> ให้ร้านเขียนรหัสตึกตามป้าย เช่น <code>[M2-01] สมชาย</code> เพื่อความสะดวกในการคัดแยก
+                </li>
+                <li>
+                  <strong>การวางอาหาร:</strong> ไรเดอร์นำอาหารไปวางไว้บนโต๊ะรับอาหารประจำแต่ละอาคาร ไม่ต้องโทรตามทีละคน
+                </li>
+                <li>
+                  <strong>แจ้งเสร็จสิ้น:</strong> ร้านค้าหรือไรเดอร์เปิดหน้าออเดอร์ กดปุ่ม <em>"4. Completed"</em> ถ่ายรูปอาหารบนโต๊ะ 1 รูป แล้วกด <em>"แจ้ง LINE: อาหารส่งถึงโต๊ะแล้ว"</em> เพื่อแจ้งเตือนนักศึกษา/อาจารย์ในกลุ่มทันที
+                </li>
+              </ol>
+            </div>
           </div>
         )}
       </div>

@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { getBatches, getShops } from "@/lib/store";
 import AdminClient from "./AdminClient";
 
 async function AdminDataLoader() {
+  await connection();
   const [batches, shops] = await Promise.all([
     getBatches(),
     getShops(),

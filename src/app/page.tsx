@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { getBatches } from "@/lib/store";
 import HomeClient from "./HomeClient";
 
 async function HomeDataLoader() {
+  await connection();
   const batches = await getBatches();
   return <HomeClient initialBatches={batches} />;
 }

@@ -26,13 +26,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, deliveryPhotoUrl } = body;
 
     if (!status) {
       return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
     }
 
-    const updated = await updateBatchStatus(id, status as BatchStatus);
+    const updated = await updateBatchStatus(id, status as BatchStatus, deliveryPhotoUrl);
     if (!updated) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }

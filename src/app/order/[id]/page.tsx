@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { getBatchById } from "@/lib/store";
 import OrderPageClient from "./OrderPageClient";
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 async function OrderPageLoader({ params }: Props) {
+  await connection();
   const { id } = await params;
   const initialBatch = await getBatchById(id);
   return <OrderPageClient batchId={id} initialBatch={initialBatch || null} />;

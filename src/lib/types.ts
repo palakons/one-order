@@ -57,6 +57,8 @@ export interface Batch {
   status: BatchStatus;
   createdAt: string;
   notes?: string;
+  deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk
+  deliveredAt?: string; // ISO string when food was placed at campus desks
 }
 
 export interface BatchWithDetails extends Batch {

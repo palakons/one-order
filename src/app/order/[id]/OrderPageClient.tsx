@@ -79,6 +79,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     return () => clearInterval(interval);
   }, [batchId]);
 
+  useEffect(() => {
+    try {
+      const savedPhone = localStorage.getItem("veatec_user_phone");
+      const savedName = localStorage.getItem("veatec_user_name");
+      if (savedPhone) setCustomerPhone(savedPhone);
+      if (savedName) setCustomerName(savedName);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   const fetchBatch = async () => {
     try {
       const res = await fetch(`/api/batches/${batchId}`);
@@ -198,6 +209,31 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         origin: { y: 0.6 },
       });
 
+      // Save order to localStorage for zero-login tracking
+      try {
+        const savedOrders = JSON.parse(localStorage.getItem("veatec_user_orders") || "[]");
+        savedOrders.unshift({
+          orderId: result.order.id,
+          batchId: result.batch.id,
+          shopName: result.batch.shop.name,
+          date: result.batch.date,
+          orderNumber: result.order.orderNumber,
+          customerName: result.order.customerName,
+          customerPhone: result.order.customerPhone,
+          locationId: result.order.locationId,
+          totalAmount: result.order.totalAmount,
+          boxLabel: result.order.boxLabel,
+          slipImageUrl: result.order.slipImageUrl,
+          items: result.order.items,
+          createdAt: result.order.createdAt,
+        });
+        localStorage.setItem("veatec_user_orders", JSON.stringify(savedOrders.slice(0, 30)));
+        localStorage.setItem("veatec_user_phone", customerPhone.trim());
+        localStorage.setItem("veatec_user_name", customerName.trim());
+      } catch (e) {
+        console.warn("Could not save to localStorage", e);
+      }
+
       setCompletedOrder(result.order);
       setBatch(result.batch);
     } catch (err: any) {
@@ -297,15 +333,15 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
               <Link
-                href={`/shop/${batch.id}`}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-2xs"
+                href="/orders"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-2xs transition-colors"
               >
-                <span>ดูใบส่งครัว & ตรวจสอบสลิป</span>
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ShoppingBag className="h-4 w-4" />
+                <span>ติดตามใน "ออเดอร์ของฉัน"</span>
               </Link>
               <Link
                 href="/"
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-orange-700 shadow-2xs"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-2xs"
               >
                 <span>กลับหน้าหลัก</span>
               </Link>

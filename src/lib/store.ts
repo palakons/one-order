@@ -361,10 +361,22 @@ export async function createBatch(batchData: {
   return enrichBatch(newBatch, data);
 }
 
-export async function updateBatchStatus(batchId: string, status: BatchStatus): Promise<BatchWithDetails | undefined> {
+export async function updateBatchStatus(
+  batchId: string,
+  status: BatchStatus,
+  deliveryPhotoUrl?: string
+): Promise<BatchWithDetails | undefined> {
+  const updatePayload: Record<string, any> = { status };
+  if (deliveryPhotoUrl) {
+    updatePayload.deliveryPhotoUrl = deliveryPhotoUrl;
+    updatePayload.deliveredAt = new Date().toISOString();
+  } else if (status === "COMPLETED") {
+    updatePayload.deliveredAt = new Date().toISOString();
+  }
+
   if (isFirebaseConfigured && db) {
     try {
-      await updateDoc(doc(db, "batches", batchId), { status });
+      await updateDoc(doc(db, "batches", batchId), updatePayload);
       return getBatchById(batchId);
     } catch (err) {
       console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
@@ -375,6 +387,12 @@ export async function updateBatchStatus(batchId: string, status: BatchStatus): P
   const batch = data.batches.find((b) => b.id === batchId);
   if (!batch) return undefined;
   batch.status = status;
+  if (deliveryPhotoUrl) {
+    batch.deliveryPhotoUrl = deliveryPhotoUrl;
+    batch.deliveredAt = new Date().toISOString();
+  } else if (status === "COMPLETED") {
+    batch.deliveredAt = new Date().toISOString();
+  }
   await writeData(data);
   return enrichBatch(batch, data);
 }

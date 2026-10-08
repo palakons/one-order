@@ -227,12 +227,13 @@ export async function placeOrder(orderData: {
 // -------------------------------------------------------------
 export async function changeBatchStatus(
   batchId: string,
-  status: BatchStatus
+  status: BatchStatus,
+  deliveryPhotoUrl?: string
 ): Promise<BatchWithDetails> {
   const res = await fetch(`/api/batches/${batchId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, deliveryPhotoUrl }),
   });
 
   const data = await res.json();
