@@ -16,20 +16,83 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getLocationById } from "./locations";
 
 // -------------------------------------------------------------
-// Image / Slip Upload Handler
+// Image / Slip Compression and Upload Handler
 // -------------------------------------------------------------
+export async function compressImage(
+  file: File,
+  maxWidth = 800,
+  quality = 0.72
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.FileReader) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => {
+        // Fallback to original data URL if image rendering fails
+        resolve(event.target?.result as string);
+      };
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
 export async function uploadSlipImage(file: File): Promise<string> {
-  if (isFirebaseConfigured && storage) {
+  // Always compress the slip first in-browser (~60-80 KB)
+  let compressedDataUrl = "";
+  try {
+    compressedDataUrl = await compressImage(file, 800, 0.72);
+  } catch (err) {
+    console.warn("Slip compression failed, will fallback:", err);
+  }
+
+  // If Firebase Storage is configured and on Blaze plan, attempt bucket upload
+  if (isFirebaseConfigured && storage && compressedDataUrl) {
     try {
-      const ext = file.name.split(".").pop() || "jpg";
+      const ext = "jpg";
       const filename = `slips/slip_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
       const storageRef = ref(storage, filename);
-      const snapshot = await uploadBytes(storageRef, file);
+      const res = await fetch(compressedDataUrl);
+      const blob = await res.blob();
+      const snapshot = await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const downloadUrl = await getDownloadURL(snapshot.ref);
       return downloadUrl;
     } catch (err) {
-      console.warn("Firebase Storage upload failed, falling back to local API:", err);
+      console.warn(
+        "Firebase Storage upload failed (Spark tier requires Blaze for bucket). Saving compressed base64 directly into Firestore:",
+        err
+      );
     }
+  }
+
+  // Spark Tier $0 Mode: return the compressed base64 Data URL directly!
+  // Firestore documents support up to 1 MB, and ~60-80 KB fits easily with 0 extra cost & 0 setup.
+  if (compressedDataUrl) {
+    return compressedDataUrl;
   }
 
   // Fallback to local upload endpoint
