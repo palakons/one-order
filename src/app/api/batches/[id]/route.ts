@@ -45,6 +45,15 @@ export async function PATCH(
         const protocol = request.headers.get("x-forwarded-proto") || "https";
         const manifestUrl = `${protocol}://${hostHeader}/shop/${updated.id}`;
 
+        let photoUrlForLine: string | undefined = undefined;
+        if (updated.deliveryPhotoUrl) {
+          if (updated.deliveryPhotoUrl.startsWith("http")) {
+            photoUrlForLine = updated.deliveryPhotoUrl;
+          } else {
+            photoUrlForLine = `${protocol}://${hostHeader}/api/batches/${updated.id}/photo`;
+          }
+        }
+
         const broadcastText = `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะตึก M4 แล้วครับ! ✨\n` +
           `ร้าน: ${updated.shop.name} (${updated.orders.length} กล่อง)\n` +
           `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ตึก M4 เรียบร้อยแล้ว\n\n` +
@@ -52,7 +61,7 @@ export async function PATCH(
           `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
 
         // Push to LINE group if configured (non-blocking)
-        pushLineMessage(broadcastText, deliveryPhotoUrl).catch((err) => {
+        pushLineMessage(broadcastText, photoUrlForLine).catch((err) => {
           console.warn("Auto LINE broadcast on delivery error:", err);
         });
       } catch (err) {
