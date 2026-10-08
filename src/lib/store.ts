@@ -252,18 +252,15 @@ async function ensureFirestoreSeeded(): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   try {
     const shopsSnap = await getDocs(collection(db, "shops"));
-    if (shopsSnap.empty) {
-      // Seed shops
+    if (shopsSnap.size < SEED_DATA.shops.length) {
       for (const shop of SEED_DATA.shops) {
-        await setDoc(doc(db, "shops", shop.id), shop);
+        await setDoc(doc(db, "shops", shop.id), shop, { merge: true });
       }
-      // Seed batches
+    }
+    const batchesSnap = await getDocs(collection(db, "batches"));
+    if (batchesSnap.size < SEED_DATA.batches.length) {
       for (const batch of SEED_DATA.batches) {
-        await setDoc(doc(db, "batches", batch.id), batch);
-      }
-      // Seed orders
-      for (const order of SEED_DATA.orders) {
-        await setDoc(doc(db, "orders", order.id), order);
+        await setDoc(doc(db, "batches", batch.id), batch, { merge: true });
       }
     }
   } catch (err) {
