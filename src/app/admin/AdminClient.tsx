@@ -24,8 +24,10 @@ import {
   Building2,
   Copy,
   Check,
+  Camera,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
+import { compressImage } from "@/lib/services";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -65,6 +67,18 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [newDishName, setNewDishName] = useState("");
   const [newDishPrice, setNewDishPrice] = useState("");
   const [creatingShop, setCreatingShop] = useState(false);
+
+  const handleShopImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file, 800, 0.75);
+        setShopMenuImageUrl(compressed);
+      } catch (err) {
+        console.error("Image upload compression error:", err);
+      }
+    }
+  };
 
   const refreshData = async () => {
     try {
@@ -544,20 +558,51 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                 </div>
               </div>
 
-              {/* Official Menu Photo Box */}
-              <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 space-y-2">
-                <label className="text-xs font-bold text-orange-950 uppercase tracking-wide block">
-                  Official Shop Menu Photo URL (ภาพถ่ายป้ายเมนูจริงของร้าน)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://... (URL ภาพถ่ายป้ายเมนูจริงของร้าน)"
-                  value={shopMenuImageUrl}
-                  onChange={(e) => setShopMenuImageUrl(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-900 focus:outline-orange-500"
-                />
+              {/* Official Menu / Shop Photo Box */}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-purple-950 uppercase tracking-wide block">
+                    Shop Logo / Menu Photo (รูปโลโก้ หรือ ภาพถ่ายป้ายร้าน)
+                  </label>
+                  {shopMenuImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShopMenuImageUrl("")}
+                      className="text-[11px] font-semibold text-rose-600 hover:underline"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
+
+                {shopMenuImageUrl && (
+                  <div className="relative h-28 w-28 overflow-hidden rounded-xl border-2 border-purple-300 bg-white shadow-xs">
+                    <img src={shopMenuImageUrl} alt="Preview" className="h-full w-full object-cover" />
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <label className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 text-white px-3.5 py-2 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0 shadow-2xs">
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>อัปโหลดรูปภาพ (Upload File)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleShopImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <span className="text-[11px] text-gray-400 text-center sm:text-left">หรือใส่ลิงก์รูป:</span>
+                  <input
+                    type="url"
+                    placeholder="https://... (URL รูปภาพ)"
+                    value={shopMenuImageUrl}
+                    onChange={(e) => setShopMenuImageUrl(e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-purple-500"
+                  />
+                </div>
                 <p className="text-[11px] text-gray-500">
-                  💡 ลูกค้าจะเห็นภาพนี้บนหน้าสั่งอาหาร และสามารถกดขยายดูเมนูจริงและราคาปัจจุบันได้
+                  💡 ลูกค้าจะเห็นภาพนี้บนการ์ดร้านค้าและหน้าสั่งอาหาร
                 </p>
               </div>
 

@@ -3,22 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import DeliveryProgressBar from "@/components/DeliveryProgressBar";
 import CampusDesksModal from "@/components/CampusDesksModal";
-import VeatecLogo from "@/components/VeatecLogo";
-import { CAMPUS_LOCATIONS } from "@/lib/locations";
-import { BatchWithDetails } from "@/lib/types";
+import { BatchWithDetails, Shop } from "@/lib/types";
 import {
   Utensils,
   Truck,
   ArrowRight,
-  ShieldCheck,
-  Building2,
   Clock,
-  Sparkles,
-  Phone,
   ChefHat,
-  Users,
   CheckCircle2,
   ShoppingBag,
   X,
@@ -27,6 +19,98 @@ import {
 
 interface Props {
   initialBatches: BatchWithDetails[];
+}
+
+interface ShopTheme {
+  primary: string;
+  glowColor: string;
+  bgGradient: string;
+  borderColor: string;
+  tagBg: string;
+  progressBar: string;
+  buttonClass: string;
+}
+
+function getShopDiffuseTheme(shop: Shop): ShopTheme {
+  const id = (shop.id || "").toLowerCase();
+  const name = (shop.name || "").toLowerCase();
+  const cuisine = (shop.cuisine || "").toLowerCase();
+
+  // ป้าณี อาหารตามสั่ง (Fiery Basil / Stir-fry)
+  if (id.includes("nee") || name.includes("ป้าณี") || cuisine.includes("street")) {
+    return {
+      primary: "#EA580C",
+      glowColor: "rgba(234, 88, 12, 0.28)",
+      bgGradient: "from-orange-50/70 via-white to-amber-50/30",
+      borderColor: "border-orange-200/90 hover:border-orange-400",
+      tagBg: "bg-orange-100/90 text-orange-900 border-orange-200",
+      progressBar: "bg-gradient-to-r from-orange-500 to-amber-500",
+      buttonClass: "bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white shadow-xs shadow-orange-600/20",
+    };
+  }
+
+  // ข้าวมันไก่เฮียไช้ (Golden Chicken Rice)
+  if (id.includes("chai") || name.includes("ไช้") || cuisine.includes("chicken")) {
+    return {
+      primary: "#D97706",
+      glowColor: "rgba(217, 119, 6, 0.28)",
+      bgGradient: "from-amber-50/70 via-white to-yellow-50/30",
+      borderColor: "border-amber-200/90 hover:border-amber-400",
+      tagBg: "bg-amber-100/90 text-amber-900 border-amber-200",
+      progressBar: "bg-gradient-to-r from-amber-500 to-yellow-500",
+      buttonClass: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-xs shadow-amber-600/20",
+    };
+  }
+
+  // แม่วรรณ ก๋วยเตี๋ยวเรือ (Boat Noodles)
+  if (id.includes("wan") || name.includes("วรรณ") || cuisine.includes("noodle")) {
+    return {
+      primary: "#E11D48",
+      glowColor: "rgba(225, 29, 72, 0.25)",
+      bgGradient: "from-rose-50/70 via-white to-orange-50/30",
+      borderColor: "border-rose-200/90 hover:border-rose-400",
+      tagBg: "bg-rose-100/90 text-rose-900 border-rose-200",
+      progressBar: "bg-gradient-to-r from-rose-500 to-orange-500",
+      buttonClass: "bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white shadow-xs shadow-rose-600/20",
+    };
+  }
+
+  // ส้มตำเจ๊ณี วังจันทร์ (Som Tum / Isan)
+  if (id.includes("somtum") || name.includes("ส้มตำ") || cuisine.includes("อีสาน")) {
+    return {
+      primary: "#059669",
+      glowColor: "rgba(5, 150, 105, 0.26)",
+      bgGradient: "from-emerald-50/70 via-white to-teal-50/30",
+      borderColor: "border-emerald-200/90 hover:border-emerald-400",
+      tagBg: "bg-emerald-100/90 text-emerald-900 border-emerald-200",
+      progressBar: "bg-gradient-to-r from-emerald-500 to-teal-500",
+      buttonClass: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xs shadow-emerald-600/20",
+    };
+  }
+
+  // VISTEC Café (Campus Cafe / Drinks)
+  if (id.includes("cafe") || name.includes("café") || cuisine.includes("เครื่องดื่ม") || cuisine.includes("กาแฟ")) {
+    return {
+      primary: "#7C3AED",
+      glowColor: "rgba(124, 58, 237, 0.28)",
+      bgGradient: "from-purple-50/70 via-white to-indigo-50/30",
+      borderColor: "border-purple-200/90 hover:border-purple-400",
+      tagBg: "bg-purple-100/90 text-purple-900 border-purple-200",
+      progressBar: "bg-gradient-to-r from-purple-500 to-indigo-500",
+      buttonClass: "bg-gradient-to-r from-purple-800 to-indigo-800 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs shadow-purple-900/20",
+    };
+  }
+
+  // Fallback
+  return {
+    primary: "#EA580C",
+    glowColor: "rgba(234, 88, 12, 0.25)",
+    bgGradient: "from-orange-50/70 via-white to-amber-50/30",
+    borderColor: "border-orange-200/90 hover:border-orange-400",
+    tagBg: "bg-orange-100/90 text-orange-900 border-orange-200",
+    progressBar: "bg-gradient-to-r from-orange-500 to-amber-500",
+    buttonClass: "bg-gradient-to-r from-orange-600 to-amber-600 text-white",
+  };
 }
 
 export default function HomeClient({ initialBatches }: Props) {
@@ -136,271 +220,197 @@ export default function HomeClient({ initialBatches }: Props) {
         );
       })()}
 
-      {/* Top Banner: VEATEC Brand & 1-2-3 Steps Flow */}
-      <section className="border-b border-purple-100/70 bg-gradient-to-b from-purple-50/50 via-white to-transparent px-3 py-5 sm:py-7">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex flex-col items-center text-center">
-            {/* Main VEATEC Brand Display */}
-            <div className="mb-3.5 hover:scale-[1.02] transition-transform">
-              <VeatecLogo size="xl" showSubtitle={true} />
-            </div>
+      {/* Lean Hero Header: Single Subtext + Clear 1-2-3 Step Flow */}
+      <section className="border-b border-purple-100/60 bg-gradient-to-b from-purple-50/40 via-white to-transparent px-3 pt-5 pb-5">
+        <div className="mx-auto max-w-4xl text-center">
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+            รวมสั่งอาหารกลางวัน ส่งฟรีถึงโต๊ะตึก M4
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-600 font-medium">
+            รวมยอดครบ ฿200 ต่อร้าน ส่งฟรีถึงโต๊ะวางอาหารชั้น 1 ตึก M4 ทุกวันจันทร์–ศุกร์
+          </p>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-100/90 border border-purple-200/80 px-3 py-0.5 text-xs font-bold text-purple-900 shadow-2xs">
-              <Sparkles className="h-3 w-3 text-[#B4213A]" />
-              <span>ระบบรวมสั่งข้าวเที่ยงชาว VISTEC (สถาบันวิทยสิริเมธี)</span>
-            </span>
-
-            <h1 className="mt-2 text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-              รวมสั่งให้ครบ <span className="text-[#B4213A]">฿200</span> ส่งฟรีถึงโต๊ะตึกเรียน M4!
-            </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-600 max-w-lg">
-              ไม่ต้องไปต่อคิวนอกมอ โอนตรงเข้าบัญชีร้านค้า นำส่งที่โต๊ะประจำตึก M4
-            </p>
-          </div>
-
-          {/* 3 Easy Steps Bar */}
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl border border-orange-200/80 bg-white p-2.5 shadow-2xs">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-[11px] font-black text-white mx-auto mb-1">
+          {/* Clear Compact 1-2-3 Step Flow */}
+          <div className="mt-3.5 grid grid-cols-3 gap-2 max-w-md mx-auto">
+            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-900 text-[10px] font-black text-white shrink-0">
                 1
-              </div>
-              <div className="text-xs font-bold text-gray-900">เลือกร้าน & เมนู</div>
-              <div className="text-[10px] text-gray-500 hidden sm:block">กดเพิ่มลงตะกร้า</div>
+              </span>
+              <span className="text-xs font-bold text-gray-800 truncate">เลือกร้าน & เมนู</span>
             </div>
-
-            <div className="rounded-xl border border-blue-200/80 bg-white p-2.5 shadow-2xs">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-[11px] font-black text-white mx-auto mb-1">
+            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B4213A] text-[10px] font-black text-white shrink-0">
                 2
-              </div>
-              <div className="text-xs font-bold text-gray-900">โอนเงิน & แนบสลิป</div>
-              <div className="text-[10px] text-gray-500 hidden sm:block">PromptPay ตรงเข้าร้าน</div>
+              </span>
+              <span className="text-xs font-bold text-gray-800 truncate">โอน & แนบสลิป</span>
             </div>
-
-            <div className="rounded-xl border border-emerald-200/80 bg-white p-2.5 shadow-2xs">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-black text-white mx-auto mb-1">
+            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white shrink-0">
                 3
-              </div>
-              <div className="text-xs font-bold text-gray-900">รับข้าวที่โต๊ะตึก</div>
-              <div className="text-[10px] text-gray-500 hidden sm:block">กล่องติดชื่อตามจุดส่ง</div>
+              </span>
+              <span className="text-xs font-bold text-gray-800 truncate">รับที่โต๊ะตึก M4</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* Main Content Area */}
-      <main className="mx-auto max-w-4xl px-3 py-5 sm:px-6 space-y-8">
-        {/* Active Order Pools Section */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Utensils className="h-4.5 w-4.5 text-purple-800" />
-                <span>ร้านเปิดรับออเดอร์วันนี้</span>
-                <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
-                  {batches.length} ร้าน
-                </span>
-              </h2>
-              <p className="text-xs text-gray-500">
-                รวมออเดอร์ให้ครบขั้นต่ำ ส่งฟรีถึงโต๊ะกลางตึก M4
-              </p>
-            </div>
-
-            <Link
-              href="/admin"
-              className="text-xs font-bold text-purple-800 hover:text-purple-950 hover:underline flex items-center gap-1"
-            >
-              <span>+ เปิดรอบร้าน</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
+      <main className="mx-auto max-w-5xl px-3 py-5 sm:px-6 space-y-4">
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black text-gray-900 flex items-center gap-1.5">
+              <Utensils className="h-4 w-4 text-purple-900" />
+              <span>ร้านเปิดรับวันนี้</span>
+            </h2>
+            <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+              {batches.length} ร้าน
+            </span>
           </div>
 
-          {batches.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-              <ShoppingBag className="mx-auto h-10 w-10 text-gray-400" />
-              <h3 className="mt-2 text-sm font-bold text-gray-900">ยังไม่มีรอบสั่งอาหารเปิดอยู่ขณะนี้</h3>
-              <p className="mt-1 text-xs text-gray-500">
-                คุณสามารถเป็นคนแรกที่เปิดรอบสั่งข้าวสำหรับมื้อนี้ได้
-              </p>
-              <Link
-                href="/admin"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800"
-              >
-                + เปิดรอบสั่งอาหารใหม่
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {batches.map((batch) => {
-                const isUnlocked = batch.currentTotalAmount >= batch.targetMinAmount;
-                const remaining = Math.max(0, batch.targetMinAmount - batch.currentTotalAmount);
-                const percentage = Math.min(100, Math.round((batch.currentTotalAmount / batch.targetMinAmount) * 100));
+          <Link
+            href="/admin"
+            className="text-xs font-bold text-purple-900 hover:text-[#B4213A] transition-colors flex items-center gap-1"
+          >
+            <span>+ เปิดรอบร้าน</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
 
-                return (
+        {/* Batches Grid */}
+        {batches.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <ShoppingBag className="mx-auto h-10 w-10 text-gray-400" />
+            <h3 className="mt-2 text-sm font-bold text-gray-900">ยังไม่มีรอบสั่งอาหารเปิดอยู่ขณะนี้</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              คุณสามารถเปิดรอบสั่งข้าวสำหรับมื้อนี้ได้
+            </p>
+            <Link
+              href="/admin"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800"
+            >
+              + เปิดรอบสั่งอาหารใหม่
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {batches.map((batch) => {
+              const isUnlocked = batch.currentTotalAmount >= batch.targetMinAmount;
+              const remaining = Math.max(0, batch.targetMinAmount - batch.currentTotalAmount);
+              const percentage = Math.min(100, Math.round((batch.currentTotalAmount / batch.targetMinAmount) * 100));
+              const theme = getShopDiffuseTheme(batch.shop);
+
+              return (
+                <div
+                  key={batch.id}
+                  className={`group relative overflow-hidden flex flex-col justify-between rounded-2xl border ${theme.borderColor} bg-gradient-to-br ${theme.bgGradient} p-3.5 shadow-2xs hover:shadow-md transition-all duration-300`}
+                >
+                  {/* Diffuse bloom absorbing the logo color */}
                   <div
-                    key={batch.id}
-                    className="group relative flex flex-col justify-between rounded-2xl border border-gray-200/90 bg-white p-3.5 shadow-2xs hover:border-purple-300 hover:shadow-xs transition-all"
-                  >
-                    <div className="space-y-2">
-                      {/* Top row: Cuisine & Cutoff / Status */}
-                      <div className="flex items-center justify-between gap-1 text-xs">
-                        <span className="text-[10px] font-bold text-purple-900 bg-purple-50 border border-purple-100 rounded-md px-1.5 py-0.5 truncate max-w-[130px]">
-                          {batch.shop.cuisine}
-                        </span>
-                        <div className="flex items-center gap-1 text-[11px] shrink-0">
-                          <span className="font-semibold text-gray-500 flex items-center gap-0.5">
-                            <Clock className="h-3 w-3 text-orange-500" />
-                            <span>ปิด {batch.cutoffTime}</span>
-                          </span>
-                          <span
-                            className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-                              batch.status === "OPEN"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            {batch.status === "OPEN" ? "เปิดรับ" : batch.status}
-                          </span>
-                        </div>
-                      </div>
+                    className="absolute -top-10 -left-10 w-32 h-32 rounded-full blur-2xl opacity-40 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none"
+                    style={{ backgroundColor: theme.glowColor }}
+                  />
 
-                      {/* Shop Title & Description */}
-                      <div>
-                        <h3 className="text-base font-black text-gray-900 group-hover:text-purple-900 transition-colors leading-snug">
-                          {batch.shop.name}
-                        </h3>
-                        {batch.shop.description && (
-                          <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">
-                            {batch.shop.description}
-                          </p>
+                  <div className="relative space-y-2.5">
+                    {/* Header: Shop Logo Avatar + Name + Cutoff */}
+                    <div className="flex items-start gap-3">
+                      {/* Shop Logo Avatar */}
+                      <div className="relative h-13 w-13 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-xl border-2 border-white bg-white shadow-xs">
+                        {batch.shop.menuImageUrl ? (
+                          <img
+                            src={batch.shop.menuImageUrl}
+                            alt={batch.shop.name}
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-700 font-black text-lg">
+                            {batch.shop.name.charAt(0)}
+                          </div>
                         )}
                       </div>
 
-                      {/* Compact Progress Bar */}
-                      <div className="rounded-xl bg-gray-50/90 p-2 border border-gray-100 space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold">
-                          <span className="text-gray-700">
-                            ฿{batch.currentTotalAmount} <span className="text-gray-400 font-normal">/ ฿{batch.targetMinAmount}</span>
-                            <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} ออเดอร์)</span>
+                      {/* Name & Badges */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1 text-[11px]">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border truncate max-w-[130px] ${theme.tagBg}`}>
+                            {batch.shop.cuisine}
                           </span>
-                          <span
-                            className={`text-[11px] font-bold ${
-                              isUnlocked ? "text-emerald-700 font-black" : "text-amber-800"
-                            }`}
-                          >
-                            {isUnlocked ? "🎉 ส่งฟรี M4" : `ขาดอีก ฿${remaining}`}
+                          <span className="font-semibold text-gray-500 flex items-center gap-0.5 shrink-0">
+                            <Clock className="h-3 w-3 text-orange-500" />
+                            <span>ปิด {batch.cutoffTime}</span>
                           </span>
                         </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isUnlocked ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-orange-500"
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
 
-                      {/* Popular menu inline roll */}
-                      <div className="text-[11px] text-gray-600 line-clamp-1">
-                        <span className="font-bold text-gray-400 mr-1">แนะนำ:</span>
-                        <span>
-                          {batch.shop.menuItems.slice(0, 3).map((it) => `${it.name} (฿${it.price})`).join(" · ")}
+                        <h3 className="mt-1 text-base font-black text-gray-900 group-hover:text-purple-950 transition-colors leading-tight truncate">
+                          {batch.shop.name}
+                        </h3>
+                      </div>
+                    </div>
+
+                    {/* Target Progress Bar */}
+                    <div className="rounded-xl bg-white/85 backdrop-blur-2xs p-2 border border-gray-100/80 space-y-1">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="text-gray-700">
+                          ฿{batch.currentTotalAmount} <span className="text-gray-400 font-normal">/ ฿{batch.targetMinAmount}</span>
+                          <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} กล่อง)</span>
+                        </span>
+                        <span
+                          className={`text-[11px] font-bold ${
+                            isUnlocked ? "text-emerald-700 font-black" : "text-amber-800"
+                          }`}
+                        >
+                          {isUnlocked ? "🎉 ครบขั้นต่ำแล้ว" : `ขาดอีก ฿${remaining}`}
                         </span>
                       </div>
-                    </div>
-
-                    {/* Bottom Actions */}
-                    <div className="flex items-center gap-1.5 pt-2.5 mt-2 border-t border-gray-100">
-                      <Link
-                        href={`/order/${batch.id}`}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 px-3 py-2 text-xs font-bold text-white shadow-2xs transition-all active:scale-[0.98]"
-                      >
-                        <ShoppingBag className="h-3.5 w-3.5" />
-                        <span>สั่งอาหาร</span>
-                      </Link>
-
-                      <Link
-                        href={`/shop/${batch.id}`}
-                        className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors"
-                        title="ดูใบส่งครัว & สลิป"
-                      >
-                        <ChefHat className="h-3.5 w-3.5 text-purple-700" />
-                      </Link>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isUnlocked ? "bg-emerald-500" : theme.progressBar
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
 
-        {/* Campus Delivery Desks Quick Showcase */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <div className="inline-flex items-center gap-1 text-xs font-bold text-orange-600">
-                <Building2 className="h-3.5 w-3.5" />
-                <span>จุดรับข้าวประจำอาคาร (ตึก M4)</span>
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                โต๊ะรับส่งอาหาร ตึก M4
-              </h3>
-              <p className="text-xs text-gray-500">
-                กล่องข้าวจะเขียนชื่อและเบอร์โทร นำไปวางส่งที่โต๊ะวางอาหาร Delivery ชั้น 1 อาคาร M4
-              </p>
-            </div>
-
-            <button
-              onClick={() => setShowDesksModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-800 transition-colors self-start sm:self-auto"
-            >
-              <span>ดูรูปโต๊ะรับส่ง M4</span>
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 max-w-lg gap-3">
-            {CAMPUS_LOCATIONS.map((loc) => (
-              <div
-                key={loc.id}
-                onClick={() => setShowDesksModal(true)}
-                className="group cursor-pointer rounded-xl border border-gray-200 p-3 text-left hover:border-orange-500 hover:bg-orange-50/20 transition-all flex items-center gap-3"
-              >
-                <div className="relative h-16 w-20 overflow-hidden rounded-lg bg-gray-100 shrink-0">
-                  <img
-                    src={loc.photoUrl}
-                    alt={loc.name}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <span className="absolute top-1 left-1 rounded bg-[#B4213A] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {loc.shortCode}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-gray-900 group-hover:text-orange-600 truncate">
-                    {loc.name}
-                  </div>
-                  <div className="text-[11px] text-gray-600 line-clamp-2">
-                    {loc.deskDetail}
+                  {/* Compact Bottom Actions */}
+                  <div className="relative flex items-center gap-1.5 pt-2 mt-2 border-t border-gray-100/90">
+                    <Link
+                      href={`/order/${batch.id}`}
+                      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl ${theme.buttonClass} px-3 py-2 text-xs font-bold shadow-2xs transition-all active:scale-[0.98]`}
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                      <span>สั่งอาหาร</span>
+                    </Link>
+                    <Link
+                      href={`/shop/${batch.id}`}
+                      className="inline-flex items-center justify-center rounded-xl border border-gray-200/90 bg-white/90 p-2 text-gray-600 hover:text-gray-900 hover:bg-white shadow-2xs transition-colors"
+                      title="ดูใบครัว & สลิป"
+                    >
+                      <ChefHat className="h-3.5 w-3.5 text-gray-700" />
+                    </Link>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </section>
+        )}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-12 border-t border-gray-200 bg-white py-6">
-        <div className="mx-auto max-w-4xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+      {/* Clean Compact Footer */}
+      <footer className="mt-12 border-t border-gray-200 bg-white py-5">
+        <div className="mx-auto max-w-5xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <div>
-            <strong>VEATEC (VISTEC Eats)</strong> · ระบบรวมสั่งอาหารเพื่อประชาคมชาววิทยสิริเมธี (VISTEC)
+            <strong>VEATEC</strong> · ระบบรวมสั่งอาหารประชาคม VISTEC (จุดรับ: ตึก M4 ชั้น 1)
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setShowDesksModal(true)} className="hover:text-orange-600">
+            <button onClick={() => setShowDesksModal(true)} className="hover:text-purple-900 font-medium">
               จุดรับข้าว (ตึก M4)
             </button>
-            <Link href="/admin" className="hover:text-orange-600">
+            <Link href="/orders" className="hover:text-purple-900 font-medium">
+              ตรวจเช็คออเดอร์
+            </Link>
+            <Link href="/admin" className="hover:text-purple-900 font-medium">
               ระบบร้านค้า / แอดมิน
             </Link>
           </div>
