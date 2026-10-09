@@ -363,10 +363,18 @@ export default function HomeClient({ initialBatches }: Props) {
                     </Link>
                     <Link
                       href={`/shop/${batch.id}`}
-                      className="inline-flex items-center justify-center rounded-xl border border-gray-200/90 bg-white/90 p-2 text-gray-600 hover:text-gray-900 hover:bg-white shadow-2xs transition-colors"
-                      title="ดูใบครัว & สลิป"
+                      className={`inline-flex items-center justify-center rounded-xl border p-2 text-xs font-semibold shadow-2xs transition-colors ${
+                        batch.status === "COMPLETED"
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                          : "border-gray-200/90 bg-white/90 text-gray-600 hover:text-gray-900 hover:bg-white"
+                      }`}
+                      title={batch.status === "COMPLETED" ? "ส่งอาหารแล้ว • ดูรูปหลักฐาน" : "ดูใบครัว & ถ่ายรูปส่งอาหาร"}
                     >
-                      <ChefHat className="h-3.5 w-3.5 text-gray-700" />
+                      {batch.status === "COMPLETED" ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <ChefHat className="h-3.5 w-3.5 text-gray-700" />
+                      )}
                     </Link>
                   </div>
                 </div>

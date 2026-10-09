@@ -161,33 +161,9 @@ export default function MyOrdersClient() {
   // Status mapping helper
   const getStatusInfo = (status: BatchStatus = "OPEN") => {
     switch (status) {
-      case "OPEN":
-        return {
-          step: 1,
-          label: "กำลังเปิดรับออเดอร์",
-          badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-          icon: Clock,
-          subtext: "รอระบบปิดรอบเพื่อส่งครัว",
-        };
-      case "LOCKED":
-        return {
-          step: 2,
-          label: "ร้านกำลังปรุงอาหาร",
-          badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
-          icon: ChefHat,
-          subtext: "ครัวกำลังทำอาหารตามออเดอร์",
-        };
-      case "DELIVERING":
-        return {
-          step: 3,
-          label: "ไรเดอร์กำลังนำส่ง",
-          badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
-          icon: Truck,
-          subtext: "กำลังเดินทางมาส่งที่จุดรับข้าว VISTEC",
-        };
       case "COMPLETED":
         return {
-          step: 4,
+          step: 2,
           label: "อาหารวางไว้ที่โต๊ะแล้ว 🎉",
           badgeColor: "bg-purple-100 text-purple-900 border-purple-300 font-black",
           icon: CheckCircle2,
@@ -204,10 +180,10 @@ export default function MyOrdersClient() {
       default:
         return {
           step: 1,
-          label: "รอการดำเนินการ",
-          badgeColor: "bg-gray-100 text-gray-700 border-gray-200",
-          icon: Clock,
-          subtext: "",
+          label: "กำลังเตรียม & รอส่งอาหาร",
+          badgeColor: "bg-amber-100 text-amber-800 border-amber-200 font-bold",
+          icon: ChefHat,
+          subtext: "ครัวกำลังทำอาหารตามออเดอร์ • รอส่งถึงโต๊ะ M4 ตามรอบเวลา",
         };
     }
   };
@@ -397,30 +373,28 @@ export default function MyOrdersClient() {
                       </div>
                     </div>
 
-                    {/* Progress Stepper (1-4) */}
+                    {/* Progress Stepper (2 Steps: Preparing -> Delivered) */}
                     <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
-                      <div className="grid grid-cols-4 gap-1 text-center">
+                      <div className="grid grid-cols-2 gap-2 text-center">
                         {[
-                          { step: 1, label: "1. รับออเดอร์" },
-                          { step: 2, label: "2. กำลังปรุง" },
-                          { step: 3, label: "3. ไรเดอร์ส่ง" },
-                          { step: 4, label: "4. ถึงโต๊ะแล้ว" },
+                          { step: 1, label: "1. สั่งซื้อ & เตรียมอาหาร" },
+                          { step: 2, label: "2. วางที่โต๊ะ M4 แล้ว 🎉" },
                         ].map((s) => {
                           const isDone = statusInfo.step >= s.step;
                           const isCurrent = statusInfo.step === s.step;
                           return (
                             <div key={s.step} className="flex flex-col items-center">
                               <div
-                                className={`h-2 w-full rounded-full transition-colors ${
+                                className={`h-2.5 w-full rounded-full transition-colors ${
                                   isDone
-                                    ? s.step === 4
+                                    ? s.step === 2
                                       ? "bg-purple-700"
                                       : "bg-emerald-500"
                                     : "bg-gray-200"
                                 }`}
                               />
                               <span
-                                className={`mt-1.5 text-[10px] sm:text-xs font-bold leading-tight ${
+                                className={`mt-1.5 text-xs font-bold leading-tight ${
                                   isCurrent
                                     ? "text-purple-900"
                                     : isDone
