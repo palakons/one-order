@@ -167,6 +167,7 @@ export async function POST(request: Request) {
               currentTotal: number;
               targetMin: number;
               cutoffTime: string;
+              date: string;
             }> = [];
 
             for (const b of batches) {
@@ -182,12 +183,14 @@ export async function POST(request: Request) {
                   currentTotal: b.currentTotalAmount,
                   targetMin: b.targetMinAmount,
                   cutoffTime: b.cutoffTime,
+                  date: b.date,
                 });
               }
             }
 
             if (userOrders.length > 0) {
               const lines = userOrders.map((uo, idx) => {
+                const timeInfo = getTimeRemaining(uo.cutoffTime, uo.date);
                 const statusEmoji =
                   uo.status === "COMPLETED"
                     ? "✨ นำส่งถึงโต๊ะตึก M4 แล้ว 📸"
@@ -195,13 +198,15 @@ export async function POST(request: Request) {
                     ? "🛵 ไรเดอร์กำลังนำส่งมาตึก M4"
                     : uo.status === "LOCKED"
                     ? "🍳 ร้านกำลังปรุง (Cooking)"
-                    : `🟢 เปิดรับออเดอร์ (ปิด ${uo.cutoffTime} น.)`;
+                    : timeInfo.isExpired
+                    ? "🔴 ปิดรับรอบแล้ว (รอร้านปรุง)"
+                    : `🟢 เปิดรับออเดอร์ (${timeInfo.text})`;
 
                 const bar = renderProgressBar(uo.currentTotal, uo.targetMin, 8);
                 const isMet = uo.currentTotal >= uo.targetMin;
                 const poolText = isMet
                   ? `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ครบยอดส่งฟรี! 🎉)`
-                  : `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ขาดอีก ฿${uo.targetMin - uo.currentTotal})`;
+                  : `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin}`;
 
                 return (
                   `${idx + 1}. ร้าน ${uo.shopName}\n` +
@@ -280,7 +285,6 @@ export async function POST(request: Request) {
           const statusLines = batches.map((b, idx) => {
             const bar = renderProgressBar(b.currentTotalAmount, b.targetMinAmount, 10);
             const isMet = b.currentTotalAmount >= b.targetMinAmount;
-            const remaining = Math.max(0, b.targetMinAmount - b.currentTotalAmount);
             const countText = b.orders.length > 0 ? `สั่งแล้ว ${b.orders.length} กล่อง` : "ยังไม่มีออเดอร์";
 
             let details = "";
@@ -288,8 +292,10 @@ export async function POST(request: Request) {
               case "OPEN": {
                 const goalText = isMet
                   ? `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ครบยอดส่งฟรี! 🎉)`
-                  : `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ขาดอีก ฿${remaining})`;
-                details = `   [${bar}] ${goalText}\n   🟢 เปิดรับถึง ${b.cutoffTime} น. • ${countText}`;
+                  : `฿${b.currentTotalAmount}/฿${b.targetMinAmount}`;
+                const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
+                const statusDot = timeInfo.isExpired ? "🔴" : "🟢";
+                details = `   [${bar}] ${goalText}\n   ${statusDot} ${timeInfo.text} • ${countText}`;
                 break;
               }
               case "LOCKED": {
@@ -433,5 +439,45 @@ function renderProgressBar(current: number, target: number, length: number = 10)
   const filled = Math.round(ratio * length);
   const empty = length - filled;
   return "█".repeat(filled) + "░".repeat(empty);
+}
+
+function getTimeRemaining(cutoffTimeStr: string, batchDate?: string): { isExpired: boolean; text: string } {
+  try {
+    let cutoffEpoch: number;
+    if (batchDate && /^\d{4}-\d{2}-\d{2}$/.test(batchDate)) {
+      cutoffEpoch = new Date(`${batchDate}T${cutoffTimeStr}:00+07:00`).getTime();
+    } else {
+      const bkkDateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      cutoffEpoch = new Date(`${bkkDateStr}T${cutoffTimeStr}:00+07:00`).getTime();
+    }
+
+    const diffMs = cutoffEpoch - Date.now();
+    if (isNaN(diffMs) || diffMs <= 0) {
+      return { isExpired: true, text: "หมดเวลาปิดรับแล้ว" };
+    }
+
+    const totalSec = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+
+    let text = "";
+    if (hours > 0) {
+      text = minutes > 0 ? `${hours} ชม. ${minutes} นาที` : `${hours} ชม.`;
+    } else if (minutes > 0) {
+      text = seconds > 0 ? `${minutes} นาที ${seconds} วิ` : `${minutes} นาที`;
+    } else {
+      text = `${seconds} วิ`;
+    }
+
+    return { isExpired: false, text: `อีก ${text}` };
+  } catch {
+    return { isExpired: false, text: `ปิด ${cutoffTimeStr} น.` };
+  }
 }
 
