@@ -8,10 +8,10 @@ export async function pushLineMessage(
   customTargetId?: string
 ): Promise<boolean> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  const targetId = customTargetId || process.env.LINE_GROUP_ID;
+  const targetId = customTargetId || process.env.LINE_GROUP_ID || process.env.LINE_USER_ID;
 
   if (!token || !targetId) {
-    console.warn("LINE notification skipped: LINE_CHANNEL_ACCESS_TOKEN or LINE_GROUP_ID not configured.");
+    console.warn("LINE notification skipped: LINE_CHANNEL_ACCESS_TOKEN or LINE_GROUP_ID/LINE_USER_ID not configured.");
     return false;
   }
 
