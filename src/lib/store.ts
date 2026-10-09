@@ -353,7 +353,31 @@ export async function saveShop(shop: Shop): Promise<Shop> {
   return shop;
 }
 
-export async function getBatches(): Promise<BatchWithDetails[]> {
+export function sanitizeOrder(o: Order): Order {
+  const phone = o.customerPhone || "";
+  const digits = phone.replace(/\D/g, "");
+  const maskedPhone =
+    digits.length >= 9
+      ? `${digits.slice(0, 3)}-***-${digits.slice(-4)}`
+      : phone ? "***" : "";
+
+  return {
+    ...o,
+    customerPhone: maskedPhone,
+    slipImageUrl: "", // Never leak customer bank transfer slips in public listings
+  };
+}
+
+export function sanitizeBatchDetails(batch: BatchWithDetails): BatchWithDetails {
+  return {
+    ...batch,
+    orders: (batch.orders || []).map(sanitizeOrder),
+  };
+}
+
+export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
+  let result: BatchWithDetails[] = [];
+
   if (isFirebaseConfigured && db) {
     try {
       await ensureFirestoreSeeded();
@@ -367,7 +391,7 @@ export async function getBatches(): Promise<BatchWithDetails[]> {
       const orders = ordersSnap.docs.map((d) => d.data() as Order);
       const shops = shopsSnap.docs.map((d) => d.data() as Shop);
 
-      return batches.map((b) =>
+      result = batches.map((b) =>
         enrichBatchFromData(b, shops, orders.filter((o) => o.batchId === b.id))
       );
     } catch (err) {
@@ -375,11 +399,17 @@ export async function getBatches(): Promise<BatchWithDetails[]> {
     }
   }
 
-  const data = await ensureDataFile();
-  return data.batches.map((b) => enrichBatch(b, data));
+  if (result.length === 0) {
+    const data = await ensureDataFile();
+    result = data.batches.map((b) => enrichBatch(b, data));
+  }
+
+  return sanitize ? result.map(sanitizeBatchDetails) : result;
 }
 
-export async function getBatchById(id: string): Promise<BatchWithDetails | undefined> {
+export async function getBatchById(id: string, sanitize = false): Promise<BatchWithDetails | undefined> {
+  let result: BatchWithDetails | undefined;
+
   if (isFirebaseConfigured && db) {
     try {
       const batchSnap = await getDoc(doc(db, "batches", id));
@@ -393,17 +423,21 @@ export async function getBatchById(id: string): Promise<BatchWithDetails | undef
           .map((d) => d.data() as Order)
           .filter((o) => o.batchId === id);
         const shops = shopsSnap.docs.map((d) => d.data() as Shop);
-        return enrichBatchFromData(batch, shops, orders);
+        result = enrichBatchFromData(batch, shops, orders);
       }
     } catch (err) {
       console.warn("Firestore getBatchById failed, using local fallback:", err);
     }
   }
 
-  const data = await ensureDataFile();
-  const batch = data.batches.find((b) => b.id === id);
-  if (!batch) return undefined;
-  return enrichBatch(batch, data);
+  if (!result) {
+    const data = await ensureDataFile();
+    const batch = data.batches.find((b) => b.id === id);
+    if (!batch) return undefined;
+    result = enrichBatch(batch, data);
+  }
+
+  return sanitize && result ? sanitizeBatchDetails(result) : result;
 }
 
 function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {

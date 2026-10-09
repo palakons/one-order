@@ -108,53 +108,54 @@ export default function MyOrdersClient() {
   };
 
   // Search by phone from server batches (for multi-device access)
-  const handlePhoneSearch = (e: React.FormEvent) => {
+  const handlePhoneSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = searchPhone.trim().replace(/\D/g, "");
     if (!cleanPhone) return;
 
-    // Scan all fetched batches for matching customer phone
-    const foundOrders: LocalOrder[] = [];
-    Object.values(batches).forEach((b) => {
-      b.orders.forEach((o) => {
-        const orderPhoneClean = o.customerPhone.replace(/\D/g, "");
-        if (orderPhoneClean === cleanPhone || orderPhoneClean.endsWith(cleanPhone) || cleanPhone.endsWith(orderPhoneClean)) {
-          foundOrders.push({
-            orderId: o.id,
-            batchId: b.id,
-            shopName: b.shop.name,
-            date: b.date,
-            orderNumber: o.orderNumber,
-            customerName: o.customerName,
-            customerPhone: o.customerPhone,
-            locationId: o.locationId,
-            totalAmount: o.totalAmount,
-            boxLabel: o.boxLabel,
-            slipImageUrl: o.slipImageUrl,
-            items: o.items,
-            createdAt: o.createdAt,
-          });
-        }
-      });
-    });
+    try {
+      setRefreshing(true);
+      const res = await fetch(`/api/orders?phone=${encodeURIComponent(cleanPhone)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+        const foundOrders: LocalOrder[] = data.orders.map((o: any) => ({
+          orderId: o.orderId,
+          batchId: o.batchId,
+          shopName: o.shopName,
+          date: o.date,
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone,
+          locationId: o.locationId,
+          totalAmount: o.totalAmount,
+          boxLabel: o.boxLabel,
+          slipImageUrl: o.slipImageUrl,
+          items: o.items,
+          createdAt: o.createdAt,
+        }));
 
-    if (foundOrders.length > 0) {
-      // Merge with existing local orders without duplicates
-      const merged = [...foundOrders];
-      localOrders.forEach((lo) => {
-        if (!merged.some((m) => m.orderId === lo.orderId)) {
-          merged.push(lo);
-        }
-      });
-      // Sort newest first
-      merged.sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
-      setLocalOrders(merged);
-      try {
-        localStorage.setItem("veatec_user_orders", JSON.stringify(merged.slice(0, 30)));
-        localStorage.setItem("veatec_user_phone", searchPhone.trim());
-      } catch (err) {}
-    } else {
-      alert(`ไม่พบออเดอร์ที่ตรงกับเบอร์ ${searchPhone} ในรอบที่เปิดอยู่ขณะนี้`);
+        // Merge with existing local orders without duplicates
+        const merged = [...foundOrders];
+        localOrders.forEach((lo) => {
+          if (!merged.some((m) => m.orderId === lo.orderId)) {
+            merged.push(lo);
+          }
+        });
+        // Sort newest first
+        merged.sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+        setLocalOrders(merged);
+        try {
+          localStorage.setItem("veatec_user_orders", JSON.stringify(merged.slice(0, 30)));
+          localStorage.setItem("veatec_user_phone", searchPhone.trim());
+        } catch (err) {}
+      } else {
+        alert(`ไม่พบออเดอร์ที่ตรงกับเบอร์ ${searchPhone} ในระบบ`);
+      }
+    } catch (err) {
+      console.error("Phone search error:", err);
+      alert("เกิดข้อผิดพลาดในการค้นหาออเดอร์");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -525,6 +526,15 @@ export default function MyOrdersClient() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {isCompleted && (
+                          <Link
+                            href={`/delivery/${ord.batchId}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
+                          >
+                            <Camera className="h-3 w-3 text-emerald-600" />
+                            <span>ดูรูปส่ง M4</span>
+                          </Link>
+                        )}
                         {ord.slipImageUrl && (
                           <button
                             type="button"

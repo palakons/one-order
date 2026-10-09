@@ -13,6 +13,7 @@ import { BatchWithDetails, Order } from "@/lib/types";
 import { placeOrder } from "@/lib/services";
 import confetti from "canvas-confetti";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName } from "@/lib/i18n";
+import { getTimeRemaining } from "@/lib/utils";
 import {
   ArrowLeft,
   Plus,
@@ -34,6 +35,7 @@ import {
   Check,
   CreditCard,
   FileCheck2,
+  Camera,
 } from "lucide-react";
 
 interface Props {
@@ -162,8 +164,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     0
   );
 
+  const timeInfo = batch
+    ? getTimeRemaining(batch.cutoffTime, batch.date)
+    : { isExpired: false, text: "", remainingMs: 0 };
+  const isBatchClosed = Boolean(batch && (batch.status !== "OPEN" || timeInfo.isExpired));
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBatchClosed) {
+      alert("ขออภัย รอบสั่งอาหารนี้ปิดรับแล้ว");
+      return;
+    }
     if (!customerName.trim()) {
       alert("กรุณากรอกชื่อผู้รับอาหาร (เช่น ชื่อเล่น หรือ นศ.)");
       setCurrentStep(3);
@@ -402,34 +413,110 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* ----------------------------------------------------------- */}
-        {/* 1 - 2 - 3 Step Indicator Navigation Tabs */}
+        {/* Closed / Expired Batch Protection Banner */}
         {/* ----------------------------------------------------------- */}
-        <div className="sticky top-14 z-30 mb-4 bg-gray-50/95 py-1.5 backdrop-blur-md">
-          <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-gray-200 bg-white p-1 shadow-xs">
-            {/* Step 1 Tab */}
-            <button
-              type="button"
-              onClick={() => setCurrentStep(1)}
-              className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-                currentStep === 1
-                  ? "bg-[#5D3085] text-white shadow-xs"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                currentStep === 1 ? "bg-white text-[#5D3085]" : "bg-gray-200 text-gray-700"
-              }`}>
-                1
-              </span>
-              <span>{t.step1}</span>
-              {totalQuantity > 0 && (
-                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                  currentStep === 1 ? "bg-[#472266] text-white" : "bg-purple-100 text-[#5D3085]"
-                }`}>
-                  {totalQuantity}
+        {isBatchClosed ? (
+          <div className="space-y-4">
+            <div className="rounded-3xl border-2 border-rose-300 bg-rose-50/95 p-5 sm:p-6 text-center space-y-3 shadow-xs animate-in fade-in">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-black text-white">
+                <span>🔴 ร้านปิดรับออเดอร์รอบนี้แล้ว (Closed)</span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-black text-rose-950">
+                ร้าน {shopInfo.name} ปิดรับออเดอร์แล้ว (หมดเวลา {batch.cutoffTime} น.)
+              </h2>
+              <p className="text-xs sm:text-sm text-rose-800 max-w-md mx-auto">
+                {batch.status === "COMPLETED"
+                  ? "อาหารรอบนี้ถูกนำส่งถึงโต๊ะตึก M4 เรียบร้อยแล้ว สามารถดูรูปถ่ายหลักฐานจุดส่งได้"
+                  : "ทางร้านกำลังเตรียมและปรุงอาหาร กรุณารอรอบถัดไป หรือเลือกร้านที่ยังเปิดรับครับ/ค่ะ"}
+              </p>
+              <div className="pt-2 flex flex-wrap justify-center gap-2.5">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-gray-800 shadow-xs"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>ดูร้านอื่นที่ยังเปิดรับ</span>
+                </Link>
+                {batch.status === "COMPLETED" && (
+                  <Link
+                    href={`/delivery/${batch.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700 shadow-xs"
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span>ดูรูปถ่ายอาหารที่ M4</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Read-Only Menu Display for Reference */}
+            <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                  รายการอาหารของร้าน (แสดงสำหรับดูเป็นตัวอย่าง):
                 </span>
-              )}
-            </button>
+                {batch.shop.menuImageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMenuPhotoModal(true)}
+                    className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    <span>ดูรูปใบเมนูร้าน</span>
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {batch.shop.menuItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-gray-200/80 bg-gray-50/60 p-3.5 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-800">
+                        {getMenuItemLocalizedName(item, lang)}
+                      </div>
+                      <div className="text-xs font-semibold text-orange-600 mt-0.5">
+                        ฿{item.price}
+                      </div>
+                    </div>
+                    <span className="rounded-lg bg-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-500">
+                      ปิดรับแล้ว
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 1 - 2 - 3 Step Indicator Navigation Tabs */}
+            <div className="sticky top-14 z-30 mb-4 bg-gray-50/95 py-1.5 backdrop-blur-md">
+              <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-gray-200 bg-white p-1 shadow-xs">
+                {/* Step 1 Tab */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                    currentStep === 1
+                      ? "bg-[#5D3085] text-white shadow-xs"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
+                    currentStep === 1 ? "bg-white text-[#5D3085]" : "bg-gray-200 text-gray-700"
+                  }`}>
+                    1
+                  </span>
+                  <span>{t.step1}</span>
+                  {totalQuantity > 0 && (
+                    <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                      currentStep === 1 ? "bg-[#472266] text-white" : "bg-purple-100 text-[#5D3085]"
+                    }`}>
+                      {totalQuantity}
+                    </span>
+                  )}
+                </button>
 
             {/* Step 2 Tab */}
             <button
@@ -791,49 +878,24 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   </div>
                 </div>
 
-                {/* Building Drop-off Desk Selection */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 text-orange-600" />
-                      <span>เลือกโต๊ะจุดรับข้าวประจำตึก</span>
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeskModal(true)}
-                      className="text-xs font-semibold text-orange-600 hover:underline flex items-center gap-0.5"
-                    >
-                      <Info className="h-3 w-3" /> ดูรูปโต๊ะตึก M4
-                    </button>
-                  </div>
-
-                  <select
-                    value={selectedLocationId}
-                    onChange={(e) => setSelectedLocationId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-gray-900 focus:border-orange-500 focus:outline-none"
-                  >
-                    {CAMPUS_LOCATIONS.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name} — {loc.deskDetail}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Desk quick preview */}
-                  {selectedLoc && (
-                    <div className="mt-2 flex items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50/80 p-2">
-                      <img
-                        src={selectedLoc.photoUrl}
-                        alt={selectedLoc.name}
-                        className="h-10 w-12 rounded-lg object-cover shrink-0"
-                      />
-                      <div className="flex-1 min-w-0 text-xs">
-                        <div className="font-bold text-gray-900">{selectedLoc.name}</div>
-                        <div className="text-gray-500 line-clamp-1 text-[11px]">{selectedLoc.deskDetail}</div>
+                {/* Fixed Campus Drop-off Desk Badge */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shrink-0">
+                      <MapPin className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-emerald-950">
+                        จุดรับอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        เคาน์เตอร์ชั้น 1 ฝั่งซ้าย (จุดรับอาหารกลางของมหาวิทยาลัย)
                       </div>
                     </div>
-                  )}
+                  </div>
+                  <span className="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 shrink-0">
+                    M4 Lobby
+                  </span>
                 </div>
               </div>
 
@@ -869,50 +931,54 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             </div>
           )}
         </form>
+          </>
+        )}
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* Sticky Bottom Action Bar for Mobile */}
+      {/* Sticky Bottom Action Bar for Mobile (Only when open) */}
       {/* ------------------------------------------------------------- */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-2.5 backdrop-blur-md shadow-lg sm:hidden">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div>
-            <div className="text-[10px] text-gray-500 font-medium">ยอดชำระรวม:</div>
-            <div className="text-lg font-black text-orange-600 leading-tight">
-              ฿{totalAmount}
-              <span className="text-xs font-normal text-gray-500 ml-1">({totalQuantity} กล่อง)</span>
+      {!isBatchClosed && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-2.5 backdrop-blur-md shadow-lg sm:hidden">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] text-gray-500 font-medium">ยอดชำระรวม:</div>
+              <div className="text-lg font-black text-orange-600 leading-tight">
+                ฿{totalAmount}
+                <span className="text-xs font-normal text-gray-500 ml-1">({totalQuantity} กล่อง)</span>
+              </div>
             </div>
-          </div>
 
-          {currentStep === 1 ? (
-            <button
-              type="button"
-              disabled={cartItemsList.length === 0}
-              onClick={() => setCurrentStep(2)}
-              className="rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40"
-            >
-              ไปสแกนจ่าย ➔
-            </button>
-          ) : currentStep === 2 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
-            >
-              ไปแนบสลิป ➔
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={submitting || !slipFile || !customerName.trim() || !customerPhone.trim()}
-              onClick={handleSubmitOrder}
-              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40"
-            >
-              {submitting ? "กำลังส่ง..." : "ยืนยันสั่งข้าว ✓"}
-            </button>
-          )}
+            {currentStep === 1 ? (
+              <button
+                type="button"
+                disabled={cartItemsList.length === 0}
+                onClick={() => setCurrentStep(2)}
+                className="rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40"
+              >
+                ไปสแกนจ่าย ➔
+              </button>
+            ) : currentStep === 2 ? (
+              <button
+                type="button"
+                onClick={() => setCurrentStep(3)}
+                className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
+              >
+                ไปแนบสลิป ➔
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={submitting || !slipFile || !customerName.trim() || !customerPhone.trim()}
+                onClick={handleSubmitOrder}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {submitting ? "กำลังส่ง..." : "ยืนยันสั่งข้าว ✓"}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* High-Res Full Menu Photo Lightbox Modal */}
       {showMenuPhotoModal && batch.shop.menuImageUrl && (

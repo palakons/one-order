@@ -259,6 +259,54 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
     }
   };
 
+  const handleOpenAllShopsToday = async () => {
+    if (
+      !confirm(
+        `ต้องการเปิดรอบส่งวันนี้สำหรับทุกร้าน (${shops.length} ร้าน) ด้วยเวลาปิดรับ 11:15 น. และส่งที่ตึก M4 ใช่หรือไม่?`
+      )
+    )
+      return;
+
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      let created = 0;
+      let skipped = 0;
+
+      for (const s of shops) {
+        // Skip if this shop already has an OPEN batch today
+        const alreadyOpen = batches.some(
+          (b) => b.shopId === s.id && b.date === today && b.status === "OPEN"
+        );
+        if (alreadyOpen) {
+          skipped++;
+          continue;
+        }
+
+        const res = await fetch("/api/batches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopId: s.id,
+            date: today,
+            cutoffTime: "11:15",
+            targetMinAmount: s.minDeliveryAmount || 200,
+            notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของชั้น 1 ตึก M4",
+          }),
+        });
+        const data = await res.json();
+        if (data.success) created++;
+      }
+
+      alert(`เปิดรอบอาหารสำเร็จ ${created} ร้าน! (ข้ามร้านที่เปิดอยู่แล้ว ${skipped} ร้าน)`);
+      refreshData();
+    } catch (err: any) {
+      alert("เกิดข้อผิดพลาดในการเปิดรอบ: " + (err.message || "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddDish = () => {
     if (!newDishName.trim() || !newDishPrice) return;
     setShopMenuItems((prev) => [
@@ -527,14 +575,28 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
         {/* Tab 1: All Batches */}
         {activeTab === "batches" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Active & Recent Batches</h2>
-              <button
-                onClick={() => setActiveTab("newBatch")}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-orange-700"
-              >
-                <Plus className="h-4 w-4" /> Open New Batch
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Active & Recent Batches</h2>
+                <p className="text-xs text-gray-500">จัดการรอบสั่งอาหารและดูสรุปครัว / สลิปโอนเงิน</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenAllShopsToday}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-purple-800 disabled:opacity-50 transition-colors"
+                >
+                  <Sparkles className="h-4 w-4 text-amber-300" />
+                  <span>🚀 เปิดรอบวันนี้ทุกร้าน ({shops.length} ร้าน)</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("newBatch")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> เปิดรอบร้านเดี่ยว
+                </button>
+              </div>
             </div>
 
             {batches.length === 0 ? (
@@ -575,7 +637,16 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-center">
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                      {b.status === "COMPLETED" && (
+                        <Link
+                          href={`/delivery/${b.id}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                        >
+                          <Camera className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>ดูรูปส่ง M4</span>
+                        </Link>
+                      )}
                       <Link
                         href={`/order/${b.id}`}
                         className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100"

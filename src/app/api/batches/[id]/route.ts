@@ -9,7 +9,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const batch = await getBatchById(id);
+    const { searchParams } = new URL(request.url);
+    const isShopRole = searchParams.get("role") === "shop" || request.headers.get("x-view-role") === "shop";
+
+    // Sanitize unless specifically requested by shop manifest role
+    const batch = await getBatchById(id, !isShopRole);
     if (!batch) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 400 });
     }
@@ -43,7 +47,8 @@ export async function PATCH(
       try {
         const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
         const protocol = request.headers.get("x-forwarded-proto") || "https";
-        const manifestUrl = `${protocol}://${hostHeader}/shop/${updated.id}`;
+        // Direct students to the safe public delivery page instead of internal merchant sheet!
+        const deliveryUrl = `${protocol}://${hostHeader}/delivery/${updated.id}`;
 
         let photoUrlForLine: string | undefined = undefined;
         if (updated.deliveryPhotoUrl) {
@@ -57,7 +62,7 @@ export async function PATCH(
         const broadcastText = `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะตึก M4 แล้วครับ! ✨\n` +
           `ร้าน: ${updated.shop.name} (${updated.orders.length} กล่อง)\n` +
           `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ตึก M4 เรียบร้อยแล้ว\n\n` +
-          `📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${manifestUrl}\n\n` +
+          `📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
           `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
 
         // Push to LINE group if configured (non-blocking)

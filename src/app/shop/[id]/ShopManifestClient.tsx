@@ -26,7 +26,10 @@ import {
   Camera,
   Share2,
   Check,
+  Copy,
+  MapPin,
 } from "lucide-react";
+import { maskPhoneNumber } from "@/lib/utils";
 
 interface Props {
   batchId: string;
@@ -52,6 +55,25 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [copiedSummary, setCopiedSummary] = useState(false);
+  const [revealedPhones, setRevealedPhones] = useState<Record<string, boolean>>({});
+
+  const togglePhoneReveal = (id: string) => {
+    setRevealedPhones((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Load persistent checklist from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`veatec_manifest_checked_${batchId}`);
+      if (stored) {
+        setCheckedItems(JSON.parse(stored));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [batchId]);
+
   useEffect(() => {
     fetchBatch();
     const interval = setInterval(fetchBatch, 4000);
@@ -60,7 +82,8 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
   const fetchBatch = async () => {
     try {
-      const res = await fetch(`/api/batches/${batchId}`);
+      // Request full merchant data to verify slips
+      const res = await fetch(`/api/batches/${batchId}?role=shop`);
       const data = await res.json();
       if (data.success) {
         setBatch(data.batch);
@@ -126,7 +149,35 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
   };
 
   const toggleCheck = (id: string) => {
-    setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+    setCheckedItems((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem(`veatec_manifest_checked_${batchId}`, JSON.stringify(next));
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const handleCopyCookingSummary = () => {
+    if (!batch) return;
+    const lines = [
+      `🍱 สรุปยอดทำอาหารร้าน ${batch.shop.name}`,
+      `📅 วันที่: ${batch.date} (รวม ${batch.orders.length} กล่อง)`,
+      `---------------------------------`,
+      ...cookingSummary.map(
+        (it, idx) =>
+          `${idx + 1}. ${it.name} x ${it.quantity}${
+            it.notes.length > 0 ? ` (${it.notes.join(", ")})` : ""
+          }`
+      ),
+      `---------------------------------`,
+      `📍 จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n"));
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 3000);
   };
 
   if (!batch) {
@@ -269,18 +320,26 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-orange-600"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Pools</span>
+            <span>← กลับหน้าหลัก</span>
           </Link>
 
-          {/* 1-Click LINE Share and Print */}
+          {/* Copy LINE Summary & Print */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyCookingSummary}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+            >
+              <Copy className="h-4 w-4 text-emerald-600" />
+              <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE ร้าน"}</span>
+            </button>
             <LineShareButton batch={batch} />
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               <Printer className="h-4 w-4" />
-              <span>Print Sheet</span>
+              <span>พิมพ์ใบรายการ</span>
             </button>
           </div>
         </div>
@@ -374,7 +433,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                   href={`https://line.me/R/msg/text/?${encodeURIComponent(
                     `🍱 [VEATEC @ VISTEC] ข้าวร้าน ${batch.shop.name} มาส่งถึงโต๊ะตึก M4 แล้วครับ/ค่ะ! 🎉\n` +
                     `นศ. และอาจารย์สามารถไปรับกล่องข้าวของตัวเองที่โต๊ะประจำตึก M4 ได้เลย\n` +
-                    `👉 ตรวจสอบรายการและรูปหลักฐาน: ${typeof window !== 'undefined' ? window.location.href : ''}`
+                    `👉 ตรวจสอบกล่องของคุณ & ดูรูปถ่ายส่งของ: ${typeof window !== 'undefined' ? `${window.location.origin}/delivery/${batch.id}` : ''}`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -450,32 +509,32 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                   {batch.isMinMet ? (
                     <>
                       <Truck className="h-4 w-4" />
-                      <span>CAMPUS DELIVERY TO DESKS</span>
+                      <span>ส่งฟรีถึงโต๊ะตึก M4 (ยอดครบแล้ว)</span>
                     </>
                   ) : (
                     <>
                       <ShoppingBag className="h-4 w-4" />
-                      <span>SELF PICK-UP AT SHOP (UNDER ฿{batch.targetMinAmount})</span>
+                      <span>รับเองที่หน้าร้าน (ยอดไม่ถึง ฿{batch.targetMinAmount})</span>
                     </>
                   )}
                 </span>
                 <span className="text-xs font-bold text-gray-600">
-                  Batch: {batch.date} (Cutoff: {batch.cutoffTime})
+                  รอบวันที่: {batch.date} (ปิดรับ: {batch.cutoffTime} น.)
                 </span>
               </div>
 
               <h1 className="mt-3 text-2xl sm:text-3xl font-black text-gray-900">
-                {batch.shop.name} — Kitchen Manifest
+                {batch.shop.name} — ใบสรุปออเดอร์ครัว
               </h1>
 
               <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 {batch.isMinMet ? (
                   <>
-                    🎉 <strong>Minimum met! (฿{batch.currentTotalAmount} &ge; ฿{batch.targetMinAmount})</strong>. Please cook and deliver the labeled boxes to the designated campus tables below.
+                    🎉 <strong>ยอดครบส่งฟรีแล้ว! (฿{batch.currentTotalAmount} / ฿{batch.targetMinAmount})</strong> ทำอาหารตามรายการด้านล่าง แล้วนำส่งที่โต๊ะส่งอาหาร ชั้น 1 ตึก M4 ได้เลยครับ/ค่ะ
                   </>
                 ) : (
                   <>
-                    ⚠️ <strong>Total: ฿{batch.currentTotalAmount}</strong> (under ฿{batch.targetMinAmount} delivery threshold). Meals are already 100% pre-paid; keep them ready for self pick-up at the shop.
+                    ⚠️ <strong>ยอดรวม ฿{batch.currentTotalAmount}</strong> (ยังไม่ถึงยอดส่งฟรี ฿{batch.targetMinAmount}) ลูกค้าโอนเงินชำระครบแล้ว เตรียมไว้ให้ลูกค้ามารับที่หน้าร้านครับ/ค่ะ
                   </>
                 )}
               </p>
@@ -484,62 +543,56 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             {/* Total orders and amount */}
             <div className="rounded-2xl bg-white border border-gray-200/80 p-4 shrink-0 text-center sm:text-right shadow-2xs">
               <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                Total Pre-paid (100% Slips)
+                ยอดเงินโอนรวม (ครบ 100%)
               </div>
               <div className="text-3xl font-black text-orange-600">
                 ฿{batch.currentTotalAmount}
               </div>
               <div className="text-xs font-semibold text-gray-700 mt-0.5">
-                {batch.orders.length} Boxes / Orders
+                {batch.orders.length} กล่อง / ออเดอร์
               </div>
             </div>
           </div>
 
-          {/* Delivery Buildings Breakdown */}
+          {/* Delivery Drop-off Desk Summary */}
           {batch.isMinMet && (
-            <div className="mt-6 pt-5 border-t border-emerald-200/60">
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-950 mb-2.5 flex items-center gap-1.5">
-                <Building2 className="h-4 w-4 text-emerald-700" />
-                <span>Delivery Drop-off Desks & Quantities:</span>
+            <div className="mt-6 pt-4 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-emerald-950">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
+                <span>จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4 (เคาน์เตอร์ฝั่งซ้าย)</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                {Object.entries(buildingBreakdown).map(([building, info]) => (
-                  <div
-                    key={building}
-                    className="rounded-xl bg-white/90 border border-emerald-200 p-3 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-gray-900">{building}</span>
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-800">
-                        {info.count} {info.count === 1 ? "box" : "boxes"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-gray-500 line-clamp-1">
-                      Desk: {info.desk}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 self-start sm:self-auto">
+                รวม {batch.orders.length} กล่อง
+              </span>
             </div>
           )}
         </div>
 
         {/* Section 1: Kitchen Cooking Sheet */}
         <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-700 shrink-0">
                 <ChefHat className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900">
-                  Kitchen Cooking Sheet (สรุปรายการอาหารสำหรับครัว)
+                <h2 className="text-base font-black text-gray-900">
+                  1. สรุปรายการอาหารสำหรับครัว (ทำอาหารตามยอดนี้)
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Total items aggregated across all orders. Tap checkmark as you cook!
+                  รวมจำนวนจานทั้งหมด แตะที่รายการเพื่อติ๊กถูกเมื่อทำเสร็จ
                 </p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleCopyCookingSummary}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-orange-300 bg-orange-50 px-3.5 py-1.5 text-xs font-bold text-orange-800 hover:bg-orange-100 transition-colors shrink-0"
+            >
+              <Copy className="h-3.5 w-3.5 text-orange-600" />
+              <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE ร้าน"}</span>
+            </button>
           </div>
 
           <div className="divide-y divide-gray-100">
@@ -569,7 +622,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                               key={nIdx}
                               className="inline-block mr-2 text-[11px] bg-amber-50 text-amber-900 border border-amber-200 rounded px-1.5 py-0.5"
                             >
-                              Note: {note}
+                              โน้ต: {note}
                             </span>
                           ))}
                         </div>
@@ -590,11 +643,11 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
         <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-gray-100 pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                Packaging & Labeling Guide (จัดอาหาร & ป้ายหน้ากล่อง)
+              <h2 className="text-base sm:text-lg font-black text-gray-900">
+                2. จัดอาหารใส่กล่อง & เขียนป้ายหน้ากล่อง
               </h2>
               <p className="text-xs text-gray-500">
-                Switch between single box labels or customer-grouped packaging bags
+                สลับดูแยกตามกล่องเดี่ยว หรือรวมตามชื่อคนสั่งเพื่อใส่ถุงเดียวกัน
               </p>
             </div>
 
@@ -610,7 +663,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 }`}
               >
                 <Package className="h-3.5 w-3.5" />
-                <span>By Order / Box ({batch.orders.length})</span>
+                <span>แยกตามกล่อง ({batch.orders.length} กล่อง)</span>
               </button>
               <button
                 type="button"
@@ -622,7 +675,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                <span>By Customer ({customerList.length})</span>
+                <span>รวมตามคนสั่ง ({customerList.length} คน)</span>
               </button>
             </div>
           </div>
@@ -631,7 +684,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           {viewMode === "order" && (
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-500">
-                Showing {batch.orders.length} individual boxes for cooking &amp; writing box numbers:
+                แสดง {batch.orders.length} กล่อง สำหรับจัดอาหารและเขียนเบอร์กล่อง:
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {batch.orders.map((ord) => {
@@ -670,12 +723,22 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                         <div className="font-bold text-sm text-gray-900">
                           {ord.customerName}
                         </div>
-                        <a
-                          href={`tel:${ord.customerPhone}`}
-                          className="text-xs text-gray-600 hover:text-orange-600 flex items-center gap-1 font-medium mt-0.5"
-                        >
-                          <Phone className="h-3 w-3" /> {ord.customerPhone}
-                        </a>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <a
+                            href={`tel:${ord.customerPhone}`}
+                            className="text-xs text-gray-600 hover:text-orange-600 flex items-center gap-1 font-medium"
+                          >
+                            <Phone className="h-3 w-3" />
+                            <span>{revealedPhones[ord.id] ? ord.customerPhone : maskPhoneNumber(ord.customerPhone)}</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setRevealedPhones((prev) => ({ ...prev, [ord.id]: !prev[ord.id] }))}
+                            className="text-[10px] text-gray-400 hover:text-gray-700 underline"
+                          >
+                            {revealedPhones[ord.id] ? "ซ่อน" : "แสดงเบอร์"}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Food items */}
@@ -695,7 +758,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
                       {/* Box Label text to write */}
                       <div className="rounded-lg bg-white border border-gray-200 p-2 text-[11px] font-mono text-gray-700">
-                        <strong className="text-gray-900">Write on Box:</strong> {ord.boxLabel}
+                        <strong className="text-gray-900">เขียนหน้ากล่อง:</strong> {ord.boxLabel}
                       </div>
                     </div>
                   );
@@ -708,7 +771,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           {viewMode === "customer" && (
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-500">
-                Showing {customerList.length} customers with all their items grouped into packaging bags:
+                รวมรายการของลูกค้า {customerList.length} คน สำหรับจัดใส่ถุงรวม:
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {customerList.map((customer, cIdx) => {
@@ -743,15 +806,25 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                                 {customer.customerName}
                               </h3>
                               <span className="rounded bg-orange-100 text-orange-800 text-[11px] font-bold px-2 py-0.5">
-                                {customer.orders.length} {customer.orders.length === 1 ? "box" : "boxes"}
+                                {customer.orders.length} กล่อง
                               </span>
                             </div>
-                            <a
-                              href={`tel:${customer.customerPhone}`}
-                              className="text-xs text-orange-600 font-semibold hover:underline flex items-center gap-1 mt-0.5"
-                            >
-                              <Phone className="h-3 w-3" /> {customer.customerPhone}
-                            </a>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <a
+                                href={`tel:${customer.customerPhone}`}
+                                className="text-xs text-orange-600 font-semibold hover:underline flex items-center gap-1"
+                              >
+                                <Phone className="h-3 w-3" />
+                                <span>{revealedPhones[customer.customerPhone] ? customer.customerPhone : maskPhoneNumber(customer.customerPhone)}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => setRevealedPhones((prev) => ({ ...prev, [customer.customerPhone]: !prev[customer.customerPhone] }))}
+                                className="text-[10px] text-gray-400 hover:text-gray-700 underline"
+                              >
+                                {revealedPhones[customer.customerPhone] ? "ซ่อน" : "แสดงเบอร์"}
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -761,7 +834,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                             {locName}
                           </span>
                           <div className="text-[10px] text-gray-500 mt-0.5">
-                            Boxes: <strong>{boxNumbers}</strong>
+                            กล่อง: <strong>{boxNumbers}</strong>
                           </div>
                         </div>
                       </div>
@@ -769,7 +842,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                       {/* Aggregated food items for this customer */}
                       <div className="space-y-1.5 text-xs text-gray-800">
                         <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                          Items for this bag:
+                          รายการอาหารในถุงนี้:
                         </div>
                         {customer.items.map((it, idx) => (
                           <div
@@ -796,7 +869,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                       {/* Customer total amount and slips */}
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Paid Total:</span>
+                          <span className="text-gray-500">ยอดโอนรวม:</span>
                           <span className="font-black text-sm text-orange-600">
                             ฿{customer.totalAmount}
                           </span>
@@ -818,7 +891,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                               className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-orange-50 hover:border-orange-300 transition-colors"
                             >
                               <Eye className="h-3 w-3 text-orange-600" />
-                              <span>Slip #{ord.orderNumber}</span>
+                              <span>สลิป #{ord.orderNumber}</span>
                             </button>
                           ))}
                         </div>
@@ -836,14 +909,14 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-gray-900">
-                Payment Slip Verification Gallery (หลักฐานสลิปโอนเงิน)
+                3. ตรวจสอบสลิปโอนเงินเข้าบัญชีร้าน (Payment Slips)
               </h2>
               <p className="text-xs text-gray-500">
-                Click any slip to view full high-resolution image and verify against your banking app
+                แตะที่รูปเพื่อดูสลิปขนาดเต็ม และตรวจสอบยอดเงินเข้ากับแอปธนาคารของร้าน
               </p>
             </div>
             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-              {batch.orders.length} Verified Slips
+              {batch.orders.length} สลิปโอนเงิน
             </span>
           </div>
 

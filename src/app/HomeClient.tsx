@@ -359,23 +359,17 @@ export default function HomeClient({ initialBatches }: Props) {
                       className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl ${theme.buttonClass} px-3 py-2 text-xs font-bold shadow-2xs transition-all active:scale-[0.98]`}
                     >
                       <ShoppingBag className="h-3.5 w-3.5" />
-                      <span>{t.viewMenuOrder}</span>
+                      <span>{batch.status === "COMPLETED" ? "ดูรายการอาหาร" : t.viewMenuOrder}</span>
                     </Link>
-                    <Link
-                      href={`/shop/${batch.id}`}
-                      className={`inline-flex items-center justify-center rounded-xl border p-2 text-xs font-semibold shadow-2xs transition-colors ${
-                        batch.status === "COMPLETED"
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                          : "border-gray-200/90 bg-white/90 text-gray-600 hover:text-gray-900 hover:bg-white"
-                      }`}
-                      title={batch.status === "COMPLETED" ? "ส่งอาหารแล้ว • ดูรูปหลักฐาน" : "ดูใบครัว & ถ่ายรูปส่งอาหาร"}
-                    >
-                      {batch.status === "COMPLETED" ? (
+                    {batch.status === "COMPLETED" && (
+                      <Link
+                        href={`/delivery/${batch.id}`}
+                        className="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition-colors shrink-0"
+                        title="อาหารส่งถึง M4 แล้ว • ดูรูปถ่ายหลักฐาน"
+                      >
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
-                        <ChefHat className="h-3.5 w-3.5 text-gray-700" />
-                      )}
-                    </Link>
+                      </Link>
+                    )}
                   </div>
                 </div>
               );
