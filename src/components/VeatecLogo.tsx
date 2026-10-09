@@ -25,110 +25,20 @@ export default function VeatecLogo({
   const isLg = size === "lg";
   const isXl = size === "xl";
 
-  const iconDim = isSm ? 32 : isLg ? 46 : isXl ? 56 : 40;
+  const iconDim = isSm ? 40 : isLg ? 54 : isXl ? 68 : 46;
   const wordFontSize = isSm ? "1.25rem" : isLg ? "1.9rem" : isXl ? "2.4rem" : "1.55rem";
 
-  // Reusable SVG Icon: Geometric VISTEC V with the "Fun Eat / Happy Food Smile" inside!
+  // Reusable Mascot Logo Icon
   const LogoIcon = ({ dim }: { dim: number }) => (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/veatec-logo-sm.png"
+      alt="VEATEC Mascot Logo"
       width={dim}
       height={dim}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0 drop-shadow-2xs select-none"
-    >
-      <defs>
-        {/* Soft appetizing glow */}
-        <linearGradient id="veatec-tile-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FCF8FE" />
-          <stop offset="100%" stopColor="#F8EEF5" />
-        </linearGradient>
-      </defs>
-
-      {/* Rounded Squircle Tile */}
-      <rect
-        width="100"
-        height="100"
-        rx="24"
-        fill="url(#veatec-tile-grad)"
-        stroke="#EBE0F0"
-        strokeWidth="2.5"
-      />
-
-      {/* 1. Geometric University Wings (VISTEC "V") */}
-      {/* Left geometric arm (VISTEC Purple) */}
-      <path
-        d="M17 22 L34 22 L46 64 L33 64 Z"
-        fill={VISTEC_PURPLE}
-      />
-
-      {/* Right geometric arm (VISTEC Crimson) */}
-      <path
-        d="M83 22 L66 22 L54 64 L67 64 Z"
-        fill={VISTEC_RED}
-      />
-
-      {/* 2. THE FUN EAT INSIDE: Smiling Dining Bowl & Happy Face */}
-      {/* Translucent delicious bowl interior */}
-      <path
-        d="M26 56 Q50 86 74 56 Z"
-        fill={VISTEC_RED}
-        fillOpacity="0.14"
-      />
-
-      {/* Smiling Dining Bowl Bottom Arc (Happy Smile Curve) */}
-      <path
-        d="M25 56 Q50 86 75 56"
-        stroke={VISTEC_RED}
-        strokeWidth="6.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* Cute Little Tongue (Yum / Delicious Bite) */}
-      <path
-        d="M45 68 Q50 78 55 68 Z"
-        fill={VISTEC_RED}
-      />
-
-      {/* Two Happy Cheerful Eyes inside the V (Playful Anime Yum Face: ^ ^) */}
-      <path
-        d="M37 42 Q41 35 45 42"
-        stroke={VISTEC_PURPLE}
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M55 42 Q59 35 63 42"
-        stroke={VISTEC_RED}
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* Rising Steam Wisps (Hot & Fresh Food) */}
-      <path
-        d="M45 23 Q42 16 46 12"
-        stroke={VISTEC_PURPLE}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        fill="none"
-        strokeOpacity="0.85"
-      />
-      <path
-        d="M55 23 Q58 16 54 12"
-        stroke={VISTEC_RED}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        fill="none"
-        strokeOpacity="0.85"
-      />
-
-      {/* Tiny appetizing sparkle dot */}
-      <circle cx="50" cy="27" r="2" fill="#E8604C" />
-    </svg>
+      className="shrink-0 select-none object-contain drop-shadow-2xs transition-transform hover:scale-105"
+      style={{ width: `${dim}px`, height: `${dim}px` }}
+    />
   );
 
   if (variant === "icon-only") {
