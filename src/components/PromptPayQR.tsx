@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Copy, Check, Smartphone, ShieldCheck } from "lucide-react";
+import { QrCode, Copy, Check, Smartphone, ShieldCheck, Phone, MessageSquare } from "lucide-react";
 
 interface Props {
   shopName: string;
@@ -9,6 +9,7 @@ interface Props {
   promptpayNumber: string;
   amount: number;
   qrUrl?: string;
+  phone?: string;
 }
 
 export default function PromptPayQR({
@@ -17,12 +18,19 @@ export default function PromptPayQR({
   promptpayNumber,
   amount,
   qrUrl,
+  phone,
 }: Props) {
   const [copiedNumber, setCopiedNumber] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
 
+  const isContactShop =
+    qrUrl === "contact shop" ||
+    promptpayNumber === "contact shop" ||
+    !promptpayNumber ||
+    qrUrl?.toLowerCase().includes("contact");
+
   const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${promptpayNumber}`;
-  const displayQr = qrUrl || fallbackQr;
+  const displayQr = qrUrl && qrUrl.startsWith("http") ? qrUrl : fallbackQr;
 
   const copyToClipboard = (text: string, type: "number" | "amount") => {
     navigator.clipboard.writeText(text);
@@ -34,6 +42,76 @@ export default function PromptPayQR({
       setTimeout(() => setCopiedAmount(false), 2000);
     }
   };
+
+  const contactPhone = phone || (promptpayNumber !== "contact shop" ? promptpayNumber : "");
+
+  if (isContactShop) {
+    return (
+      <div className="rounded-2xl border border-amber-300 bg-gradient-to-b from-amber-50/80 to-white p-3.5 sm:p-5 shadow-xs">
+        {/* Header Badge */}
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-600 text-white font-black text-[10px]">
+              !
+            </span>
+            <span className="text-xs font-bold text-amber-950">
+              ติดต่อร้านค้าเพื่อชำระเงิน (Contact Shop)
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
+            <Phone className="h-3 w-3" />
+            ติดต่อตรงกับร้าน
+          </span>
+        </div>
+
+        {/* Transfer details card */}
+        <div className="rounded-xl border border-amber-200 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
+          {/* Amount to pay */}
+          <div className="rounded-lg bg-orange-50 border border-orange-200/90 p-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-orange-950">ยอดที่ต้องชำระ:</span>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(String(amount), "amount")}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-700 hover:text-orange-900 bg-white px-2 py-0.5 rounded border border-orange-200"
+              >
+                {copiedAmount ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedAmount ? "คัดลอกแล้ว" : "คัดลอกยอด"}</span>
+              </button>
+            </div>
+            <div className="text-2xl font-black text-orange-600">฿{amount}</div>
+          </div>
+
+          <div className="space-y-1.5 text-xs text-gray-700 bg-amber-50/50 rounded-lg p-2.5 border border-amber-100">
+            <div className="font-bold text-gray-900 flex items-center justify-between">
+              <span>{shopName}</span>
+              <span className="text-[11px] text-amber-900 font-normal">ร้านชุมชนป่ายุบใน/วังจันทร์</span>
+            </div>
+            <p className="text-[11px] text-gray-600">
+              ร้านนี้ยังไม่มีระบบ QR Code อัตโนมัติ สามารถติดต่อแม่ค้าเพื่อสแกนรับ QR หรือชำระเงินตามที่ตกลงกับทางร้าน
+            </p>
+          </div>
+
+          {/* Contact buttons */}
+          {contactPhone && (
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
+              <div className="text-xs">
+                <span className="text-gray-500 text-[11px]">เบอร์โทรร้าน: </span>
+                <span className="font-bold font-mono text-gray-900">{contactPhone}</span>
+              </div>
+              <a
+                href={`tel:${contactPhone}`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white transition-colors shadow-2xs"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                <span>โทรติดต่อร้าน</span>
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-blue-200 bg-gradient-to-b from-blue-50/70 to-white p-3.5 sm:p-5 shadow-xs">

@@ -36,8 +36,8 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
   const name = (shop.name || "").toLowerCase();
   const cuisine = (shop.cuisine || "").toLowerCase();
 
-  // ป้าณี อาหารตามสั่ง (Fiery Basil / Stir-fry)
-  if (id.includes("nee") || name.includes("ป้าณี") || cuisine.includes("street")) {
+  // 1. ครัวป้าต่าย ป่ายุบใน (Fiery Basil / Stir-fry)
+  if (id.includes("tai") || id.includes("nee") || name.includes("ต่าย") || name.includes("ป้าณี")) {
     return {
       primary: "#EA580C",
       glowColor: "rgba(234, 88, 12, 0.28)",
@@ -49,8 +49,8 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
     };
   }
 
-  // ข้าวมันไก่เฮียไช้ (Golden Chicken Rice)
-  if (id.includes("chai") || name.includes("ไช้") || cuisine.includes("chicken")) {
+  // 2. ร้านอาหารชาวไร่ วังจันทร์ (Legendary Seafood & Chinese)
+  if (id.includes("chao") || id.includes("chai") || name.includes("ชาวไร่")) {
     return {
       primary: "#D97706",
       glowColor: "rgba(217, 119, 6, 0.28)",
@@ -62,8 +62,8 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
     };
   }
 
-  // แม่วรรณ ก๋วยเตี๋ยวเรือ (Boat Noodles)
-  if (id.includes("wan") || name.includes("วรรณ") || cuisine.includes("noodle")) {
+  // 3. ครัวมั่งมี วังจันทร์ กม.68 (Homemade Chinese-Thai & Seafood)
+  if (id.includes("mangmee") || id.includes("wan") || name.includes("มั่งมี")) {
     return {
       primary: "#E11D48",
       glowColor: "rgba(225, 29, 72, 0.25)",
@@ -75,8 +75,8 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
     };
   }
 
-  // ส้มตำเจ๊ณี วังจันทร์ (Som Tum / Isan)
-  if (id.includes("somtum") || name.includes("ส้มตำ") || cuisine.includes("อีสาน")) {
+  // 4. ครัวคุณส้ม สี่แยกป่ายุบใน (Som Tum / Isan)
+  if (id.includes("som") || id.includes("somtum") || name.includes("ส้ม")) {
     return {
       primary: "#059669",
       glowColor: "rgba(5, 150, 105, 0.26)",
@@ -88,8 +88,8 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
     };
   }
 
-  // VISTEC Café (Campus Cafe / Drinks)
-  if (id.includes("cafe") || name.includes("café") || cuisine.includes("เครื่องดื่ม") || cuisine.includes("กาแฟ")) {
+  // 5. Lin's Tea House & Cafe (Wangchan Cafe & Drinks)
+  if (id.includes("lin") || id.includes("cafe") || name.includes("lin") || cuisine.includes("เครื่องดื่ม") || cuisine.includes("กาแฟ") || cuisine.includes("ชา")) {
     return {
       primary: "#7C3AED",
       glowColor: "rgba(124, 58, 237, 0.28)",

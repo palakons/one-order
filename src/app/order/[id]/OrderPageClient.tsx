@@ -720,6 +720,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 promptpayNumber={batch.shop.promptpayNumber}
                 amount={totalAmount}
                 qrUrl={batch.shop.promptpayQrUrl}
+                phone={batch.shop.phone}
               />
 
               {/* Next Step Button */}
