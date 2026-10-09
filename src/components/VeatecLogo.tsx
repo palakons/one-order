@@ -25,8 +25,8 @@ export default function VeatecLogo({
   const isLg = size === "lg";
   const isXl = size === "xl";
 
-  const iconDim = isSm ? 40 : isLg ? 54 : isXl ? 68 : 46;
-  const wordFontSize = isSm ? "1.25rem" : isLg ? "1.9rem" : isXl ? "2.4rem" : "1.55rem";
+  const iconDim = isSm ? 32 : isLg ? 54 : isXl ? 68 : 44;
+  const wordFontSize = isSm ? "1.15rem" : isLg ? "1.9rem" : isXl ? "2.4rem" : "1.55rem";
 
   // Reusable Mascot Logo Icon
   const LogoIcon = ({ dim }: { dim: number }) => (
@@ -46,7 +46,7 @@ export default function VeatecLogo({
   }
 
   return (
-    <div className={`flex items-center gap-2.5 select-none ${className}`}>
+    <div className={`flex items-center gap-1.5 sm:gap-2 select-none ${className}`}>
       {/* Visual Icon: V with Fun Eat Inside */}
       <LogoIcon dim={iconDim} />
 
@@ -110,7 +110,7 @@ export default function VeatecLogo({
 
           {/* Fun Tag Badge: V · EAT · TEC */}
           <span
-            className="ml-2 rounded-full px-1.5 sm:px-2 py-0.5 font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-2xs self-center"
+            className="ml-1.5 sm:ml-2 rounded-full px-1.5 sm:px-2 py-0.5 font-extrabold uppercase tracking-wider hidden sm:inline-flex items-center gap-1 shadow-2xs self-center"
             style={{
               fontSize: isSm ? "8px" : "9px",
               backgroundColor: "#FCECEF",
