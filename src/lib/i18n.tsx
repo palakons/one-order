@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { Shop } from "./types";
 
 export type Language = "th" | "en" | "cn";
 
@@ -352,3 +353,186 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export function useLanguage() {
   return useContext(LanguageContext);
 }
+
+export function getShopLocalizedInfo(shop: Shop, lang: Language) {
+  const knownShops: Record<
+    string,
+    {
+      name: { th: string; en: string; cn: string };
+      cuisine: { th: string; en: string; cn: string };
+      desc: { th: string; en: string; cn: string };
+    }
+  > = {
+    "shop-pa-tai": {
+      name: {
+        th: "ครัวป้าต่าย ป่ายุบใน",
+        en: "Krua Pa Tai (Payubnai)",
+        cn: "泰阿姨家常菜 (Krua Pa Tai)",
+      },
+      cuisine: {
+        th: "อาหารตามสั่งพื้นบ้าน / รักษ์ระยอง",
+        en: "Thai Stir-Fry & Basil Rice",
+        cn: "泰式现炒快餐 / 罗勇风味",
+      },
+      desc: {
+        th: "ร้านอาหารตามสั่งขวัญใจชุมชนป่ายุบใน ใกล้ VISTEC รสจัดจ้าน ให้เยอะ",
+        en: "Local favorite stir-fry restaurant near VISTEC, generous portions",
+        cn: "VISTEC 附近高人气泰式小炒快餐，分量实在口味正宗",
+      },
+    },
+    "shop-chao-rai": {
+      name: {
+        th: "ร้านอาหารชาวไร่ วังจันทร์",
+        en: "Chao Rai Restaurant (Wangchan)",
+        cn: "朝莱海鲜餐厅 (Chao Rai)",
+      },
+      cuisine: {
+        th: "อาหารไทย-จีน & ทะเลกว่า 30 ปี",
+        en: "Thai-Chinese Seafood (30+ yrs)",
+        cn: "30年老字号 泰中海鲜与特色菜",
+      },
+      desc: {
+        th: "ร้านอาหารระดับตำนาน อ.วังจันทร์ วัตถุดิบทะเลสด อาหารป่ารสจัด",
+        en: "Legendary restaurant in Wangchan with fresh seafood and crab rolls",
+        cn: "旺赞县知名传统餐厅，新鲜海鲜与招牌蟹肉卷",
+      },
+    },
+    "shop-krua-mangmee": {
+      name: {
+        th: "ครัวมั่งมี วังจันทร์ (กม.68)",
+        en: "Krua Mangmee (KM.68)",
+        cn: "芒咪家常餐厅 (Krua Mangmee)",
+      },
+      cuisine: {
+        th: "อาหารไทย-จีน & ข้าวแห้งทะเล",
+        en: "Thai-Chinese & Dry Seafood Rice",
+        cn: "泰中家常菜 & 海鲜干泡饭",
+      },
+      desc: {
+        th: "ร้านดังประจำ ต.ป่ายุบใน กม.68 ข้าวแห้งทะเลทรงเครื่อง ปลาพิโรธ",
+        en: "Famous local eatery known for signature dry seafood rice bowls",
+        cn: "当地特色家常风味，招牌海鲜干泡饭与香辣鱼",
+      },
+    },
+    "shop-khun-som": {
+      name: {
+        th: "ครัวคุณส้ม สี่แยกป่ายุบใน",
+        en: "Krua Khun Som (Payubnai)",
+        cn: "坤橘泰东北风味 (Krua Khun Som)",
+      },
+      cuisine: {
+        th: "ส้มตำ อาหารอีสาน & จานด่วนแซ่บ",
+        en: "Som Tum & Isan Spicy Delights",
+        cn: "青木瓜沙拉 & 泰东北风味快餐",
+      },
+      desc: {
+        th: "ร้านแซ่บติดรั้ววังจันทร์ ส้มตำนัว คอหมูย่างฉ่ำ ลาบหมูคั่ว",
+        en: "Authentic spicy Isan food: Papaya salad, grilled pork neck, larb",
+        cn: "正宗泰东北美食：青木瓜沙拉、炭烤猪颈肉、香辣肉碎",
+      },
+    },
+    "shop-lins-tea": {
+      name: {
+        th: "Lin's Tea House & Eatery",
+        en: "Lin's Tea House & Cafe",
+        cn: "林氏茶舍 (Lin's Tea House & Cafe)",
+      },
+      cuisine: {
+        th: "ชา กาแฟสด & เบเกอรี่โฮมเมด",
+        en: "Premium Tea, Coffee & Bakery",
+        cn: "精选茶饮、现磨咖啡与自制烘焙",
+      },
+      desc: {
+        th: "คาเฟ่มินิมอล อ.วังจันทร์ ชาพรีเมียม กาแฟสดหอมกรุ่น และขนมปังโฮมเมด",
+        en: "Popular Wangchan cafe serving specialty teas, coffees and toast",
+        cn: "旺赞人气极简风咖啡馆，精选茶饮与自制烘焙甜点",
+      },
+    },
+  };
+
+  const known = knownShops[shop.id];
+  if (known) {
+    return {
+      name: known.name[lang] || shop.name,
+      cuisine: known.cuisine[lang] || shop.cuisine,
+      description: known.desc[lang] || shop.description,
+    };
+  }
+
+  // Fallback for custom onboarded shops
+  let name = shop.name;
+  if (lang === "en" && shop.nameEn) name = shop.nameEn;
+  if (lang === "cn") name = (shop as any).nameCn || shop.nameEn || shop.name;
+
+  let cuisine = shop.cuisine;
+  if (lang === "en" && (shop as any).cuisineEn) cuisine = (shop as any).cuisineEn;
+  if (lang === "cn") cuisine = (shop as any).cuisineCn || (shop as any).cuisineEn || shop.cuisine;
+
+  return { name, cuisine, description: shop.description };
+}
+
+export function getMenuItemLocalizedName(
+  item: { name: string; nameEn?: string; nameCn?: string },
+  lang: Language
+): string {
+  if (lang === "en") return item.nameEn || item.name;
+  if (lang === "cn") {
+    if (item.nameCn) return item.nameCn;
+    const cnMap: Record<string, string> = {
+      // Krua Pa Tai
+      "ข้าวกะเพราหมูกรอบคั่วพริกแห้ง": "干辣椒脆皮烧肉打抛猪肉盖饭",
+      "ข้าวหมูกระเทียมพริกไทยสด": "鲜胡椒蒜香猪肉盖饭",
+      "ข้าวผัดพริกแกงหมูป่าหน่อไม้ดอง": "酸笋红咖喱野猪肉炒饭",
+      "ข้าวกะเพราไก่บ้านรสเด็ด": "秘制土鸡肉打抛盖饭",
+      "ข้าวผัดโบราณหมูนุ่ม": "传统风味嫩猪肉炒饭",
+      "ข้าวไข่เจียวหมูสับฟูกรอบ": "香脆肉碎煎蛋盖饭",
+      "ต้มยำไก่บ้านน้ำใส (กับข้าว)": "清汤土鸡冬阴功汤 (配菜)",
+      "ผัดซีอิ๊วหมูเส้นใหญ่": "泰式酱油炒宽粉 (猪肉)",
+      "ไข่ดาวฟูกรอบ": "香脆荷包蛋 (加单)",
+
+      // Chao Rai
+      "หอยจ๊อปูทอดกรอบเนื้อแน่น (จาน 5 ลูก)": "鲜炸饱满蟹肉卷 (5粒)",
+      "ข้าวผัดเนื้อปูแกะสด": "鲜拆纯蟹肉炒饭",
+      "ข้าวราดเนื้อปูผัดผงกะหรี่": "黄咖喱炒纯蟹肉盖饭",
+      "ข้าวหมูป่าผัดเผ็ดเครื่องแกงชาวไร่": "农夫香辣野猪肉咖喱饭",
+      "แกงป่าปลาเห็ดโคนราดข้าว": "野味沙丁鱼丛林咖喱盖饭",
+      "แฮ่กึ้นกุ้งทอดสูตรชาวไร่ (จานเดี่ยว)": "秘制酥脆炸虾卷 (单盘)",
+      "ข้าวออส่วนหอยนางรมราดข้าว": "鲜嫩生蚝蚵仔煎蛋盖饭",
+      "ข้าวไข่เจียวเนื้อปูฟูกรอบ": "纯蟹肉香脆煎蛋盖饭",
+
+      // Krua Mangmee
+      "ข้าวแห้งทะเลทรงเครื่อง (Signature)": "招牌海鲜干泡饭 (Signature)",
+      "ข้าวราดปลาพิโรธผัดฉ่าสูตรเด็ด": "秘制火爆香辣脆鱼盖饭",
+      "กระเพาะปลาผัดแห้งเนื้อปู": "蟹肉炒干鱼肚",
+      "สุกี้โบราณแห้งทะเลรวมมิตร": "传统古法海鲜炒寿喜干粉",
+      "ข้าวผัดกุ้งสดเนื้อเด้ง": "Q弹鲜虾仁炒饭",
+      "ทอดมันกุ้งกรอบ (4 ชิ้น)": "香脆泰式金钱虾饼 (4块)",
+      "ต้มยำรวมมิตรทะเลน้ำข้น (กับข้าว)": "浓汤海鲜什锦冬阴功汤 (配菜)",
+      "ข้าวไข่ตุ๋นทะเลทรงเครื่อง": "什锦海鲜嫩滑蒸蛋盖饭",
+
+      // Khun Som
+      "ส้มตำไทยไข่เค็ม": "泰式咸蛋青木瓜沙拉",
+      "ส้มตำปูปลาร้านัวแซ่บ": "腌蟹发酵鱼露浓郁青木瓜沙拉",
+      "คอหมูย่างเตาถ่านน้ำจิ้มแจ่ว (จานเดี่ยว)": "炭火烤猪颈肉配泰北酸辣酱",
+      "ลาบหมูคั่วข้าวคั่วหอมมะนาวแท้": "香烤碎米纯柠檬炒肉碎 (Larb)",
+      "ข้าวกะเพราเป็ดพะโล้ผัดกะเพรากรอบ": "脆罗勒卤鸭肉打抛盖饭",
+      "ข้าวผัดต้มยำทะเลแซ่บ": "香辣海鲜冬阴功炒饭",
+      "ต้มแซ่บกระดูกหมูอ่อน (กับข้าว)": "酸辣软排骨清汤 (配菜)",
+      "ข้าวเหนียวนุ่มร้อนๆ": "热腾腾软糯泰式糯米饭",
+
+      // Lin's Tea House
+      "Lin's Cold Brew Specialty": "林氏特调冷萃咖啡",
+      "Premium Kyoto Matcha Latte": "京都特级抹茶拿铁",
+      "Dirty Coffee (Fresh Wangchan Milk)": "旺赞鲜奶 Dirty 脏咖啡",
+      "Peach Earl Grey Iced Tea": "白桃格雷红茶冰饮",
+      "Yuzu Espresso Sparkling": "日本柚子气泡浓缩咖啡",
+      "Thai Tea Latte (M4 Classic)": "泰式传统经典奶茶 (M4推荐)",
+      "Hokkaido Cheese Butter Toast": "北海道芝士黄油吐司",
+      "Basque Burnt Cheesecake": "巴斯克焦香芝士蛋糕",
+    };
+    if (cnMap[item.name]) return cnMap[item.name];
+    return item.nameEn || item.name;
+  }
+  return item.name;
+}
+

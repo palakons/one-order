@@ -12,7 +12,7 @@ import { CAMPUS_LOCATIONS, getLocationById } from "@/lib/locations";
 import { BatchWithDetails, Order } from "@/lib/types";
 import { placeOrder } from "@/lib/services";
 import confetti from "canvas-confetti";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName } from "@/lib/i18n";
 import {
   ArrowLeft,
   Plus,
@@ -355,6 +355,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   }
 
   const selectedLoc = getLocationById(selectedLocationId);
+  const shopInfo = getShopLocalizedInfo(batch.shop, lang);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-28 sm:pb-16">
@@ -375,12 +376,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200/80 rounded px-1.5 py-0.5">
-                {batch.shop.cuisine}
+                {shopInfo.cuisine}
               </span>
               <h1 className="mt-1 text-lg sm:text-2xl font-black text-gray-900">
-                {lang === "en" && batch.shop.nameEn ? batch.shop.nameEn : batch.shop.name}
+                {shopInfo.name}
               </h1>
-              <p className="text-xs text-gray-500 line-clamp-1">{batch.shop.description}</p>
+              <p className="text-xs text-gray-500 line-clamp-1">{shopInfo.description}</p>
             </div>
 
             <div className="text-right shrink-0">
@@ -548,11 +549,11 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                           <div className="flex-1 min-w-0 pr-2">
                             <div className="flex items-center gap-1.5">
                               <span className="font-bold text-xs sm:text-sm text-gray-900">
-                                {item.name}
+                                {getMenuItemLocalizedName(item, lang)}
                               </span>
                               {item.popular && (
                                 <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-bold text-amber-800 shrink-0">
-                                  นิยม
+                                  {lang === "en" ? "Popular" : lang === "cn" ? "热销" : "นิยม"}
                                 </span>
                               )}
                             </div>
@@ -702,7 +703,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   {cartItemsList.map(({ item, quantity, note }) => (
                     <div key={item.id} className="flex justify-between">
                       <div>
-                        {quantity}x {item.name}
+                        {quantity}x {getMenuItemLocalizedName(item, lang)}
                         {note && <span className="text-gray-500 text-[11px] ml-1">({note})</span>}
                       </div>
                       <div className="font-bold">฿{item.price * quantity}</div>

@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import CampusDesksModal from "@/components/CampusDesksModal";
 import { BatchWithDetails, Shop } from "@/lib/types";
 import { Utensils, Truck, ArrowRight, Clock, ChefHat, CheckCircle2, ShoppingBag, X, ChevronRight } from "lucide-react";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, getShopLocalizedInfo } from "@/lib/i18n";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -277,6 +277,7 @@ export default function HomeClient({ initialBatches }: Props) {
               const remaining = Math.max(0, batch.targetMinAmount - batch.currentTotalAmount);
               const percentage = Math.min(100, Math.round((batch.currentTotalAmount / batch.targetMinAmount) * 100));
               const theme = getShopDiffuseTheme(batch.shop);
+              const shopInfo = getShopLocalizedInfo(batch.shop, lang);
 
               return (
                 <div
@@ -297,12 +298,12 @@ export default function HomeClient({ initialBatches }: Props) {
                         {batch.shop.menuImageUrl ? (
                           <img
                             src={batch.shop.menuImageUrl}
-                            alt={batch.shop.name}
+                            alt={shopInfo.name}
                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-700 font-black text-lg">
-                            {batch.shop.name.charAt(0)}
+                            {shopInfo.name.charAt(0)}
                           </div>
                         )}
                       </div>
@@ -310,8 +311,8 @@ export default function HomeClient({ initialBatches }: Props) {
                       {/* Name & Badges */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1 text-[11px]">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border truncate max-w-[130px] ${theme.tagBg}`}>
-                            {batch.shop.cuisine}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border truncate max-w-[140px] ${theme.tagBg}`}>
+                            {shopInfo.cuisine}
                           </span>
                           <span className="font-semibold text-gray-500 flex items-center gap-0.5 shrink-0">
                             <Clock className="h-3 w-3 text-orange-500" />
@@ -320,7 +321,7 @@ export default function HomeClient({ initialBatches }: Props) {
                         </div>
 
                         <h3 className="mt-1 text-base font-black text-gray-900 group-hover:text-purple-950 transition-colors leading-tight truncate">
-                          {lang === "en" && batch.shop.nameEn ? batch.shop.nameEn : batch.shop.name}
+                          {shopInfo.name}
                         </h3>
                       </div>
                     </div>
