@@ -70,8 +70,17 @@ export async function uploadSlipImage(file: File): Promise<string> {
     console.warn("Slip compression failed, will fallback:", err);
   }
 
-  // If Firebase Storage is configured and on Blaze plan, attempt bucket upload
-  if (isFirebaseConfigured && storage && compressedDataUrl) {
+  // 1. Instant Zero-CORS Spark Tier Mode:
+  // If compressed base64 is available, use it directly!
+  // Firestore documents support up to 1 MB, and ~50 KB fits easily with 0 extra cost,
+  // zero external CORS preflight failures on any domain (veatec.vercel.app),
+  // and instant order submission.
+  if (compressedDataUrl && process.env.NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE !== "true") {
+    return compressedDataUrl;
+  }
+
+  // If explicitly enabled via NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE="true" and bucket is configured
+  if (process.env.NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE === "true" && isFirebaseConfigured && storage && compressedDataUrl) {
     try {
       const ext = "jpg";
       const filename = `slips/slip_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
@@ -82,17 +91,9 @@ export async function uploadSlipImage(file: File): Promise<string> {
       const downloadUrl = await getDownloadURL(snapshot.ref);
       return downloadUrl;
     } catch (err) {
-      console.warn(
-        "Firebase Storage upload failed (Spark tier requires Blaze for bucket). Saving compressed base64 directly into Firestore:",
-        err
-      );
+      console.warn("Firebase Storage upload failed, falling back to base64 Data URL:", err);
+      return compressedDataUrl;
     }
-  }
-
-  // Spark Tier $0 Mode: return the compressed base64 Data URL directly!
-  // Firestore documents support up to 1 MB, and ~60-80 KB fits easily with 0 extra cost & 0 setup.
-  if (compressedDataUrl) {
-    return compressedDataUrl;
   }
 
   // Fallback to local upload endpoint
