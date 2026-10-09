@@ -41,7 +41,7 @@ export async function PATCH(
     // Broadcast ONLY when food is delivered (COMPLETED) with photo evidence
     if (status === "COMPLETED") {
       try {
-        const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "one-order.vercel.app";
+        const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
         const protocol = request.headers.get("x-forwarded-proto") || "https";
         const manifestUrl = `${protocol}://${hostHeader}/shop/${updated.id}`;
 
