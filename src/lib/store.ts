@@ -281,14 +281,18 @@ async function writeData(data: DatabaseSchema): Promise<void> {
 // -------------------------------------------------------------
 // Firestore Helpers (Active when Firebase is configured)
 // -------------------------------------------------------------
+function cleanForFirestore<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
+
 async function ensureFirestoreSeeded(): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   try {
     for (const shop of SEED_DATA.shops) {
-      await setDoc(doc(db, "shops", shop.id), shop, { merge: true });
+      await setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), { merge: true });
     }
     for (const batch of SEED_DATA.batches) {
-      await setDoc(doc(db, "batches", batch.id), batch, { merge: true });
+      await setDoc(doc(db, "batches", batch.id), cleanForFirestore(batch), { merge: true });
     }
   } catch (err) {
     console.warn("Firestore seed check warning:", err);
@@ -330,7 +334,7 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
 export async function saveShop(shop: Shop): Promise<Shop> {
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "shops", shop.id), shop);
+      await setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop));
       return shop;
     } catch (err) {
       console.warn("Firestore saveShop failed, using local fallback:", err);
@@ -457,7 +461,7 @@ export async function createBatch(batchData: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "batches", id), newBatch);
+      await setDoc(doc(db, "batches", id), cleanForFirestore(newBatch));
       const shops = await getShops();
       return enrichBatchFromData(newBatch, shops, []);
     } catch (err) {
@@ -486,7 +490,7 @@ export async function updateBatchStatus(
 
   if (isFirebaseConfigured && db) {
     try {
-      await updateDoc(doc(db, "batches", batchId), updatePayload);
+      await updateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload));
       return getBatchById(batchId);
     } catch (err) {
       console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
@@ -560,10 +564,10 @@ export async function createOrder(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "orders", newOrder.id), newOrder);
+      await setDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder));
       return newOrder;
     } catch (err) {
-      console.warn("Firestore createOrder failed, using local fallback:", err);
+      console.error("Firestore createOrder failed, using local fallback:", err);
     }
   }
 
