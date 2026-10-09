@@ -18,48 +18,123 @@ import { getLocationById } from "./locations";
 // -------------------------------------------------------------
 // Image / Slip Compression and Upload Handler
 // -------------------------------------------------------------
-export async function compressImage(
-  file: File,
-  maxWidth = 800,
-  quality = 0.72
-): Promise<string> {
+async function compressWithBitmap(file: File, maxDim: number, quality: number): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+  if (width > maxDim || height > maxDim) {
+    if (width > height) {
+      height = Math.round((height * maxDim) / width);
+      width = maxDim;
+    } else {
+      width = Math.round((width * maxDim) / height);
+      height = maxDim;
+    }
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas context failed");
+
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function compressWithObjectURL(file: File, maxDim: number, quality: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (typeof window === "undefined" || !window.FileReader) {
-      resolve("");
+    let objectUrl = "";
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch (err) {
+      reject(err);
       return;
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
         }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-        resolve(compressedDataUrl);
-      };
-      img.onerror = () => {
-        // Fallback to original data URL if image rendering fails
-        resolve(event.target?.result as string);
-      };
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context failed"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve(dataUrl);
     };
-    reader.onerror = (err) => reject(err);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to decode image"));
+    };
+
+    img.src = objectUrl;
   });
 }
+
+export async function compressImage(
+  file: File,
+  maxDim = 900,
+  quality = 0.70
+): Promise<string> {
+  if (typeof window === "undefined") return "";
+
+  let result = "";
+  // Strategy 1: Hardware-accelerated createImageBitmap (fastest, lowest memory on mobile)
+  if (typeof createImageBitmap !== "undefined") {
+    try {
+      result = await compressWithBitmap(file, maxDim, quality);
+    } catch (err) {
+      console.warn("createImageBitmap failed, falling back to ObjectURL:", err);
+    }
+  }
+
+  // Strategy 2: URL.createObjectURL with Image element
+  if (!result) {
+    try {
+      result = await compressWithObjectURL(file, maxDim, quality);
+    } catch (err) {
+      console.warn("compressWithObjectURL failed:", err);
+    }
+  }
+
+  // Final check: Validate compressed result format
+  if (!result || !result.startsWith("data:image/")) {
+    throw new Error("ไม่สามารถย่อขนาดรูปภาพได้ กรุณาถ่ายภาพใหม่อีกครั้ง");
+  }
+
+  // Extra safety: If string is still > 1MB, downscale further to 640px
+  if (result.length > 1024 * 1024) {
+    try {
+      if (typeof createImageBitmap !== "undefined") {
+        result = await compressWithBitmap(file, 640, 0.60);
+      } else {
+        result = await compressWithObjectURL(file, 640, 0.60);
+      }
+    } catch (err) {
+      console.warn("Secondary compression failed, using first result:", err);
+    }
+  }
+
+  return result;
+}
+
 
 export async function uploadSlipImage(file: File): Promise<string> {
   // Always compress the slip first in-browser (~60-80 KB)
@@ -231,11 +306,30 @@ export async function changeBatchStatus(
   status: BatchStatus,
   deliveryPhotoUrl?: string
 ): Promise<BatchWithDetails> {
+  // Reject oversized payloads before sending
+  if (deliveryPhotoUrl && deliveryPhotoUrl.length > 2 * 1024 * 1024) {
+    throw new Error("ขนาดไฟล์รูปภาพใหญ่เกินไป กรุณาถ่ายภาพใหม่อีกครั้ง");
+  }
+
   const res = await fetch(`/api/batches/${batchId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status, deliveryPhotoUrl }),
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 413) {
+      throw new Error("ขนาดไฟล์รูปภาพใหญ่เกินกว่าที่ระบบรองรับ กรุณาถ่ายภาพใหม่อีกครั้ง");
+    }
+    try {
+      const data = JSON.parse(text);
+      throw new Error(data.error || `HTTP ${res.status}: ${text}`);
+    } catch (parseErr: any) {
+      if (parseErr.message && !parseErr.message.includes("is not valid JSON")) throw parseErr;
+      throw new Error(text || `Server Error ${res.status}`);
+    }
+  }
 
   const data = await res.json();
   if (!data.success) {
@@ -243,3 +337,4 @@ export async function changeBatchStatus(
   }
   return data.batch;
 }
+

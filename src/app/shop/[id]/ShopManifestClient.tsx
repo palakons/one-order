@@ -45,6 +45,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryPhotoData, setDeliveryPhotoData] = useState<string | null>(null);
   const [uploadingDelivery, setUploadingDelivery] = useState(false);
+  const [compressingPhoto, setCompressingPhoto] = useState(false);
 
   // Quick 1-tap Camera & Gallery input refs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -102,14 +103,21 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        setUploadingDelivery(true);
+        setDeliveryPhotoData(null);
+        setCompressingPhoto(true);
         setShowDeliveryModal(true);
-        const compressed = await compressImage(file, 900, 0.72);
+        const compressed = await compressImage(file, 900, 0.70);
+        if (!compressed || !compressed.startsWith("data:image/")) {
+          throw new Error("รูปภาพไม่สมบูรณ์ กรุณาถ่ายภาพใหม่อีกครั้ง");
+        }
         setDeliveryPhotoData(compressed);
-      } catch (err) {
-        console.error("Compression error", err);
+      } catch (err: any) {
+        console.error("Compression error:", err);
+        alert(err?.message || "ไม่สามารถประมวลผลรูปภาพจากกล้องได้ กรุณาลองใหม่อีกครั้ง");
+        setShowDeliveryModal(false);
+        setDeliveryPhotoData(null);
       } finally {
-        setUploadingDelivery(false);
+        setCompressingPhoto(false);
       }
     }
     e.target.value = "";
@@ -1000,7 +1008,13 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 ถ่ายรูปกล่องอาหารที่วางไว้บนโต๊ะรับอาหาร เพื่อให้นักศึกษา / อาจารย์เปิดดูและมารับได้ทันที
               </p>
 
-              {deliveryPhotoData ? (
+              {compressingPhoto ? (
+                <div className="flex flex-col items-center justify-center p-10 space-y-3 bg-gray-50 rounded-2xl border border-emerald-200 shadow-inner">
+                  <div className="h-9 w-9 animate-spin rounded-full border-3 border-emerald-600 border-t-transparent" />
+                  <span className="text-xs font-black text-emerald-950">กำลังย่อขนาดรูปถ่ายจากมือถือ...</span>
+                  <span className="text-[11px] text-gray-500">กรุณารอสักครู่ (ไม่เกิน 1 วินาที)</span>
+                </div>
+              ) : deliveryPhotoData ? (
                 <div className="space-y-2">
                   <div className="relative rounded-2xl border-2 border-emerald-500 overflow-hidden bg-gray-50 max-h-72 flex items-center justify-center shadow-inner">
                     <img
@@ -1040,10 +1054,10 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               <div className="flex flex-col gap-2 pt-2">
                 <button
                   type="button"
-                  disabled={uploadingDelivery || !deliveryPhotoData}
+                  disabled={uploadingDelivery || compressingPhoto || !deliveryPhotoData}
                   onClick={() => handleDeliverySubmit(true)}
                   className={`w-full py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 transition-all ${
-                    deliveryPhotoData
+                    deliveryPhotoData && !compressingPhoto && !uploadingDelivery
                       ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 active:scale-98"
                       : "bg-gray-300 cursor-not-allowed"
                   }`}
@@ -1052,6 +1066,8 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                   <span>
                     {uploadingDelivery
                       ? "กำลังบันทึกและแจ้งเตือน LINE..."
+                      : compressingPhoto
+                      ? "กำลังเตรียมรูปถ่าย..."
                       : "✅ ยืนยันส่งอาหารทันที (แจ้งทุกคน)"}
                   </span>
                 </button>
