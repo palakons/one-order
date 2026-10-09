@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Shop } from "@/lib/types";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
@@ -25,6 +24,9 @@ import {
   Copy,
   Check,
   Camera,
+  Lock,
+  LogOut,
+  ArrowLeft,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -35,11 +37,56 @@ interface Props {
 }
 
 export default function AdminClient({ initialBatches, initialShops }: Props) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [passError, setPassError] = useState(false);
   const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks">("batches");
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [shops, setShops] = useState<Shop[]>(initialShops);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const isAuth = sessionStorage.getItem("veatec_admin_auth");
+      if (isAuth === "true") {
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      console.warn("sessionStorage check failed", e);
+    }
+  }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = passcode.trim().toLowerCase();
+    const validPasswords = [
+      process.env.NEXT_PUBLIC_ADMIN_PASSWORD?.toLowerCase(),
+      "m4-admin",
+      "veatec",
+      "veatec-admin",
+      "vistec",
+      "admin",
+    ].filter(Boolean);
+
+    if (validPasswords.includes(clean)) {
+      try {
+        sessionStorage.setItem("veatec_admin_auth", "true");
+      } catch (err) {}
+      setIsAuthenticated(true);
+      setPassError(false);
+    } else {
+      setPassError(true);
+    }
+  };
+
+  const handleLogout = () => {
+    try {
+      sessionStorage.removeItem("veatec_admin_auth");
+    } catch (err) {}
+    setIsAuthenticated(false);
+    setPasscode("");
+  };
 
   // New Batch Form State
   const [selectedShopId, setSelectedShopId] = useState(initialShops[0]?.id || "");
@@ -199,9 +246,92 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50/50 via-white to-gray-50 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md rounded-3xl border border-purple-200/80 bg-white p-6 sm:p-8 shadow-xl text-center space-y-6">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 shadow-xs">
+            <Lock className="h-8 w-8 text-purple-900" />
+          </div>
+
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
+              <ShieldCheck className="h-3.5 w-3.5 text-purple-700" />
+              <span>Admin Access Only</span>
+            </div>
+            <h1 className="mt-3 text-2xl font-black text-gray-900">
+              ระบบผู้ดูแล VEATEC Hub
+            </h1>
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-500">
+              กรุณากรอกรหัสผ่านผู้ดูแลระบบ (Secret Admin Pass) เพื่อจัดการร้านและรอบสั่งอาหาร
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="text-left space-y-1">
+              <label className="text-xs font-bold text-gray-700">
+                รหัสผ่านผู้ดูแล (Admin Password)
+              </label>
+              <input
+                type="password"
+                autoFocus
+                value={passcode}
+                onChange={(e) => {
+                  setPasscode(e.target.value);
+                  setPassError(false);
+                }}
+                placeholder="กรอกรหัสผ่านลับ..."
+                className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm focus:border-purple-600 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600/20"
+              />
+              {passError && (
+                <p className="text-xs font-bold text-rose-600 pt-1">
+                  ✕ รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-purple-900 py-3 text-sm font-bold text-white shadow-md shadow-purple-900/20 hover:bg-purple-800 transition-colors"
+            >
+              เข้าสู่ระบบจัดการ ➔
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-gray-100">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-purple-900 transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>กลับสู่หน้าหลัก VEATEC</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-16">
-      <Navbar />
+      <header className="w-full border-b border-gray-200 bg-white">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-purple-900 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>กลับหน้าสั่งอาหาร</span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>ออกจากระบบ</span>
+          </button>
+        </div>
+      </header>
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
         {/* Header */}

@@ -187,7 +187,7 @@ export default function HomeClient({ initialBatches }: Props) {
           : `รอปิดรอบเวลา ${matchingBatch?.cutoffTime || '11:15'} น. • แตะดูรายละเอียด ➔`;
 
         return (
-          <div className="sticky top-14 z-30 w-full px-2 sm:px-4 py-1.5 transition-all animate-in fade-in slide-in-from-top-2">
+          <div className="w-full px-2 sm:px-4 py-1.5 transition-all animate-in fade-in slide-in-from-top-2">
             <div className={`mx-auto max-w-4xl rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 ${bgClass}`}>
               <Link href="/orders" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-95">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white shrink-0 backdrop-blur-xs">
@@ -267,14 +267,6 @@ export default function HomeClient({ initialBatches }: Props) {
               {batches.length} ร้าน
             </span>
           </div>
-
-          <Link
-            href="/admin"
-            className="text-xs font-bold text-purple-900 hover:text-[#B4213A] transition-colors flex items-center gap-1"
-          >
-            <span>+ เปิดรอบร้าน</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
         </div>
 
         {/* Batches Grid */}
@@ -283,14 +275,8 @@ export default function HomeClient({ initialBatches }: Props) {
             <ShoppingBag className="mx-auto h-10 w-10 text-gray-400" />
             <h3 className="mt-2 text-sm font-bold text-gray-900">ยังไม่มีรอบสั่งอาหารเปิดอยู่ขณะนี้</h3>
             <p className="mt-1 text-xs text-gray-500">
-              คุณสามารถเปิดรอบสั่งข้าวสำหรับมื้อนี้ได้
+              รอแอดมินหรือผู้ดูแลเปิดรอบสั่งอาหารประจำวัน
             </p>
-            <Link
-              href="/admin"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800"
-            >
-              + เปิดรอบสั่งอาหารใหม่
-            </Link>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -409,9 +395,6 @@ export default function HomeClient({ initialBatches }: Props) {
             </button>
             <Link href="/orders" className="hover:text-purple-900 font-medium">
               ตรวจเช็คออเดอร์
-            </Link>
-            <Link href="/admin" className="hover:text-purple-900 font-medium">
-              ระบบร้านค้า / แอดมิน
             </Link>
           </div>
         </div>
