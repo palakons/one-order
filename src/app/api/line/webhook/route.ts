@@ -393,3 +393,12 @@ async function replyMessage(token: string, replyToken: string, messages: any[]) 
     console.error("Failed to reply:", e);
   }
 }
+
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    service: "VEATEC LINE Webhook",
+    message: "Endpoint is healthy and ready for LINE webhook POST requests",
+  });
+}
+
