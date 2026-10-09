@@ -5,17 +5,8 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CampusDesksModal from "@/components/CampusDesksModal";
 import { BatchWithDetails, Shop } from "@/lib/types";
-import {
-  Utensils,
-  Truck,
-  ArrowRight,
-  Clock,
-  ChefHat,
-  CheckCircle2,
-  ShoppingBag,
-  X,
-  ChevronRight,
-} from "lucide-react";
+import { Utensils, Truck, ArrowRight, Clock, ChefHat, CheckCircle2, ShoppingBag, X, ChevronRight } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -114,6 +105,7 @@ function getShopDiffuseTheme(shop: Shop): ShopTheme {
 }
 
 export default function HomeClient({ initialBatches }: Props) {
+  const { t, lang } = useLanguage();
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [showDesksModal, setShowDesksModal] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
@@ -171,20 +163,20 @@ export default function HomeClient({ initialBatches }: Props) {
           : "bg-gradient-to-r from-purple-900 via-purple-800 to-[#B4213A] text-white shadow-md shadow-purple-900/10";
 
         const titleText = isCompleted
-          ? `🎉 ข้าวของคุณส่งถึงตึก M4 แล้ว! (#${activeOrder.orderNumber} ${activeOrder.customerName})`
+          ? `${t.foodArrivedM4} (#${activeOrder.orderNumber} ${activeOrder.customerName})`
           : isDelivering
-          ? `🛵 ไรเดอร์กำลังเดินทางมาส่งที่ตึก M4 (${activeOrder.shopName})`
+          ? `${t.riderDelivering} (${activeOrder.shopName})`
           : isCooking
-          ? `👨‍🍳 ร้านกำลังปรุงอาหาร (${activeOrder.shopName})`
-          : `⏳ ออเดอร์ #${activeOrder.orderNumber} บันทึกแล้ว (${activeOrder.shopName})`;
+          ? `${t.chefCooking} (${activeOrder.shopName})`
+          : `${t.orderSaved} #${activeOrder.orderNumber} (${activeOrder.shopName})`;
 
         const subText = isCompleted
-          ? `ป้ายกล่อง: ${activeOrder.boxLabel || 'ตึก M4'} • แตะเพื่อดูรูปถ่าย & ไปรับข้าว ➔`
+          ? t.tapToViewBox.replace("{box}", activeOrder.boxLabel || t.dropoffShort)
           : isDelivering
-          ? `กำลังนำอาหารมาที่โต๊ะรับของชั้น 1 ตึก M4 • แตะดูสถานะ ➔`
+          ? t.tapToViewStatus
           : isCooking
-          ? `ครัวกำลังทำตามคิว • แตะดูสถานะ ➔`
-          : `รอปิดรอบเวลา ${matchingBatch?.cutoffTime || '11:15'} น. • แตะดูรายละเอียด ➔`;
+          ? t.cookingQueue
+          : t.waitingCutoff.replace("{time}", matchingBatch?.cutoffTime || "11:15");
 
         return (
           <div className="w-full px-2 sm:px-4 py-1.5 transition-all animate-in fade-in slide-in-from-top-2">
@@ -224,10 +216,10 @@ export default function HomeClient({ initialBatches }: Props) {
       <section className="border-b border-purple-100/60 bg-gradient-to-b from-purple-50/40 via-white to-transparent px-3 pt-5 pb-5">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            รวมสั่งอาหารกลางวัน ส่งฟรีถึงโต๊ะตึก M4
+            {t.heroTitle}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-600 font-medium">
-            รวมยอดครบ ฿200 ต่อร้าน ส่งฟรีถึงโต๊ะวางอาหารชั้น 1 ตึก M4 ทุกวันจันทร์–ศุกร์
+            {t.heroSubtitle}
           </p>
 
           {/* Clear Compact 1-2-3 Step Flow */}
@@ -236,19 +228,19 @@ export default function HomeClient({ initialBatches }: Props) {
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-900 text-[10px] font-black text-white shrink-0">
                 1
               </span>
-              <span className="text-xs font-bold text-gray-800 truncate">เลือกร้าน & เมนู</span>
+              <span className="text-xs font-bold text-gray-800 truncate">{t.step1}</span>
             </div>
             <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B4213A] text-[10px] font-black text-white shrink-0">
                 2
               </span>
-              <span className="text-xs font-bold text-gray-800 truncate">โอน & แนบสลิป</span>
+              <span className="text-xs font-bold text-gray-800 truncate">{t.step2}</span>
             </div>
             <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white shrink-0">
                 3
               </span>
-              <span className="text-xs font-bold text-gray-800 truncate">รับที่โต๊ะตึก M4</span>
+              <span className="text-xs font-bold text-gray-800 truncate">{t.step3}</span>
             </div>
           </div>
         </div>
@@ -261,10 +253,10 @@ export default function HomeClient({ initialBatches }: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-base sm:text-lg font-black text-gray-900 flex items-center gap-1.5">
               <Utensils className="h-4 w-4 text-purple-900" />
-              <span>ร้านเปิดรับวันนี้</span>
+              <span>{t.activeRoundToday}</span>
             </h2>
             <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
-              {batches.length} ร้าน
+              {batches.length}
             </span>
           </div>
         </div>
@@ -323,12 +315,12 @@ export default function HomeClient({ initialBatches }: Props) {
                           </span>
                           <span className="font-semibold text-gray-500 flex items-center gap-0.5 shrink-0">
                             <Clock className="h-3 w-3 text-orange-500" />
-                            <span>ปิด {batch.cutoffTime}</span>
+                            <span>{t.cutoffAt} {batch.cutoffTime}</span>
                           </span>
                         </div>
 
                         <h3 className="mt-1 text-base font-black text-gray-900 group-hover:text-purple-950 transition-colors leading-tight truncate">
-                          {batch.shop.name}
+                          {lang === "en" && batch.shop.nameEn ? batch.shop.nameEn : batch.shop.name}
                         </h3>
                       </div>
                     </div>
@@ -338,14 +330,14 @@ export default function HomeClient({ initialBatches }: Props) {
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className="text-gray-700">
                           ฿{batch.currentTotalAmount} <span className="text-gray-400 font-normal">/ ฿{batch.targetMinAmount}</span>
-                          <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} กล่อง)</span>
+                          <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} {t.ordersCount})</span>
                         </span>
                         <span
                           className={`text-[11px] font-bold ${
                             isUnlocked ? "text-emerald-700 font-black" : "text-amber-800"
                           }`}
                         >
-                          {isUnlocked ? "🎉 ครบขั้นต่ำแล้ว" : `ขาดอีก ฿${remaining}`}
+                          {isUnlocked ? t.freeDeliveryUnlocked : `${t.needMore} ฿${remaining}`}
                         </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
@@ -366,7 +358,7 @@ export default function HomeClient({ initialBatches }: Props) {
                       className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl ${theme.buttonClass} px-3 py-2 text-xs font-bold shadow-2xs transition-all active:scale-[0.98]`}
                     >
                       <ShoppingBag className="h-3.5 w-3.5" />
-                      <span>สั่งอาหาร</span>
+                      <span>{t.viewMenuOrder}</span>
                     </Link>
                     <Link
                       href={`/shop/${batch.id}`}

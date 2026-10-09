@@ -24,6 +24,8 @@ export const metadata: Metadata = {
   description: "VEATEC (VISTEC Eats) ระบบรวมสั่งข้าวเที่ยงชาว VISTEC สถาบันวิทยสิริเมธี ส่งถึงโต๊ะตึกเรียน M4",
 };
 
+import { LanguageProvider } from "@/lib/i18n";
+
 export default function RootLayout({
   children,
 }: {
@@ -34,7 +36,9 @@ export default function RootLayout({
       lang="th"
       className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
     >
-      <body className="min-h-screen flex flex-col">{children}</body>
+      <body className="min-h-screen flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

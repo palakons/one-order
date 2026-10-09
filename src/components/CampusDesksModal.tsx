@@ -2,6 +2,7 @@
 
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { X, Building2, CheckCircle2, Info } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 interface Props {
   onClose: () => void;
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function CampusDesksModal({ onClose, selectedId, onSelect }: Props) {
+  const { t } = useLanguage();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
@@ -20,9 +23,9 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
               <Building2 className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">โต๊ะจุดรับข้าว ตึก M4</h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">{t.desksTitle}</h2>
               <p className="text-xs text-gray-500">
-                จุดวางอาหารส่วนกลาง อาคาร M4 (ชั้น 1 โต๊ะวางอาหาร Delivery)
+                {t.desksSubtitle}
               </p>
             </div>
           </div>
@@ -38,7 +41,7 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
         <div className="bg-amber-50 px-4 sm:px-6 py-2 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-900">
           <Info className="h-4 w-4 shrink-0 text-amber-700" />
           <span>
-            ไรเดอร์จะนำถุง/กล่องอาหารติดชื่อของคุณไปวางส่งที่โต๊ะประจำตึก M4 ตรวจสอบหมายเลขออเดอร์เมื่อมารับ
+            {t.desksNotice}
           </span>
         </div>
 

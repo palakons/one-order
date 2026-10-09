@@ -26,6 +26,7 @@ import {
   Building2,
   Sparkles,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 interface LocalOrder {
   orderId: string;
@@ -49,6 +50,7 @@ interface LocalOrder {
 }
 
 export default function MyOrdersClient() {
+  const { t, lang } = useLanguage();
   const [localOrders, setLocalOrders] = useState<LocalOrder[]>([]);
   const [batches, setBatches] = useState<Record<string, BatchWithDetails>>({});
   const [loading, setLoading] = useState(true);
@@ -224,18 +226,18 @@ export default function MyOrdersClient() {
                 className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-purple-700"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                <span>กลับหน้าสั่งอาหาร</span>
+                <span>{t.backToHome}</span>
               </Link>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-gray-900 mt-1 flex items-center gap-2">
               <ShoppingBag className="h-6 w-6 text-purple-700" />
-              <span>ออเดอร์ของฉัน</span>
+              <span>{t.myOrders}</span>
               <span className="text-xs font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
-                {localOrders.length} รายการ
+                {localOrders.length}
               </span>
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              ติดตามสถานะอาหาร โต๊ะรับของประจำอาคาร และรูปถ่ายหลักฐานการวางอาหาร
+              {t.searchOrdersSubtitle}
             </p>
           </div>
 
@@ -245,7 +247,7 @@ export default function MyOrdersClient() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
             >
               <MapPin className="h-3.5 w-3.5 text-purple-600" />
-              <span>ดูโต๊ะรับข้าว ตึก M4</span>
+              <span>{t.dropoffLocation}</span>
             </button>
             <button
               onClick={handleRefresh}
@@ -254,7 +256,7 @@ export default function MyOrdersClient() {
               title="รีเฟรชข้อมูลสถานะ"
             >
               <RefreshCw className={`h-3.5 w-3.5 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">รีเฟรช</span>
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
@@ -268,7 +270,7 @@ export default function MyOrdersClient() {
                 type="tel"
                 value={searchPhone}
                 onChange={(e) => setSearchPhone(e.target.value)}
-                placeholder="กรอกเบอร์โทรศัพท์เพื่อค้นหาออเดอร์..."
+                placeholder={t.searchPhonePlaceholder}
                 className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
               />
             </div>
@@ -277,7 +279,7 @@ export default function MyOrdersClient() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800 transition-colors shrink-0"
             >
               <Search className="h-3.5 w-3.5" />
-              <span>ค้นหาด้วยเบอร์</span>
+              <span>{t.searchButton}</span>
             </button>
           </form>
         </div>

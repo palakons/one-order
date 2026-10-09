@@ -193,26 +193,26 @@ export async function POST(request: Request) {
                 const timeInfo = getTimeRemaining(uo.cutoffTime, uo.date);
                 const statusEmoji =
                   uo.status === "COMPLETED"
-                    ? "✨ นำส่งถึงโต๊ะตึก M4 แล้ว 📸"
+                    ? "✨ ถึง M4 แล้ว 📸"
                     : uo.status === "DELIVERING"
-                    ? "🛵 ไรเดอร์กำลังนำส่งมาตึก M4"
+                    ? "🛵 ไรเดอร์กำลังมา"
                     : uo.status === "LOCKED"
-                    ? "🍳 ร้านกำลังปรุง (Cooking)"
+                    ? "🍳 กำลังปรุง"
                     : timeInfo.isExpired
-                    ? "🔴 ปิดรับรอบแล้ว (รอร้านปรุง)"
-                    : `🟢 เปิดรับออเดอร์ (${timeInfo.text})`;
+                    ? "🔴 closed (รอปรุง)"
+                    : `🟢 เปิดรับ (${timeInfo.text})`;
 
                 const bar = renderProgressBar(uo.currentTotal, uo.targetMin, 8);
                 const isMet = uo.currentTotal >= uo.targetMin;
                 const poolText = isMet
-                  ? `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ครบยอดส่งฟรี! 🎉)`
+                  ? `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ครบส่งฟรี 🎉)`
                   : `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin}`;
 
                 return (
-                  `${idx + 1}. ร้าน ${uo.shopName}\n` +
+                  `${idx + 1}. ${uo.shopName}\n` +
                   `   📦 กล่อง: ${uo.boxLabel}\n` +
                   `   ⚡ สถานะ: ${statusEmoji}\n` +
-                  `   📊 รวมรอบร้าน: ${poolText}\n` +
+                  `   📊 รวมรอบ: ${poolText}\n` +
                   `   💰 ยอดของคุณ: ฿${uo.totalAmount}`
                 );
               });
@@ -221,10 +221,10 @@ export async function POST(request: Request) {
                 {
                   type: "text",
                   text:
-                    `🍱 ข้อมูลออเดอร์ของเบอร์ ${rawText}:\n\n` +
+                    `🍱 ออเดอร์ของคุณ (${rawText}):\n\n` +
                     lines.join("\n\n") +
-                    `\n\n📍 จุดรับของ: ชั้น 1 โต๊ะวางอาหาร Delivery ตึก M4\n` +
-                    `👉 ตรวจสอบในเว็บ: ${appUrl}/orders?phone=${cleanDigits}`,
+                    `\n\n📍 รับที่: M4\n` +
+                    `👉 More info:\n${appUrl}/orders?phone=${cleanDigits}`,
                   quickReply: {
                     items: [
                       {
@@ -253,8 +253,8 @@ export async function POST(request: Request) {
                 {
                   type: "text",
                   text:
-                    `🔍 ไม่พบรายการสั่งอาหารของเบอร์ ${rawText} ในรอบวันนี้ครับ\n\n` +
-                    `👉 สั่งอาหารหรือตรวจสอบรายการทั้งหมดได้ที่:\n${appUrl}`,
+                    `🔍 ไม่พบออเดอร์ของเบอร์ ${rawText} วันนี้ครับ\n\n` +
+                    `👉 สั่งอาหารได้ที่:\n${appUrl}`,
                   quickReply: {
                     items: [
                       {
@@ -285,13 +285,13 @@ export async function POST(request: Request) {
           const statusLines = batches.map((b, idx) => {
             const bar = renderProgressBar(b.currentTotalAmount, b.targetMinAmount, 10);
             const isMet = b.currentTotalAmount >= b.targetMinAmount;
-            const countText = b.orders.length > 0 ? `สั่งแล้ว ${b.orders.length} กล่อง` : "ยังไม่มีออเดอร์";
+            const countText = b.orders.length > 0 ? `${b.orders.length} กล่อง` : "0 order";
 
             let details = "";
             switch (b.status) {
               case "OPEN": {
                 const goalText = isMet
-                  ? `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ครบยอดส่งฟรี! 🎉)`
+                  ? `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ครบส่งฟรี 🎉)`
                   : `฿${b.currentTotalAmount}/฿${b.targetMinAmount}`;
                 const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
                 const statusDot = timeInfo.isExpired ? "🔴" : "🟢";
@@ -299,15 +299,15 @@ export async function POST(request: Request) {
                 break;
               }
               case "LOCKED": {
-                details = `   [██████████] ปิดรับรอบแล้ว (${b.orders.length} กล่อง)\n   🍳 ร้านกำลังปรุงอาหาร (Cooking)`;
+                details = `   [██████████] 🍳 กำลังปรุง • ${countText}`;
                 break;
               }
               case "DELIVERING": {
-                details = `   [██████████] ปิดรับรอบแล้ว (${b.orders.length} กล่อง)\n   🛵 ไรเดอร์กำลังมาส่งที่ตึก M4`;
+                details = `   [██████████] 🛵 ไรเดอร์กำลังมา • ${countText}`;
                 break;
               }
               case "COMPLETED": {
-                details = `   [██████████] จัดส่งสำเร็จ (${b.orders.length} กล่อง)\n   ✨ ส่งถึงโต๊ะชั้น 1 ตึก M4 แล้ว 📸`;
+                details = `   [██████████] ✨ ถึง M4 แล้ว 📸 • ${countText}`;
                 break;
               }
               default:
@@ -317,10 +317,10 @@ export async function POST(request: Request) {
           });
 
           const replyText =
-            `🍱 สถานะรวมร้านอาหารวันนี้ (VEATEC @ VISTEC):\n\n` +
+            `🍱 Update:\n\n` +
             statusLines.join("\n\n") +
-            `\n\n📍 จุดรับอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n` +
-            `👉 ตรวจสอบกล่องของคุณ & ดูรูปถ่ายส่งของ:\n${appUrl}/orders`;
+            `\n\n📍 รับที่: M4\n` +
+            `👉 More info:\n${appUrl}/orders`;
 
           await replyMessage(token, replyToken, [
             {
@@ -458,7 +458,7 @@ function getTimeRemaining(cutoffTimeStr: string, batchDate?: string): { isExpire
 
     const diffMs = cutoffEpoch - Date.now();
     if (isNaN(diffMs) || diffMs <= 0) {
-      return { isExpired: true, text: "หมดเวลาปิดรับแล้ว" };
+      return { isExpired: true, text: "closed" };
     }
 
     const totalSec = Math.floor(diffMs / 1000);

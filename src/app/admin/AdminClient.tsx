@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BatchWithDetails, Shop } from "@/lib/types";
+import { BatchWithDetails, Shop, Suggestion } from "@/lib/types";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
   ChefHat,
@@ -27,6 +27,8 @@ import {
   Lock,
   LogOut,
   ArrowLeft,
+  MessageSquareHeart,
+  RefreshCw,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -40,10 +42,12 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
-  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks">("batches");
+  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks" | "suggestions">("batches");
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [shops, setShops] = useState<Shop[]>(initialShops);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -51,11 +55,37 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
       const isAuth = sessionStorage.getItem("veatec_admin_auth");
       if (isAuth === "true") {
         setIsAuthenticated(true);
+        fetchSuggestions();
       }
     } catch (e) {
       console.warn("sessionStorage check failed", e);
     }
   }, []);
+
+  const fetchSuggestions = async () => {
+    try {
+      setLoadingSuggestions(true);
+      const res = await fetch("/api/suggestions");
+      const data = await res.json();
+      if (data.success) {
+        setSuggestions(data.suggestions);
+      }
+    } catch (e) {
+      console.error("Error fetching suggestions:", e);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleDeleteSuggestion = async (id: string) => {
+    if (!confirm("ต้องการลบข้อเสนอแนะนี้ใช่หรือไม่?")) return;
+    try {
+      await fetch(`/api/suggestions?id=${id}`, { method: "DELETE" });
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      console.error("Failed to delete suggestion", e);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -411,6 +441,20 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           >
             <MapPin className="h-4 w-4" />
             <span>Campus Desk (จุดรับข้าวตึก M4)</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("suggestions");
+              fetchSuggestions();
+            }}
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "suggestions"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <MessageSquareHeart className="h-4 w-4" />
+            <span>ข้อเสนอแนะ ({suggestions.length})</span>
           </button>
         </div>
 
@@ -928,6 +972,99 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                 </li>
               </ol>
             </div>
+          </div>
+        )}
+
+        {/* Tab 5: User Suggestions & Feedback */}
+        {activeTab === "suggestions" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <MessageSquareHeart className="h-5 w-5 text-purple-700" />
+                  <span>ข้อเสนอแนะ & ติชมจากผู้ใช้ (User Feedback)</span>
+                </h2>
+                <p className="text-xs text-gray-500">
+                  รวมคำแนะนำร้านอาหาร เมนูที่อยากให้เพิ่ม และแจ้งปัญหาการใช้งานจากนักศึกษาและอาจารย์ VISTEC
+                </p>
+              </div>
+              <button
+                onClick={fetchSuggestions}
+                disabled={loadingSuggestions}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-gray-500 ${loadingSuggestions ? "animate-spin" : ""}`} />
+                <span>รีเฟรช</span>
+              </button>
+            </div>
+
+            {suggestions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 text-purple-700">
+                  <MessageSquareHeart className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">ยังไม่มีข้อเสนอแนะส่งเข้ามา</h3>
+                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                    เมื่อผู้ใช้งานส่งข้อเสนอแนะหรือแนะนำร้านอาหารผ่านปุ่ม "ข้อเสนอแนะ" รายการจะปรากฏที่นี่ทันที
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {suggestions.map((sug) => {
+                  const categoryMeta = {
+                    SHOP: { label: "🍱 แนะนำร้าน/เมนู", bg: "bg-orange-50 text-orange-800 border-orange-200" },
+                    BUG: { label: "🐛 แจ้งปัญหา", bg: "bg-rose-50 text-rose-800 border-rose-200" },
+                    SERVICE: { label: "🛵 ส่งของ/ไรเดอร์", bg: "bg-blue-50 text-blue-800 border-blue-200" },
+                    OTHER: { label: "💬 ทั่วไป", bg: "bg-purple-50 text-purple-800 border-purple-200" },
+                  }[sug.category] || { label: "💬 ทั่วไป", bg: "bg-gray-50 text-gray-800 border-gray-200" };
+
+                  const dateStr = new Date(sug.createdAt).toLocaleString("th-TH", {
+                    timeZone: "Asia/Bangkok",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  });
+
+                  return (
+                    <div
+                      key={sug.id}
+                      className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between space-y-3"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${categoryMeta.bg}`}>
+                            {categoryMeta.label}
+                          </span>
+                          <span className="text-[11px] text-gray-400 font-medium">
+                            {dateStr}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-900 font-medium whitespace-pre-wrap leading-relaxed">
+                          {sug.message}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs text-gray-500">
+                        <div className="truncate">
+                          <span className="font-bold text-gray-700">{sug.name || "Anonymous"}</span>
+                          {sug.contact && (
+                            <span className="ml-1 text-gray-400">({sug.contact})</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSuggestion(sug.id)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="ลบข้อเสนอแนะนี้"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ import { CAMPUS_LOCATIONS, getLocationById } from "@/lib/locations";
 import { BatchWithDetails, Order } from "@/lib/types";
 import { placeOrder } from "@/lib/services";
 import confetti from "canvas-confetti";
+import { useLanguage } from "@/lib/i18n";
 import {
   ArrowLeft,
   Plus,
@@ -42,6 +43,7 @@ interface Props {
 
 export default function OrderPageClient({ batchId, initialBatch }: Props) {
   const router = useRouter();
+  const { t, lang } = useLanguage();
 
   const [batch, setBatch] = useState<BatchWithDetails | null>(initialBatch);
   const [loading, setLoading] = useState(false);
@@ -365,7 +367,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-orange-600 transition-colors mb-3"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>กลับหน้ารวมร้าน</span>
+          <span>{t.backToHome}</span>
         </Link>
 
         {/* Shop Header Banner */}
@@ -376,13 +378,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 {batch.shop.cuisine}
               </span>
               <h1 className="mt-1 text-lg sm:text-2xl font-black text-gray-900">
-                {batch.shop.name}
+                {lang === "en" && batch.shop.nameEn ? batch.shop.nameEn : batch.shop.name}
               </h1>
               <p className="text-xs text-gray-500 line-clamp-1">{batch.shop.description}</p>
             </div>
 
             <div className="text-right shrink-0">
-              <div className="text-[10px] text-gray-500 font-semibold">ปิดรับ</div>
+              <div className="text-[10px] text-gray-500 font-semibold">{t.cutoffAt}</div>
               <div className="text-base sm:text-lg font-black text-orange-600">{batch.cutoffTime} น.</div>
             </div>
           </div>
@@ -418,7 +420,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               }`}>
                 1
               </span>
-              <span>เลือกเมนู</span>
+              <span>{t.step1}</span>
               {totalQuantity > 0 && (
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
                   currentStep === 1 ? "bg-[#472266] text-white" : "bg-purple-100 text-[#5D3085]"

@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { Shop, Batch, Order, BatchWithDetails, BatchStatus } from "./types";
+import { Shop, Batch, Order, BatchWithDetails, BatchStatus, Suggestion } from "./types";
 import { getLocationById } from "./locations";
 import { isFirebaseConfigured, db } from "./firebase";
 import {
@@ -16,6 +16,7 @@ interface DatabaseSchema {
   shops: Shop[];
   batches: Batch[];
   orders: Order[];
+  suggestions?: Suggestion[];
 }
 
 declare global {
@@ -576,3 +577,72 @@ export async function createOrder(input: {
   await writeData(data);
   return newOrder;
 }
+
+export async function getSuggestions(): Promise<Suggestion[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const snap = await getDocs(collection(db, "suggestions"));
+      const list = snap.docs.map((d) => d.data() as Suggestion);
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err) {
+      console.warn("Firestore getSuggestions failed, using local fallback:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  return (data.suggestions || []).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+export async function createSuggestion(input: {
+  name?: string;
+  contact?: string;
+  category: "SHOP" | "BUG" | "SERVICE" | "OTHER";
+  message: string;
+}): Promise<Suggestion> {
+  const newSuggestion: Suggestion = {
+    id: `sug-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    name: input.name?.trim() || "Anonymous",
+    contact: input.contact?.trim() || "",
+    category: input.category || "OTHER",
+    message: input.message.trim(),
+    createdAt: new Date().toISOString(),
+    status: "NEW",
+  };
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion));
+      return newSuggestion;
+    } catch (err) {
+      console.error("Firestore createSuggestion failed, using local fallback:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  if (!data.suggestions) data.suggestions = [];
+  data.suggestions.push(newSuggestion);
+  await writeData(data);
+  return newSuggestion;
+}
+
+export async function deleteSuggestion(id: string): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const { deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "suggestions", id));
+      return true;
+    } catch (err) {
+      console.warn("Firestore deleteSuggestion failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  if (data.suggestions) {
+    data.suggestions = data.suggestions.filter((s) => s.id !== id);
+    await writeData(data);
+  }
+  return true;
+}
+

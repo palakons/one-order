@@ -69,3 +69,14 @@ export interface BatchWithDetails extends Batch {
   amountRemaining: number;
   orderCount: number;
 }
+
+export interface Suggestion {
+  id: string;
+  name?: string;
+  contact?: string;
+  category: "SHOP" | "BUG" | "SERVICE" | "OTHER";
+  message: string;
+  createdAt: string;
+  status?: "NEW" | "REVIEWED" | "RESOLVED";
+}
+
