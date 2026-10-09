@@ -52,8 +52,11 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create order:", error);
-    return NextResponse.json({ success: false, error: "Failed to create order" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error?.message || "Failed to create order" },
+      { status: 500 }
+    );
   }
 }

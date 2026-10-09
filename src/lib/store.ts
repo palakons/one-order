@@ -12,14 +12,20 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-const DATA_DIR = path.join(process.cwd(), "src", "data");
-const DATA_FILE = path.join(DATA_DIR, "store.json");
-
 interface DatabaseSchema {
   shops: Shop[];
   batches: Batch[];
   orders: Order[];
 }
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __VEATEC_MEMORY_DB__: DatabaseSchema | undefined;
+}
+
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = isServerless ? "/tmp" : path.join(process.cwd(), "src", "data");
+const DATA_FILE = path.join(DATA_DIR, "store.json");
 
 const SEED_DATA: DatabaseSchema = {
   shops: [
@@ -237,23 +243,39 @@ const SEED_DATA: DatabaseSchema = {
 };
 
 // -------------------------------------------------------------
-// Local JSON File Helpers (Fallback when Firebase is not active)
+// Local In-Memory & JSON File Helpers (Fallback when Firebase is not active)
 // -------------------------------------------------------------
 async function ensureDataFile(): Promise<DatabaseSchema> {
+  if (globalThis.__VEATEC_MEMORY_DB__) {
+    return globalThis.__VEATEC_MEMORY_DB__;
+  }
+
   try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
     const content = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(content) as DatabaseSchema;
+    const parsed = JSON.parse(content) as DatabaseSchema;
+    globalThis.__VEATEC_MEMORY_DB__ = parsed;
+    return parsed;
   } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify(SEED_DATA, null, 2), "utf-8");
-    return SEED_DATA;
+    const initial = structuredClone(SEED_DATA);
+    globalThis.__VEATEC_MEMORY_DB__ = initial;
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      await fs.writeFile(DATA_FILE, JSON.stringify(initial, null, 2), "utf-8");
+    } catch {
+      // Read-only filesystem safe (Vercel serverless)
+    }
+    return initial;
   }
 }
 
 async function writeData(data: DatabaseSchema): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+  globalThis.__VEATEC_MEMORY_DB__ = data;
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    // Read-only filesystem safe (Vercel serverless)
+  }
 }
 
 // -------------------------------------------------------------
