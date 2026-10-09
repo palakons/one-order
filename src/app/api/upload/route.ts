@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import sharp from "sharp";
 
 export async function POST(request: Request) {
   try {
@@ -14,22 +13,28 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadsDir, { recursive: true });
+    // Process and compress image with sharp (natively handles HEIF/HEIC, JPEG, PNG, WEBP, etc.)
+    // .rotate() automatically handles EXIF orientation from mobile phone cameras
+    const compressedBuffer = await sharp(buffer)
+      .rotate()
+      .resize(900, 900, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 70, mozjpeg: true })
+      .toBuffer();
 
-    const ext = path.extname(file.name) || ".jpg";
-    const filename = `slip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
-    const filePath = path.join(uploadsDir, filename);
-
-    await fs.writeFile(filePath, buffer);
+    const dataUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
 
     return NextResponse.json({
       success: true,
-      url: `/uploads/${filename}`,
+      url: dataUrl,
+      dataUrl,
+      size: compressedBuffer.length,
       name: file.name,
     });
-  } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json({ success: false, error: "Upload failed" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Server image upload/compression error:", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Failed to process image" },
+      { status: 500 }
+    );
   }
 }

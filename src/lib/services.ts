@@ -18,8 +18,18 @@ import { getLocationById } from "./locations";
 // -------------------------------------------------------------
 // Image / Slip Compression and Upload Handler
 // -------------------------------------------------------------
-async function compressWithBitmap(file: File, maxDim: number, quality: number): Promise<string> {
-  const bitmap = await createImageBitmap(file);
+// Image / Slip Compression and Upload Handler
+// -------------------------------------------------------------
+async function compressWithBitmap(blob: Blob, maxDim: number, quality: number): Promise<string> {
+  let bitmap: ImageBitmap;
+  try {
+    // Attempt with orientation preservation
+    bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+  } catch {
+    // Fallback without options (older WebKit / Android)
+    bitmap = await createImageBitmap(blob);
+  }
+
   let { width, height } = bitmap;
   if (width > maxDim || height > maxDim) {
     if (width > height) {
@@ -35,7 +45,10 @@ async function compressWithBitmap(file: File, maxDim: number, quality: number): 
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas context failed");
+  if (!ctx) {
+    bitmap.close?.();
+    throw new Error("Canvas context failed");
+  }
 
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
@@ -43,11 +56,44 @@ async function compressWithBitmap(file: File, maxDim: number, quality: number): 
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-async function compressWithObjectURL(file: File, maxDim: number, quality: number): Promise<string> {
+async function compressWithFileReader(blob: Blob, maxDim: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas context failed"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Image decode failed"));
+      img.src = dataUrl;
+    };
+    reader.onerror = () => reject(new Error("FileReader failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compressWithObjectURL(blob: Blob, maxDim: number, quality: number): Promise<string> {
   return new Promise((resolve, reject) => {
     let objectUrl = "";
     try {
-      objectUrl = URL.createObjectURL(file);
+      objectUrl = URL.createObjectURL(blob);
     } catch (err) {
       reject(err);
       return;
@@ -88,6 +134,23 @@ async function compressWithObjectURL(file: File, maxDim: number, quality: number
   });
 }
 
+async function compressWithServer(file: File | Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error(`Server compression failed (${res.status})`);
+  }
+  const data = await res.json();
+  if (!data.success || (!data.url && !data.dataUrl)) {
+    throw new Error(data.error || "Server compression failed");
+  }
+  return data.dataUrl || data.url;
+}
+
 export async function compressImage(
   file: File,
   maxDim = 900,
@@ -95,37 +158,85 @@ export async function compressImage(
 ): Promise<string> {
   if (typeof window === "undefined") return "";
 
-  let result = "";
-  // Strategy 1: Hardware-accelerated createImageBitmap (fastest, lowest memory on mobile)
-  if (typeof createImageBitmap !== "undefined") {
+  // Check if file is HEIC / HEIF format
+  const fileName = (file.name || "").toLowerCase();
+  const fileType = (file.type || "").toLowerCase();
+  const isHeic =
+    fileType.includes("heic") ||
+    fileType.includes("heif") ||
+    fileName.endsWith(".heic") ||
+    fileName.endsWith(".heif");
+
+  let processableBlob: Blob = file;
+
+  // Convert HEIC client-side if needed
+  if (isHeic) {
     try {
-      result = await compressWithBitmap(file, maxDim, quality);
-    } catch (err) {
-      console.warn("createImageBitmap failed, falling back to ObjectURL:", err);
+      const heic2any = (await import("heic2any")).default;
+      const conv = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.8,
+      });
+      processableBlob = Array.isArray(conv) ? conv[0] : (conv as Blob);
+    } catch (heicErr) {
+      console.warn("Client-side heic2any conversion failed, will attempt fallbacks:", heicErr);
     }
   }
 
-  // Strategy 2: URL.createObjectURL with Image element
+  let result = "";
+
+  // Strategy 1: Hardware-accelerated createImageBitmap (fastest, lowest memory on mobile)
+  if (typeof createImageBitmap !== "undefined") {
+    try {
+      result = await compressWithBitmap(processableBlob, maxDim, quality);
+    } catch (err) {
+      console.warn("createImageBitmap failed, falling back to FileReader:", err);
+    }
+  }
+
+  // Strategy 2: FileReader DataURL with Image element (essential on Android Chrome for content URIs)
   if (!result) {
     try {
-      result = await compressWithObjectURL(file, maxDim, quality);
+      result = await compressWithFileReader(processableBlob, maxDim, quality);
     } catch (err) {
-      console.warn("compressWithObjectURL failed:", err);
+      console.warn("FileReader image decode failed, falling back to ObjectURL:", err);
+    }
+  }
+
+  // Strategy 3: URL.createObjectURL with Image element
+  if (!result) {
+    try {
+      result = await compressWithObjectURL(processableBlob, maxDim, quality);
+    } catch (err) {
+      console.warn("compressWithObjectURL failed, attempting server fallback:", err);
+    }
+  }
+
+  // Strategy 4: High-reliability Server-side Sharp Fallback (natively handles HEIC & complex EXIF)
+  if (!result) {
+    try {
+      // Only send if within Vercel body limits (~4.2MB)
+      if (file.size <= 4.2 * 1024 * 1024) {
+        result = await compressWithServer(file);
+      }
+    } catch (err) {
+      console.warn("Server-side compression fallback failed:", err);
     }
   }
 
   // Final check: Validate compressed result format
   if (!result || !result.startsWith("data:image/")) {
-    throw new Error("ไม่สามารถย่อขนาดรูปภาพได้ กรุณาถ่ายภาพใหม่อีกครั้ง");
+    throw new Error("ไม่สามารถประมวลผลรูปภาพได้ กรุณาถ่ายใหม่อีกครั้ง หรือเลือกจากอัลบั้ม");
   }
 
-  // Extra safety: If string is still > 1MB, downscale further to 640px
+  // Extra safety: If base64 string is still > 1MB, downscale further to 640px
   if (result.length > 1024 * 1024) {
     try {
       if (typeof createImageBitmap !== "undefined") {
-        result = await compressWithBitmap(file, 640, 0.60);
+        result = await compressWithBitmap(processableBlob, 640, 0.60);
       } else {
-        result = await compressWithObjectURL(file, 640, 0.60);
+        result = await compressWithFileReader(processableBlob, 640, 0.60);
       }
     } catch (err) {
       console.warn("Secondary compression failed, using first result:", err);
@@ -134,7 +245,6 @@ export async function compressImage(
 
   return result;
 }
-
 
 export async function uploadSlipImage(file: File): Promise<string> {
   // Always compress the slip first in-browser (~60-80 KB)
@@ -154,7 +264,7 @@ export async function uploadSlipImage(file: File): Promise<string> {
     return compressedDataUrl;
   }
 
-  // If explicitly enabled via NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE="true" and bucket is configured
+  // 2. If explicitly enabled via NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE="true" and bucket is configured
   if (process.env.NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE === "true" && isFirebaseConfigured && storage && compressedDataUrl) {
     try {
       const ext = "jpg";
@@ -171,18 +281,9 @@ export async function uploadSlipImage(file: File): Promise<string> {
     }
   }
 
-  // Fallback to local upload endpoint
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || "Failed to upload slip image");
-  }
-  return data.url;
+  // 3. Fallback to server endpoint (which uses sharp to compress and return base64)
+  const serverResult = await compressWithServer(file);
+  return serverResult;
 }
 
 // -------------------------------------------------------------

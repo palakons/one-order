@@ -47,7 +47,7 @@ export default function SlipUpload({ onFileSelect, selectedFile }: Props) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
         onChange={handleFileChange}
         className="hidden"
       />

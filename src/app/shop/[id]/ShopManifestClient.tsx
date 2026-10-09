@@ -46,6 +46,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
   const [deliveryPhotoData, setDeliveryPhotoData] = useState<string | null>(null);
   const [uploadingDelivery, setUploadingDelivery] = useState(false);
   const [compressingPhoto, setCompressingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   // Quick 1-tap Camera & Gallery input refs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +93,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
       setBatch(updated);
       setShowDeliveryModal(false);
       setDeliveryPhotoData(null);
+      setPhotoError(null);
     } catch (err: any) {
       alert(err.message || "Failed to complete delivery");
     } finally {
@@ -103,18 +105,18 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
     const file = e.target.files?.[0];
     if (file) {
       try {
+        setPhotoError(null);
         setDeliveryPhotoData(null);
         setCompressingPhoto(true);
         setShowDeliveryModal(true);
         const compressed = await compressImage(file, 900, 0.70);
         if (!compressed || !compressed.startsWith("data:image/")) {
-          throw new Error("รูปภาพไม่สมบูรณ์ กรุณาถ่ายภาพใหม่อีกครั้ง");
+          throw new Error("รูปภาพไม่สมบูรณ์ กรุณาถ่ายภาพใหม่อีกครั้ง หรือเลือกจากอัลบั้ม");
         }
         setDeliveryPhotoData(compressed);
       } catch (err: any) {
         console.error("Compression error:", err);
-        alert(err?.message || "ไม่สามารถประมวลผลรูปภาพจากกล้องได้ กรุณาลองใหม่อีกครั้ง");
-        setShowDeliveryModal(false);
+        setPhotoError(err?.message || "ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่อีกครั้ง หรือเลือกจากอัลบั้ม");
         setDeliveryPhotoData(null);
       } finally {
         setCompressingPhoto(false);
@@ -245,7 +247,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
       <input
         ref={cameraInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         capture="environment"
         onChange={handleDeliveryPhotoChange}
         className="hidden"
@@ -254,7 +256,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
         onChange={handleDeliveryPhotoChange}
         className="hidden"
       />
@@ -996,6 +998,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 onClick={() => {
                   setShowDeliveryModal(false);
                   setDeliveryPhotoData(null);
+                  setPhotoError(null);
                 }}
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               >
@@ -1008,11 +1011,36 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 ถ่ายรูปกล่องอาหารที่วางไว้บนโต๊ะรับอาหาร เพื่อให้นักศึกษา / อาจารย์เปิดดูและมารับได้ทันที
               </p>
 
+              {photoError && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center gap-2 font-bold text-rose-900">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>{photoError}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700"
+                    >
+                      <Camera className="h-3.5 w-3.5" /> ถ่ายใหม่อีกครั้ง
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100"
+                    >
+                      เลือกจากอัลบั้ม
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {compressingPhoto ? (
-                <div className="flex flex-col items-center justify-center p-10 space-y-3 bg-gray-50 rounded-2xl border border-emerald-200 shadow-inner">
+                <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-gray-50 rounded-2xl border border-emerald-200 shadow-inner">
                   <div className="h-9 w-9 animate-spin rounded-full border-3 border-emerald-600 border-t-transparent" />
-                  <span className="text-xs font-black text-emerald-950">กำลังย่อขนาดรูปถ่ายจากมือถือ...</span>
-                  <span className="text-[11px] text-gray-500">กรุณารอสักครู่ (ไม่เกิน 1 วินาที)</span>
+                  <span className="text-xs font-black text-emerald-950">กำลังเตรียมและปรับขนาดรูปถ่าย...</span>
+                  <span className="text-[11px] text-gray-500">กรุณารอสักครู่ (ไม่เกิน 1-2 วินาที)</span>
                 </div>
               ) : deliveryPhotoData ? (
                 <div className="space-y-2">
@@ -1029,25 +1057,47 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
                   <div className="flex items-center justify-between text-xs text-gray-500 px-1">
                     <span>รูปถ่ายที่โต๊ะวางอาหาร</span>
-                    <button
-                      type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="text-emerald-700 font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Camera className="h-3.5 w-3.5" /> ถ่ายใหม่
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="text-emerald-700 font-bold hover:underline flex items-center gap-1"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> ถ่ายใหม่
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-gray-600 font-medium hover:underline"
+                      >
+                        เลือกรูปอื่น
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center hover:border-emerald-500 cursor-pointer transition-colors"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
-                    <Camera className="h-6 w-6" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-6 text-center hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2">
+                      <Camera className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">ถ่ายรูปด้วยกล้อง</span>
+                    <span className="text-[10px] text-emerald-700 mt-0.5">เปิดกล้องทันที</span>
                   </div>
-                  <span className="text-xs font-bold text-gray-800">แตะเพื่อเปิดกล้องถ่ายรูป</span>
-                  <span className="text-[11px] text-gray-400 mt-0.5">หรือเลือกรูปจากเครื่อง</span>
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center hover:border-gray-400 hover:bg-gray-100/70 cursor-pointer transition-colors"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-200 text-gray-600 mb-2">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">เลือกจากอัลบั้ม</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">รูปในเครื่อง</span>
+                  </div>
                 </div>
               )}
 
