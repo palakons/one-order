@@ -646,3 +646,60 @@ export async function deleteSuggestion(id: string): Promise<boolean> {
   return true;
 }
 
+// -------------------------------------------------------------
+// LINE Group Configuration Management
+// -------------------------------------------------------------
+export async function getActiveLineGroupIds(): Promise<string[]> {
+  const groups = new Set<string>();
+  if (process.env.LINE_GROUP_ID) {
+    groups.add(process.env.LINE_GROUP_ID.trim());
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const snap = await getDoc(doc(db, "system", "line_config"));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.groupIds)) {
+          data.groupIds.forEach((id: string) => {
+            if (typeof id === "string" && id.trim()) groups.add(id.trim());
+          });
+        }
+        if (typeof data.activeGroupId === "string" && data.activeGroupId.trim()) {
+          groups.add(data.activeGroupId.trim());
+        }
+      }
+    } catch (err) {
+      console.warn("Firestore getActiveLineGroupIds failed:", err);
+    }
+  }
+
+  return Array.from(groups);
+}
+
+export async function saveActiveLineGroupId(groupId: string): Promise<void> {
+  const cleanId = (groupId || "").trim();
+  if (!cleanId || (!cleanId.startsWith("C") && !cleanId.startsWith("R"))) return;
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const ref = doc(db, "system", "line_config");
+      const snap = await getDoc(ref);
+      const existing: string[] = snap.exists() ? (snap.data().groupIds || []) : [];
+      const updated = Array.from(new Set([...existing, cleanId]));
+      await setDoc(
+        ref,
+        {
+          activeGroupId: cleanId,
+          groupIds: updated,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveActiveLineGroupId failed:", err);
+    }
+  }
+}
+
+

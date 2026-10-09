@@ -42,13 +42,24 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
-  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks" | "suggestions">("batches");
+  const [activeTab, setActiveTab] = useState<"batches" | "newBatch" | "newShop" | "desks" | "suggestions" | "line">("batches");
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [shops, setShops] = useState<Shop[]>(initialShops);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // LINE Notification Status State
+  const [lineStatus, setLineStatus] = useState<{
+    hasToken: boolean;
+    envGroupId: string | null;
+    envUserId: string | null;
+    activeGroupIds: string[];
+  } | null>(null);
+  const [loadingLine, setLoadingLine] = useState(false);
+  const [testingLine, setTestingLine] = useState(false);
+  const [lineTestResult, setLineTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -76,6 +87,44 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
       setLoadingSuggestions(false);
     }
   };
+
+  const fetchLineStatus = async () => {
+    try {
+      setLoadingLine(true);
+      const res = await fetch("/api/line/status");
+      const data = await res.json();
+      if (data.success) {
+        setLineStatus(data);
+      }
+    } catch (e) {
+      console.error("Error fetching LINE status:", e);
+    } finally {
+      setLoadingLine(false);
+    }
+  };
+
+  const handleTestLinePush = async (targetId?: string) => {
+    try {
+      setTestingLine(true);
+      setLineTestResult(null);
+      const res = await fetch("/api/line/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLineTestResult({ success: true, message: data.message });
+      } else {
+        setLineTestResult({ success: false, message: data.error || "Failed to push message" });
+      }
+    } catch (err: any) {
+      setLineTestResult({ success: false, message: err.message || "Network error" });
+    } finally {
+      setTestingLine(false);
+    }
+  };
+
 
   const handleDeleteSuggestion = async (id: string) => {
     if (!confirm("ต้องการลบข้อเสนอแนะนี้ใช่หรือไม่?")) return;
@@ -455,6 +504,23 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           >
             <MessageSquareHeart className="h-4 w-4" />
             <span>ข้อเสนอแนะ ({suggestions.length})</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("line");
+              fetchLineStatus();
+            }}
+            className={`pb-3 px-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "line"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#06C755] text-white text-[9px] font-black">L</span>
+            <span>LINE Notification</span>
+            {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 && (
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            )}
           </button>
         </div>
 
@@ -1065,6 +1131,109 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Tab 6: LINE Notification Integration & Group Status */}
+        {activeTab === "line" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#06C755] text-white text-xs font-black">L</span>
+                  <span>LINE Notification &amp; Group Dispatch</span>
+                </h2>
+                <p className="text-xs text-gray-500">
+                  ตรวจสอบการเชื่อมต่อ LINE Messaging API และดู Group ID ที่ระบบตรวจพบเพื่อส่งแจ้งเตือนตอนอาหารมาส่ง
+                </p>
+              </div>
+              <button
+                onClick={fetchLineStatus}
+                disabled={loadingLine}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-gray-500 ${loadingLine ? "animate-spin" : ""}`} />
+                <span>รีเฟรชสถานะ</span>
+              </button>
+            </div>
+
+            {/* Connection Status Card */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+              <h3 className="font-bold text-sm text-gray-900">1. สถานะการเชื่อมต่อ LINE API</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="text-[11px] font-bold text-gray-500 uppercase">Channel Access Token</div>
+                  <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-emerald-800">พร้อมใช้งาน (Configured)</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="text-[11px] font-bold text-gray-500 uppercase">Environment LINE_GROUP_ID</div>
+                  <div className="mt-1 font-bold text-xs truncate">
+                    {lineStatus?.envGroupId ? (
+                      <span className="text-emerald-800 font-mono">{lineStatus.envGroupId}</span>
+                    ) : (
+                      <span className="text-gray-400 font-normal">ไม่ได้ตั้งใน Vercel Env (ใช้ Auto-Detect แทน)</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="text-[11px] font-bold text-gray-500 uppercase">กลุ่มที่เชื่อมต่ออยู่ (Active Groups)</div>
+                  <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
+                    <span className={`h-2.5 w-2.5 rounded-full ${lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 ? "bg-emerald-500" : "bg-amber-500"}`} />
+                    <span className={lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 ? "text-emerald-800" : "text-amber-800"}>
+                      {lineStatus?.activeGroupIds?.length || 0} กลุ่มที่ตรวจพบ
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Groups List */}
+              <div className="pt-2">
+                <h4 className="text-xs font-bold text-gray-700 mb-2">กลุ่มที่บอทจะส่งแจ้งเตือนตอนส่งข้าว:</h4>
+                {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 ? (
+                  <div className="space-y-2">
+                    {lineStatus.activeGroupIds.map((gid) => (
+                      <div key={gid} className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span className="font-mono font-bold text-emerald-950">{gid}</span>
+                        </div>
+                        <button
+                          onClick={() => handleTestLinePush(gid)}
+                          disabled={testingLine}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs transition-all"
+                        >
+                          {testingLine ? "กำลังส่ง..." : "ทดสอบส่งเข้ากลุ่มนี้"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4 text-xs space-y-2 text-amber-900">
+                    <div className="font-bold">⚠️ ยังไม่มี LINE Group ID บันทึกในระบบ</div>
+                    <p className="leading-relaxed">
+                      ระบบจะตรวจพบและบันทึก Group ID อัตโนมัติเมื่อทำตามขั้นตอนง่ายๆ ดังนี้:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] font-medium text-amber-800">
+                      <li>เชิญบอท VEATEC เข้ากลุ่ม LINE ของชาว VISTEC</li>
+                      <li>พิมพ์คำว่า <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">group id</code> หรือ <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">รหัสกลุ่ม</code> ในกลุ่มแชท</li>
+                      <li>บอทจะตอบกลับพร้อมบันทึกกลุ่มเข้าสู่ระบบเพื่อรับแจ้งเตือนอัตโนมัติทันที!</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+
+              {/* Test Push Result */}
+              {lineTestResult && (
+                <div className={`rounded-xl p-3 text-xs font-bold border ${lineTestResult.success ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-rose-300 bg-rose-50 text-rose-900"}`}>
+                  {lineTestResult.message}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

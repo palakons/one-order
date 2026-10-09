@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBatches } from "@/lib/store";
+import { getBatches, saveActiveLineGroupId } from "@/lib/store";
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +18,13 @@ export async function POST(request: Request) {
       const source = event.source || {};
       const groupId = source.groupId;
       const isDirectUser = source.type === "user";
+
+      // Auto-save group ID to Firestore whenever any event from a group arrives
+      if (groupId) {
+        saveActiveLineGroupId(groupId).catch((err) =>
+          console.warn("Auto-save LINE groupId error:", err)
+        );
+      }
 
       // 1. When user adds the bot as a 1-to-1 friend (Follow Event)
       if (event.type === "follow" && replyToken && token) {
@@ -66,11 +73,13 @@ export async function POST(request: Request) {
 
       // 2. When bot is invited to a group
       if (event.type === "join" && groupId && replyToken && token) {
+        await saveActiveLineGroupId(groupId);
         await replyMessage(token, replyToken, [
           {
             type: "text",
             text: `👋 สวัสดีครับ! บอท VEATEC (VISTEC Eats) เข้าร่วมกลุ่มเรียบร้อยแล้ว ✨\n\n` +
               `🆔 LINE Group ID ของกลุ่มนี้คือ:\n${groupId}\n\n` +
+              `✅ บันทึกกลุ่มนี้เพื่อรับแจ้งเตือนส่งอาหารอัตโนมัติแล้ว!\n` +
               `📌 บอทจะบรอดแคสต์แจ้งเตือนเฉพาะตอนอาหารมาส่งถึงโต๊ะตึก M4 เท่านั้น (ไม่รบกวนเวลาอื่น)\n` +
               `💡 สามารถพิมพ์ "สถานะ" เพื่อเช็คสถานะอาหารวันนี้ได้ฟรีตลอดเวลาครับ`,
           },
@@ -86,10 +95,16 @@ export async function POST(request: Request) {
         // 3.1 Group ID query
         if (text === "group id" || text === "groupid" || text === "/id" || text === "รหัสกลุ่ม") {
           const idToShow = groupId || source.userId || "ไม่พบ Group ID";
+          if (groupId) {
+            await saveActiveLineGroupId(groupId);
+          }
           await replyMessage(token, replyToken, [
             {
               type: "text",
-              text: `🆔 ID ของห้องนี้คือ:\n${idToShow}`,
+              text: `🆔 LINE ID ของห้องนี้คือ:\n${idToShow}\n\n` +
+                (groupId
+                  ? `✅ ระบบบันทึกกลุ่มนี้เรียบร้อยแล้ว! เมื่ออาหารมาส่งถึงโต๊ะ M4 จะมีการแจ้งเตือนพร้อมรูปถ่ายเข้ากลุ่มนี้ทันทีครับ 🎉`
+                  : `(เป็นแชทส่วนตัว ไม่ใช่แชทกลุ่ม)`),
             },
           ]);
           continue;
