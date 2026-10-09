@@ -5,7 +5,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const events = body.events || [];
-    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    const token =
+      process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+      "tDuAIqGSY0EjLJ6JX5+xeNtfEWtlOtXdMggAuhMTDSYxB+d8LJI45ksz7qUlSIJUE7wVfOTM/BGYtHEfYLuP2FKrBCzZOa7pnWZCwJWb6m4Fjy98UQDZKFY9w2RcxBOF/4NZTJotAskvnDHAz0pxLAdB04t89/1O/w1cDnyilFU=";
 
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "one-order.vercel.app";
     const proto = request.headers.get("x-forwarded-proto") || "https";
