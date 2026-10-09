@@ -164,6 +164,9 @@ export async function POST(request: Request) {
               boxLabel: string;
               status: string;
               totalAmount: number;
+              currentTotal: number;
+              targetMin: number;
+              cutoffTime: string;
             }> = [];
 
             for (const b of batches) {
@@ -176,6 +179,9 @@ export async function POST(request: Request) {
                   boxLabel: mo.boxLabel,
                   status: b.status,
                   totalAmount: mo.totalAmount,
+                  currentTotal: b.currentTotalAmount,
+                  targetMin: b.targetMinAmount,
+                  cutoffTime: b.cutoffTime,
                 });
               }
             }
@@ -184,17 +190,25 @@ export async function POST(request: Request) {
               const lines = userOrders.map((uo, idx) => {
                 const statusEmoji =
                   uo.status === "COMPLETED"
-                    ? "✨ นำส่งถึงโต๊ะตึก M4 แล้ว"
+                    ? "✨ นำส่งถึงโต๊ะตึก M4 แล้ว 📸"
                     : uo.status === "DELIVERING"
-                    ? "🛵 กำลังนำส่งมาตึก M4"
+                    ? "🛵 ไรเดอร์กำลังนำส่งมาตึก M4"
                     : uo.status === "LOCKED"
                     ? "🍳 ร้านกำลังปรุง (Cooking)"
-                    : "🟢 กำลังเปิดรับออเดอร์";
+                    : `🟢 เปิดรับออเดอร์ (ปิด ${uo.cutoffTime} น.)`;
+
+                const bar = renderProgressBar(uo.currentTotal, uo.targetMin, 8);
+                const isMet = uo.currentTotal >= uo.targetMin;
+                const poolText = isMet
+                  ? `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ครบยอดส่งฟรี! 🎉)`
+                  : `[${bar}] ฿${uo.currentTotal}/฿${uo.targetMin} (ขาดอีก ฿${uo.targetMin - uo.currentTotal})`;
+
                 return (
                   `${idx + 1}. ร้าน ${uo.shopName}\n` +
                   `   📦 กล่อง: ${uo.boxLabel}\n` +
                   `   ⚡ สถานะ: ${statusEmoji}\n` +
-                  `   💰 ยอดรวม: ฿${uo.totalAmount}`
+                  `   📊 รวมรอบร้าน: ${poolText}\n` +
+                  `   💰 ยอดของคุณ: ฿${uo.totalAmount}`
                 );
               });
 
@@ -262,32 +276,44 @@ export async function POST(request: Request) {
             }
           }
 
-          // General status summary across batches
-          const statusLines = batches.map((b) => {
-            let statusText = "";
+          // General status summary across batches with ASCII progress bar
+          const statusLines = batches.map((b, idx) => {
+            const bar = renderProgressBar(b.currentTotalAmount, b.targetMinAmount, 10);
+            const isMet = b.currentTotalAmount >= b.targetMinAmount;
+            const remaining = Math.max(0, b.targetMinAmount - b.currentTotalAmount);
+            const countText = b.orders.length > 0 ? `สั่งแล้ว ${b.orders.length} กล่อง` : "ยังไม่มีออเดอร์";
+
+            let details = "";
             switch (b.status) {
-              case "OPEN":
-                statusText = `🟢 เปิดรับออเดอร์ (ปิด ${b.cutoffTime} น.) - ฿${b.currentTotalAmount}/${b.targetMinAmount}`;
+              case "OPEN": {
+                const goalText = isMet
+                  ? `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ครบยอดส่งฟรี! 🎉)`
+                  : `฿${b.currentTotalAmount}/฿${b.targetMinAmount} (ขาดอีก ฿${remaining})`;
+                details = `   [${bar}] ${goalText}\n   🟢 เปิดรับถึง ${b.cutoffTime} น. • ${countText}`;
                 break;
-              case "LOCKED":
-                statusText = `🍳 ร้านกำลังปรุง (${b.orders.length} กล่อง)`;
+              }
+              case "LOCKED": {
+                details = `   [██████████] ปิดรับรอบแล้ว (${b.orders.length} กล่อง)\n   🍳 ร้านกำลังปรุงอาหาร (Cooking)`;
                 break;
-              case "DELIVERING":
-                statusText = `🛵 กำลังมาส่งที่ตึก M4 (${b.orders.length} กล่อง)`;
+              }
+              case "DELIVERING": {
+                details = `   [██████████] ปิดรับรอบแล้ว (${b.orders.length} กล่อง)\n   🛵 ไรเดอร์กำลังมาส่งที่ตึก M4`;
                 break;
-              case "COMPLETED":
-                statusText = `✨ ส่งถึงโต๊ะตึก M4 แล้ว (${b.orders.length} กล่อง) 📸`;
+              }
+              case "COMPLETED": {
+                details = `   [██████████] จัดส่งสำเร็จ (${b.orders.length} กล่อง)\n   ✨ ส่งถึงโต๊ะชั้น 1 ตึก M4 แล้ว 📸`;
                 break;
+              }
               default:
-                statusText = b.status;
+                details = `   สถานะ: ${b.status}`;
             }
-            return `• ${b.shop.name}: ${statusText}`;
+            return `${idx + 1}. ${b.shop.name}\n${details}`;
           });
 
           const replyText =
             `🍱 สถานะรวมร้านอาหารวันนี้ (VEATEC @ VISTEC):\n\n` +
-            statusLines.join("\n") +
-            `\n\n📍 จุดรับอาหาร: โต๊ะส่งอาหาร ชั้น 1 ตึก M4\n` +
+            statusLines.join("\n\n") +
+            `\n\n📍 จุดรับอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n` +
             `👉 ตรวจสอบกล่องของคุณ & ดูรูปถ่ายส่งของ:\n${appUrl}/orders`;
 
           await replyMessage(token, replyToken, [
@@ -400,5 +426,12 @@ export async function GET() {
     service: "VEATEC LINE Webhook",
     message: "Endpoint is healthy and ready for LINE webhook POST requests",
   });
+}
+
+function renderProgressBar(current: number, target: number, length: number = 10): string {
+  const ratio = Math.max(0, Math.min(1, target > 0 ? current / target : 0));
+  const filled = Math.round(ratio * length);
+  const empty = length - filled;
+  return "█".repeat(filled) + "░".repeat(empty);
 }
 
