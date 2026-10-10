@@ -1122,11 +1122,36 @@ export default function HomeClient({ initialBatches }: Props) {
                   </h3>
                 </div>
 
-                <div className="text-[9px] sm:text-[10px] text-purple-700 font-medium truncate">
-                  {isShopExpanded
-                    ? (lang === "en" ? "▲ Close" : lang === "cn" ? "▲ 收起" : "▲ ปิดเมนู")
-                    : (lang === "en" ? "▾ Tap menu" : lang === "cn" ? "▾ 查看菜单" : "▾ แตะดูเมนู")}
-                </div>
+                {/* When NOT expanded: tap menu hint */}
+                {!isShopExpanded ? (
+                  <div className="text-[9px] sm:text-[10px] text-purple-700 font-medium truncate">
+                    {lang === "en" ? "▾ Tap for menu" : lang === "cn" ? "▾ 查看菜单" : "▾ แตะดูเมนู"}
+                  </div>
+                ) : (
+                  /* When expanded: Retain "Open map to see menu" directly under shop card */
+                  <div className="pt-1.5 mt-1 border-t border-purple-100 flex flex-col gap-1 animate-fadeIn">
+                    {activeBatch.shop.gmapUrl && (
+                      <a
+                        href={activeBatch.shop.gmapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 px-1.5 py-1 text-[9px] sm:text-[10px] font-bold text-slate-700 transition-colors shadow-2xs"
+                        title={t.viewMenuMaps}
+                      >
+                        <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-rose-500 shrink-0" />
+                        <span className="truncate">{t.viewMenuMaps}</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowPromptPayModal(true)}
+                      className="inline-flex items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 px-1.5 py-1 text-[9px] sm:text-[10px] font-bold text-purple-900 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
+                      <span className="truncate">{t.viewShopPromptPay.replace("💳 ", "")}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Card 2: Drop off location */}
@@ -1201,52 +1226,6 @@ export default function HomeClient({ initialBatches }: Props) {
                 </div>
               </div>
             </div>
-
-            {/* Expanded Shop Menu & QR Drawer */}
-            {isShopExpanded && (
-              <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2 animate-fadeIn shadow-2xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 text-purple-700 shrink-0">
-                    <Store className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      {activeShopInfo?.name || activeBatch.shop.name}
-                    </p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {lang === "en"
-                        ? "Verify menu & price directly with shop"
-                        : lang === "cn"
-                        ? "请与商家核对正确菜单与价格"
-                        : "กรุณาตรวจสอบเมนูและราคาที่ถูกต้องกับร้านค้า"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {activeBatch.shop.gmapUrl && (
-                    <a
-                      href={activeBatch.shop.gmapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700 transition-colors shadow-2xs"
-                      title={t.viewMenuMaps}
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                      <span>{t.viewMenuMaps}</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-white hover:bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <CreditCard className="h-3.5 w-3.5 text-purple-700 shrink-0" />
-                    <span>{t.viewShopPromptPay}</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* If deleted (> 7 days), show privacy retention message instead of filling bars, orders, and form */}
             {activeBatch.isDeleted ? (
