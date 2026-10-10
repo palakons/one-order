@@ -262,7 +262,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
     if (!customerMap[key]) {
       customerMap[key] = {
         customerName: ord.customerName,
-        customerPhone: ord.customerPhone,
+        customerPhone: ord.customerPhone || "",
         locationId: ord.locationId,
         orders: [],
         totalAmount: 0,

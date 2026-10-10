@@ -187,7 +187,7 @@ export async function POST(request: Request) {
 
             for (const b of batches) {
               const matched = b.orders.filter(
-                (o) => o.customerPhone.replace(/[-\s]/g, "") === cleanDigits
+                (o) => (o.customerPhone || "").replace(/[-\s]/g, "") === cleanDigits
               );
               for (const mo of matched) {
                 userOrders.push({

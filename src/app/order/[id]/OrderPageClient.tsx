@@ -1,41 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import DeliveryProgressBar from "@/components/DeliveryProgressBar";
-import PromptPayQR from "@/components/PromptPayQR";
-import SlipUpload from "@/components/SlipUpload";
-import CampusDesksModal from "@/components/CampusDesksModal";
-import { CAMPUS_LOCATIONS, getLocationById } from "@/lib/locations";
 import { BatchWithDetails, Order } from "@/lib/types";
-import { placeOrder } from "@/lib/services";
-import confetti from "canvas-confetti";
-import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName } from "@/lib/i18n";
+import { compressImage } from "@/lib/services";
+import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
+import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getTimeRemaining } from "@/lib/utils";
+import confetti from "canvas-confetti";
 import {
   ArrowLeft,
-  Plus,
-  Minus,
   MapPin,
   Clock,
-  Phone,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  ShoppingBag,
   ExternalLink,
-  ChevronRight,
-  Info,
-  ZoomIn,
-  Eye,
-  X,
-  Image as ImageIcon,
-  Check,
   CreditCard,
-  FileCheck2,
+  Share2,
+  Copy,
+  Download,
+  Eye,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
   Camera,
+  X,
+  Check,
+  Trash2,
+  Send,
+  Plus,
+  ShoppingBag,
 } from "lucide-react";
 
 interface Props {
@@ -45,994 +39,925 @@ interface Props {
 
 export default function OrderPageClient({ batchId, initialBatch }: Props) {
   const router = useRouter();
-  const { t, lang } = useLanguage();
 
+  // Live Batch State
   const [batch, setBatch] = useState<BatchWithDetails | null>(initialBatch);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMenuPhotoModal, setShowMenuPhotoModal] = useState(false);
 
-  // 1-2-3 Step state
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  // Shop Modals
+  const [showPromptPayModal, setShowPromptPayModal] = useState(false);
+  const [selectedSlip, setSelectedSlip] = useState<{ url: string; title: string } | null>(null);
 
-  // Cart state: item ID -> quantity
-  const [cart, setCart] = useState<Record<string, { item: any; quantity: number; note: string }>>({});
+  // Whiteboard Fast Order Input Form
+  const [customerLineId, setCustomerLineId] = useState("");
+  const [dishName, setDishName] = useState("");
+  const [dishPrice, setDishPrice] = useState("");
+  const [dishNote, setDishNote] = useState("");
 
-  // Custom item state
-  const [showCustomItem, setShowCustomItem] = useState(false);
-  const [customName, setCustomName] = useState("");
-  const [customPrice, setCustomPrice] = useState("");
-  const [customNote, setCustomNote] = useState("");
-
-  // Customer state
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedLocationId, setSelectedLocationId] = useState("loc-m4");
-  const [showDeskModal, setShowDeskModal] = useState(false);
-
-  // Slip file
+  // Slip Upload & Instant Verification State
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [slipPreview, setSlipPreview] = useState<string | null>(null);
+  const [scanningSlip, setScanningSlip] = useState(false);
+  const [slipVerification, setSlipVerification] = useState<SlipVerificationResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Submission state
-  const [submitting, setSubmitting] = useState(false);
-  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  // Submitting Order State
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Send to Shop & Manifest Modal State
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [generatingManifest, setGeneratingManifest] = useState(false);
+  const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Host Identification (stored locally for party initiator)
+  const [isHost, setIsHost] = useState(false);
+
+  // 1. Poll Batch every 3.5 seconds
   useEffect(() => {
     fetchBatch();
-    const interval = setInterval(fetchBatch, 4000);
+    const interval = setInterval(fetchBatch, 3500);
     return () => clearInterval(interval);
   }, [batchId]);
 
+  // 2. Load cached Line ID & Host state
   useEffect(() => {
     try {
-      const savedPhone = localStorage.getItem("veatec_user_phone");
-      const savedName = localStorage.getItem("veatec_user_name");
-      if (savedPhone) setCustomerPhone(savedPhone);
-      if (savedName) setCustomerName(savedName);
-    } catch (e) {
-      // ignore
-    }
-  }, []);
+      const savedLine = localStorage.getItem("veatec_user_line");
+      if (savedLine) setCustomerLineId(savedLine);
+      const hostBatch = localStorage.getItem(`veatec_host_${batchId}`);
+      if (hostBatch === "true") setIsHost(true);
+    } catch (e) {}
+  }, [batchId]);
 
   const fetchBatch = async () => {
     try {
-      const res = await fetch(`/api/batches/${batchId}`);
+      // role=shop query parameter returns unsanitized batch for manifest generation
+      const res = await fetch(`/api/batches/${batchId}?role=shop`);
+      const data = await res.json();
+      if (data.success && data.batch) {
+        setBatch(data.batch);
+      }
+    } catch (err) {
+      console.warn("Poll batch error:", err);
+    }
+  };
+
+  // Handle Slip Upload & Immediate BOT QR Scan
+  const handleSlipFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubmitError(null);
+    setSlipFile(file);
+    setScanningSlip(true);
+    setSlipVerification(null);
+
+    try {
+      // 1. Create preview and compress for storage
+      const compressedDataUrl = await compressImage(file, 1000, 0.85);
+      setSlipPreview(compressedDataUrl);
+
+      // 2. Scan for BOT Slip QR code using HTML Image element
+      const tempImg = new Image();
+      tempImg.onload = async () => {
+        const verifyRes = await scanSlipQrFromImageElement(tempImg);
+        setSlipVerification(verifyRes);
+        setScanningSlip(false);
+      };
+      tempImg.src = compressedDataUrl;
+    } catch (err: any) {
+      console.error("Slip processing error:", err);
+      setScanningSlip(false);
+    }
+  };
+
+  // Submit Order directly to the Whiteboard
+  const handleAddToWhiteboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
+
+    const cleanLine = customerLineId.trim();
+    const cleanDish = dishName.trim();
+    const priceNum = parseFloat(dishPrice);
+
+    if (!cleanLine) {
+      setSubmitError("กรุณากรอก LINE ID หรือชื่อแสดงผล");
+      return;
+    }
+    if (!cleanDish) {
+      setSubmitError("กรุณากรอกเมนูอาหารที่ต้องการสั่ง");
+      return;
+    }
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setSubmitError("กรุณาระบุราคาอาหารเป็นตัวเลขที่ถูกต้อง");
+      return;
+    }
+    if (!slipPreview) {
+      setSubmitError("กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)");
+      return;
+    }
+
+    setSubmittingOrder(true);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId,
+          customerName: cleanLine,
+          customerLineId: cleanLine,
+          customerPhone: "",
+          locationId: "loc-m4",
+          items: [
+            {
+              name: cleanDish,
+              price: priceNum,
+              quantity: 1,
+              customNote: dishNote.trim() || undefined,
+            },
+          ],
+          totalAmount: priceNum,
+          slipImageUrl: slipPreview,
+          slipTransRef: slipVerification?.transRef,
+          slipBankCode: slipVerification?.bankCode,
+          slipBankName: slipVerification?.bankName,
+          isSlipVerified: slipVerification?.isValid || false,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการลงชื่อ");
+      }
+
+      // Save LINE ID
+      try {
+        localStorage.setItem("veatec_user_line", cleanLine);
+        // If first order in this batch, designate as Host
+        if (!batch?.orders || batch.orders.length === 0) {
+          localStorage.setItem(`veatec_host_${batchId}`, "true");
+          setIsHost(true);
+        }
+      } catch (e) {}
+
+      // Reset form
+      setDishName("");
+      setDishPrice("");
+      setDishNote("");
+      setSlipFile(null);
+      setSlipPreview(null);
+      setSlipVerification(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // Confetti & refresh
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+      await fetchBatch();
+    } catch (err: any) {
+      setSubmitError(err.message || "ไม่สามารถลงชื่อบนไวท์บอร์ดได้");
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  // Cancel order (with audit trace)
+  const handleCancelOrder = async (orderId: string, orderNumber: number, customerName: string) => {
+    if (!confirm(`ยืนยันการยกเลิกกล่อง #${orderNumber} (${customerName}) ใช่หรือไม่?\n(ระบบจะบันทึกประวัติการยกเลิกไว้)`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/orders?id=${orderId}&reason=Cancelled by Host&by=${encodeURIComponent(customerLineId || "Host")}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (data.success) {
-        setBatch(data.batch);
+        alert("ยกเลิกรายการเรียบร้อยแล้ว");
+        fetchBatch();
       } else {
-        if (!batch) setError(data.error || "ไม่พบข้อมูลรอบสั่งอาหาร");
+        alert(data.error || "ไม่สามารถยกเลิกได้");
       }
-    } catch (err: any) {
-      if (!batch) setError(err.message || "ไม่สามารถโหลดข้อมูลรอบสั่งอาหารได้");
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการยกเลิก");
     }
   };
 
-  const updateQuantity = (item: any, delta: number) => {
-    setCart((prev) => {
-      const current = prev[item.id] || { item, quantity: 0, note: "" };
-      const newQty = Math.max(0, current.quantity + delta);
-      if (newQty === 0) {
-        const next = { ...prev };
-        delete next[item.id];
-        return next;
-      }
-      return {
-        ...prev,
-        [item.id]: { ...current, quantity: newQty },
-      };
+  // Compile Brief Order Text
+  const getCompiledOrderText = () => {
+    if (!batch) return "";
+    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}\n`;
+    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
+    txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${batch.orders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `------------------------------------\n`;
+    batch.orders.forEach((o) => {
+      const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
+      const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
+      txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
     });
+    txt += `------------------------------------\n`;
+    txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
+    return txt;
   };
 
-  const updateItemNote = (itemId: string, note: string) => {
-    setCart((prev) => {
-      if (!prev[itemId]) return prev;
-      return {
-        ...prev,
-        [itemId]: { ...prev[itemId], note },
-      };
-    });
-  };
+  // Open "Send to Shop" Manifest Generator
+  const handleOpenSendModal = async () => {
+    if (!batch) return;
+    setShowSendModal(true);
+    setGeneratingManifest(true);
+    setManifestData(null);
+    setCopiedText(false);
 
-  const handleAddCustomItem = () => {
-    if (!customName.trim() || !customPrice || Number(customPrice) <= 0) return;
-    const customId = `custom-${Date.now()}`;
-    const customItemObj = {
-      id: customId,
-      name: customName.trim(),
-      price: Number(customPrice),
-    };
-    setCart((prev) => ({
-      ...prev,
-      [customId]: {
-        item: customItemObj,
-        quantity: 1,
-        note: customNote.trim(),
-      },
-    }));
-    setCustomName("");
-    setCustomPrice("");
-    setCustomNote("");
-    setShowCustomItem(false);
-  };
-
-  // Calculate Cart Total
-  const cartItemsList = Object.values(cart);
-  const totalQuantity = cartItemsList.reduce((sum, entry) => sum + entry.quantity, 0);
-  const totalAmount = cartItemsList.reduce(
-    (sum, entry) => sum + entry.item.price * entry.quantity,
-    0
-  );
-
-  const timeInfo = batch
-    ? getTimeRemaining(batch.cutoffTime, batch.date)
-    : { isExpired: false, text: "", remainingMs: 0 };
-  const isBatchClosed = Boolean(batch && (batch.status !== "OPEN" || timeInfo.isExpired));
-
-  const handleSubmitOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isBatchClosed) {
-      alert("ขออภัย รอบสั่งอาหารนี้ปิดรับแล้ว");
-      return;
-    }
-    if (!customerName.trim()) {
-      alert("กรุณากรอกชื่อผู้รับอาหาร (เช่น ชื่อเล่น หรือ นศ.)");
-      setCurrentStep(3);
-      return;
-    }
-    if (!customerPhone.trim()) {
-      alert("กรุณากรอกเบอร์โทรติดต่อ");
-      setCurrentStep(3);
-      return;
-    }
-    if (cartItemsList.length === 0) {
-      alert("กรุณาเลือกอาหารอย่างน้อย 1 รายการ");
-      setCurrentStep(1);
-      return;
-    }
-    if (!slipFile) {
-      alert("กรุณาแนบรูปสลิปโอนเงิน PromptPay เพื่อยืนยันออเดอร์");
-      setCurrentStep(3);
-      return;
-    }
-
-    setSubmitting(true);
     try {
-      const formattedItems = cartItemsList.map((entry) => ({
-        name: entry.item.name,
-        price: entry.item.price,
-        quantity: entry.quantity,
-        customNote: entry.note || undefined,
-      }));
-
-      const result = await placeOrder({
-        batchId,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        locationId: selectedLocationId,
-        items: formattedItems,
-        totalAmount,
-        slipFile,
-      });
-
-      // Confetti burst!
-      confetti({
-        particleCount: 90,
-        spread: 75,
-        origin: { y: 0.6 },
-      });
-
-      // Save order to localStorage for zero-login tracking
-      try {
-        const savedOrders = JSON.parse(localStorage.getItem("veatec_user_orders") || "[]");
-        savedOrders.unshift({
-          orderId: result.order.id,
-          batchId: result.batch.id,
-          shopName: result.batch.shop.name,
-          date: result.batch.date,
-          orderNumber: result.order.orderNumber,
-          customerName: result.order.customerName,
-          customerPhone: result.order.customerPhone,
-          locationId: result.order.locationId,
-          totalAmount: result.order.totalAmount,
-          boxLabel: result.order.boxLabel,
-          slipImageUrl: result.order.slipImageUrl,
-          items: result.order.items,
-          createdAt: result.order.createdAt,
-        });
-        localStorage.setItem("veatec_user_orders", JSON.stringify(savedOrders.slice(0, 30)));
-        localStorage.setItem("veatec_user_phone", customerPhone.trim());
-        localStorage.setItem("veatec_user_name", customerName.trim());
-      } catch (e) {
-        console.warn("Could not save to localStorage", e);
-      }
-
-      setCompletedOrder(result.order);
-      setBatch(result.batch);
-    } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาดในการส่งออเดอร์");
+      const manifest = await generateOneLongManifestImage(batch);
+      setManifestData(manifest);
+    } catch (err) {
+      console.error("Manifest generation error:", err);
+      alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
     } finally {
-      setSubmitting(false);
+      setGeneratingManifest(false);
     }
+  };
+
+  // Share Manifest to LINE
+  const handleShareToLine = async () => {
+    if (!manifestData || !batch) return;
+
+    const shareText = getCompiledOrderText();
+
+    // 1. Try Native Web Share API with File
+    if (navigator.share && navigator.canShare) {
+      const imageFile = new File([manifestData.blob], `veatec-order-${batch.shop.name}-${batch.date}.jpg`, {
+        type: "image/jpeg",
+      });
+
+      if (navigator.canShare({ files: [imageFile] })) {
+        try {
+          await navigator.share({
+            title: `ออเดอร์ร้าน ${batch.shop.name}`,
+            text: shareText,
+            files: [imageFile],
+          });
+          return;
+        } catch (err: any) {
+          if (err.name !== "AbortError") {
+            console.warn("Native share failed, falling back to download & LINE scheme", err);
+          } else {
+            return; // User cancelled share sheet
+          }
+        }
+      }
+    }
+
+    // 2. Fallback: Download image and open LINE app with text
+    const link = document.createElement("a");
+    link.href = manifestData.dataUrl;
+    link.download = `veatec-order-${batch.shop.name}-${batch.date}.jpg`;
+    link.click();
+
+    // Copy text to clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+    } catch (e) {}
+
+    alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
   };
 
   if (!batch) {
-    if (loading) {
-      return (
-        <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <div className="mx-auto max-w-xl p-8 text-center text-gray-500">
-            กำลังโหลดข้อมูลรอบสั่งอาหาร...
-          </div>
-        </div>
-      );
-    }
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="mx-auto max-w-xl p-8 text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-rose-500 mb-3" />
-          <h2 className="text-xl font-bold text-gray-900">ไม่พบรอบสั่งอาหารนี้</h2>
-          <p className="text-sm text-gray-600 mt-1">{error}</p>
-          <Link
-            href="/"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> กลับหน้าหลัก
-          </Link>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-purple-900 border-t-transparent" />
+          <span className="text-sm font-bold text-gray-700">กำลังโหลดกระดานไวท์บอร์ด...</span>
         </div>
       </div>
     );
   }
 
-  // -------------------------------------------------------------
-  // Order Success Screen (เมื่อสั่งสำเร็จ)
-  // -------------------------------------------------------------
-  if (completedOrder) {
-    const selectedLocation = getLocationById(completedOrder.locationId);
+  const timeInfo = getTimeRemaining(batch.cutoffTime, batch.date);
+  const isBatchClosed = batch.status !== "OPEN" || timeInfo.isExpired;
+  const activeOrders = (batch.orders || []).filter((o) => !o.deletedAt);
 
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-gray-50">
-        <Navbar />
-        <div className="mx-auto max-w-lg px-3 py-8 sm:px-6">
-          <div className="rounded-3xl border border-emerald-200 bg-white p-5 sm:p-7 shadow-lg text-center space-y-5">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-sm">
-              <CheckCircle2 className="h-9 w-9" />
-            </div>
-
-            <div>
-              <div className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                แนบสลิป & บันทึกออเดอร์แล้ว ✓
-              </div>
-              <h1 className="mt-2 text-xl sm:text-2xl font-black text-gray-900">
-                สั่งอาหารเรียบร้อยแล้ว! 🎉
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                ออเดอร์ของคุณถูกส่งไปยังร้าน <strong>{batch.shop.name}</strong> แล้ว
-              </p>
-            </div>
-
-            {/* Box Label Card */}
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3.5 text-left space-y-2">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
-                ป้ายติดหน้ากล่องอาหาร (Box Label):
-              </div>
-              <div className="rounded-xl bg-white border border-gray-200 p-2.5 font-mono text-xs font-bold text-gray-900">
-                {completedOrder.boxLabel}
-              </div>
-              <div className="text-xs text-gray-700 space-y-1 pt-1">
-                <div>
-                  <strong>โต๊ะจุดรับข้าว:</strong> {selectedLocation?.name} ({selectedLocation?.deskDetail})
-                </div>
-                <div>
-                  <strong>ผู้สั่ง:</strong> {completedOrder.customerName} ({completedOrder.customerPhone})
-                </div>
-                <div>
-                  <strong>ยอดที่โอน:</strong> <span className="text-orange-600 font-bold">฿{completedOrder.totalAmount}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Threshold Progress */}
-            <div>
-              <DeliveryProgressBar
-                currentAmount={batch.currentTotalAmount}
-                targetAmount={batch.targetMinAmount}
-                cutoffTime={batch.cutoffTime}
-                orderCount={batch.orderCount}
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <Link
-                href="/orders"
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-2xs transition-colors"
-              >
-                <ShoppingBag className="h-4 w-4" />
-                <span>ติดตามใน "ออเดอร์ของฉัน"</span>
-              </Link>
-              <Link
-                href="/"
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-2xs"
-              >
-                <span>กลับหน้าหลัก</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const selectedLoc = getLocationById(selectedLocationId);
-  const shopInfo = getShopLocalizedInfo(batch.shop, lang);
+  // Slip Gating Calculation:
+  // All active orders must have a verified slip or slip image attached
+  const allSlipsVerified =
+    activeOrders.length > 0 &&
+    activeOrders.every((o) => Boolean(o.slipImageUrl || o.isSlipVerified));
+  const missingSlipOrders = activeOrders.filter((o) => !o.slipImageUrl && !o.isSlipVerified);
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-28 sm:pb-16">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
 
-      <div className="mx-auto max-w-3xl px-3 py-4 sm:px-6">
-        {/* Back Link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-orange-600 transition-colors mb-3"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>{t.backToHome}</span>
-        </Link>
-
-        {/* Shop Header Banner */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs mb-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200/80 rounded px-1.5 py-0.5">
-                {shopInfo.cuisine}
-              </span>
-              <h1 className="mt-1 text-lg sm:text-2xl font-black text-gray-900">
-                {shopInfo.name}
-              </h1>
-              <p className="text-xs text-gray-500 line-clamp-1">{shopInfo.description}</p>
-            </div>
-
-            <div className="text-right shrink-0">
-              <div className="text-[10px] text-gray-500 font-semibold">{t.cutoffAt}</div>
-              <div className="text-base sm:text-lg font-black text-orange-600">{batch.cutoffTime} น.</div>
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <DeliveryProgressBar
-              currentAmount={batch.currentTotalAmount}
-              targetAmount={batch.targetMinAmount}
-              cutoffTime={batch.cutoffTime}
-              orderCount={batch.orderCount}
-              compact
-            />
+      <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 space-y-5">
+        {/* Top Navigation & Back */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-purple-900 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>← กลับหน้ารวมร้านอาหาร</span>
+          </Link>
+          <div className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-900 px-3 py-1 text-xs font-black">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>LIVE DIGITAL WHITEBOARD</span>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Closed / Expired Batch Protection Banner */}
-        {/* ----------------------------------------------------------- */}
-        {isBatchClosed ? (
-          <div className="space-y-4">
-            <div className="rounded-3xl border-2 border-rose-300 bg-rose-50/95 p-5 sm:p-6 text-center space-y-3 shadow-xs animate-in fade-in">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-black text-white">
-                <span>🔴 ร้านปิดรับออเดอร์รอบนี้แล้ว (Closed)</span>
+        {/* 1. Header Card: Shop Info, Google Maps & PromptPay QR */}
+        <div className="rounded-3xl border border-purple-200/80 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md border border-purple-200">
+                <span>{batch.shop.cuisine}</span>
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-rose-950">
-                ร้าน {shopInfo.name} ปิดรับออเดอร์แล้ว (หมดเวลา {batch.cutoffTime} น.)
-              </h2>
-              <p className="text-xs sm:text-sm text-rose-800 max-w-md mx-auto">
-                {batch.status === "COMPLETED"
-                  ? "อาหารรอบนี้ถูกนำส่งถึงโต๊ะตึก M4 เรียบร้อยแล้ว สามารถดูรูปถ่ายหลักฐานจุดส่งได้"
-                  : "ทางร้านกำลังเตรียมและปรุงอาหาร กรุณารอรอบถัดไป หรือเลือกร้านที่ยังเปิดรับครับ/ค่ะ"}
+              <h1 className="mt-1.5 text-2xl sm:text-3xl font-black text-gray-900">
+                {batch.shop.name}
+              </h1>
+              <p className="mt-1 text-xs text-gray-600 max-w-xl">
+                {batch.shop.description}
               </p>
-              <div className="pt-2 flex flex-wrap justify-center gap-2.5">
-                <Link
-                  href="/"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-gray-800 shadow-xs"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>ดูร้านอื่นที่ยังเปิดรับ</span>
-                </Link>
-                {batch.status === "COMPLETED" && (
-                  <Link
-                    href={`/delivery/${batch.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700 shadow-xs"
-                  >
-                    <Camera className="h-4 w-4" />
-                    <span>ดูรูปถ่ายอาหารที่ M4</span>
-                  </Link>
-                )}
-              </div>
             </div>
 
-            {/* Read-Only Menu Display for Reference */}
-            <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-3">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                  รายการอาหารของร้าน (แสดงสำหรับดูเป็นตัวอย่าง):
-                </span>
-                {batch.shop.menuImageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setShowMenuPhotoModal(true)}
-                    className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1"
-                  >
-                    <ZoomIn className="h-3.5 w-3.5" />
-                    <span>ดูรูปใบเมนูร้าน</span>
-                  </button>
-                )}
-              </div>
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {batch.shop.menuItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-gray-200/80 bg-gray-50/60 p-3.5 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-bold text-sm text-gray-800">
-                        {getMenuItemLocalizedName(item, lang)}
-                      </div>
-                      <div className="text-xs font-semibold text-orange-600 mt-0.5">
-                        ฿{item.price}
-                      </div>
-                    </div>
-                    <span className="rounded-lg bg-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-500">
-                      ปิดรับแล้ว
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {/* Quick Actions: Google Maps & PromptPay QR */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {batch.shop.gmapUrl && (
+                <a
+                  href={batch.shop.gmapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-2xs transition-colors"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Google Maps ↗</span>
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPromptPayModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 shadow-2xs transition-colors"
+              >
+                <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+              </button>
             </div>
           </div>
-        ) : (
-          <>
-            {/* 1 - 2 - 3 Step Indicator Navigation Tabs */}
-            <div className="sticky top-14 z-30 mb-4 bg-gray-50/95 py-1.5 backdrop-blur-md">
-              <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-gray-200 bg-white p-1 shadow-xs">
-                {/* Step 1 Tab */}
+
+          {/* Delivery Goal & Progress */}
+          <div className="pt-3 border-t border-gray-100 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-gray-700 flex items-center gap-1.5">
+                <ShoppingBag className="h-4 w-4 text-purple-900" />
+                <span>
+                  ยอดสั่งตอนนี้: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+                </span>
+              </span>
+              <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
+                {batch.isMinMet
+                  ? "🎉 ครบยอดส่งฟรีที่ตึก M4 แล้ว!"
+                  : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี`}
+              </span>
+            </div>
+
+            {/* Visual Bar */}
+            <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  batch.isMinMet
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600"
+                    : "bg-gradient-to-r from-amber-400 to-orange-500"
+                }`}
+                style={{ width: `${Math.min(100, (batch.currentTotalAmount / batch.targetMinAmount) * 100)}%` }}
+              />
+            </div>
+
+            {/* Time & Destination Badges */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+              <span className="flex items-center gap-1.5 font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
+                <Clock className="h-3.5 w-3.5 text-purple-900" />
+                <span>{timeInfo.text} (Cutoff: {batch.cutoffTime} น.)</span>
+              </span>
+              <span className="flex items-center gap-1.5 font-bold text-emerald-900 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
+                <MapPin className="h-3.5 w-3.5 text-emerald-700" />
+                <span>จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Gated "Send to Shop" Action Bar (Slip-Gated) */}
+        <div className="rounded-2xl border-2 border-purple-200 bg-purple-900 p-4 sm:p-5 text-white shadow-md space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                  {allSlipsVerified ? "READY TO SEND" : "SLIP VERIFICATION"}
+                </span>
+                <span className="text-xs text-purple-200">
+                  {activeOrders.length} กล่องบนกระดาน
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-black mt-1">
+                {allSlipsVerified
+                  ? "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
+                  : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
+              </h2>
+            </div>
+
+            {/* Trigger Button or Status Notice */}
+            <div>
+              {allSlipsVerified ? (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-                    currentStep === 1
-                      ? "bg-[#5D3085] text-white shadow-xs"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
+                  onClick={handleOpenSendModal}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 text-purple-950 font-black px-5 py-3 text-sm sm:text-base shadow-lg shadow-black/20 active:scale-95 transition-all w-full sm:w-auto"
                 >
-                  <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                    currentStep === 1 ? "bg-white text-[#5D3085]" : "bg-gray-200 text-gray-700"
-                  }`}>
-                    1
-                  </span>
-                  <span>{t.step1}</span>
-                  {totalQuantity > 0 && (
-                    <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                      currentStep === 1 ? "bg-[#472266] text-white" : "bg-purple-100 text-[#5D3085]"
-                    }`}>
-                      {totalQuantity}
-                    </span>
-                  )}
+                  <Send className="h-4 w-4" />
+                  <span>🚀 รวมส่งร้าน (Send to Shop)</span>
                 </button>
-
-            {/* Step 2 Tab */}
-            <button
-              type="button"
-              onClick={() => {
-                if (cartItemsList.length === 0) {
-                  alert("กรุณาเลือกอาหารก่อนไปขั้นตอนชำระเงิน");
-                  return;
-                }
-                setCurrentStep(2);
-              }}
-              className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-                currentStep === 2
-                  ? "bg-[#B4213A] text-white shadow-xs"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                currentStep === 2 ? "bg-white text-[#B4213A]" : "bg-gray-200 text-gray-700"
-              }`}>
-                2
-              </span>
-              <span>สแกนจ่าย</span>
-              {totalAmount > 0 && (
-                <span className="text-[10px] font-bold opacity-90 hidden xs:inline">
-                  (฿{totalAmount})
-                </span>
+              ) : (
+                <div className="text-xs text-amber-200 font-semibold bg-white/10 px-3 py-2 rounded-xl border border-white/15">
+                  {missingSlipOrders.length > 0 ? (
+                    <span>
+                      รอสลิปจาก:{" "}
+                      <strong>
+                        {missingSlipOrders.map((o) => o.customerLineId || o.customerName).join(", ")}
+                      </strong>
+                    </span>
+                  ) : (
+                    <span>ยังไม่มีออเดอร์บนไวท์บอร์ด</span>
+                  )}
+                </div>
               )}
-            </button>
-
-            {/* Step 3 Tab */}
-            <button
-              type="button"
-              onClick={() => {
-                if (cartItemsList.length === 0) {
-                  alert("กรุณาเลือกอาหารก่อนไปขั้นตอนแนบสลิป");
-                  return;
-                }
-                setCurrentStep(3);
-              }}
-              className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-                currentStep === 3
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-black ${
-                currentStep === 3 ? "bg-white text-emerald-600" : "bg-gray-200 text-gray-700"
-              }`}>
-                3
-              </span>
-              <span>จุดส่ง & สลิป</span>
-              {slipFile && (
-                <Check className={`h-3 w-3 ${currentStep === 3 ? "text-white" : "text-emerald-600"}`} />
-              )}
-            </button>
+            </div>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Form Container */}
-        {/* ----------------------------------------------------------- */}
-        <form onSubmit={handleSubmitOrder} className="space-y-4">
-          {/* ========================================================= */}
-          {/* STEP 1: เลือกร้าน & เมนูอาหาร */}
-          {/* ========================================================= */}
-          {currentStep === 1 && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              {/* Menu Photo Quick Trigger */}
-              {batch.shop.menuImageUrl && (
-                <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-orange-600 shrink-0" />
-                    <span className="text-xs font-bold text-orange-950">
-                      มีภาพใบเมนูทางการของร้าน
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowMenuPhotoModal(true)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-white border border-orange-300 px-2.5 py-1 text-xs font-bold text-orange-700 hover:bg-orange-100/50 shadow-2xs shrink-0"
+        {/* 3. The Digital Whiteboard List */}
+        <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div>
+              <h2 className="text-base font-black text-gray-900">
+                📋 รายชื่อบนไวท์บอร์ด (Live Orders List)
+              </h2>
+              <p className="text-xs text-gray-500">
+                ทุกคนเห็นรายการเดียวกันแบบเรียลไทม์ ตรวจสอบสลิปได้ทันที
+              </p>
+            </div>
+            <span className="text-xs font-black text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+              รวม {activeOrders.length} กล่อง
+            </span>
+          </div>
+
+          {activeOrders.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-gray-400 space-y-2">
+              <ShoppingBag className="mx-auto h-8 w-8 text-gray-300" />
+              <p className="text-sm font-semibold">ยังไม่มีใครลงชื่อบนกระดานนี้</p>
+              <p className="text-xs text-gray-400">เป็นคนแรกที่เปิดตี้ร้านนี้ได้เลยด้านล่าง!</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {activeOrders.map((ord) => {
+                const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
+                const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
+
+                return (
+                  <div
+                    key={ord.id}
+                    className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/60 rounded-xl px-2 transition-colors"
                   >
-                    <ZoomIn className="h-3.5 w-3.5" />
-                    <span>ดูรูปใบเมนูร้าน</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Disclaimer */}
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-900 flex items-start gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" />
-                <span>
-                  💡 เมนูด้านล่างสรุปเพื่อความสะดวกในการกดสั่ง อ้างอิงรายการและราคาตามรูปป้ายเมนูจริงของร้าน
-                </span>
-              </div>
-
-              {/* Menu items card */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs">
-                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5">
-                    <ShoppingBag className="h-4 w-4 text-orange-600" />
-                    <span>รายการอาหารแนะนำ</span>
-                  </h2>
-                  <span className="text-xs font-semibold text-gray-500">
-                    เลือกกดบวก [+] เพิ่มลงตะกร้า
-                  </span>
-                </div>
-
-                <div className="divide-y divide-gray-100">
-                  {batch.shop.menuItems.map((item) => {
-                    const inCart = cart[item.id];
-                    const qty = inCart ? inCart.quantity : 0;
-
-                    return (
-                      <div key={item.id} className="py-3 first:pt-0 last:pb-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1 min-w-0 pr-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs sm:text-sm text-gray-900">
-                                {getMenuItemLocalizedName(item, lang)}
-                              </span>
-                              {item.popular && (
-                                <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-bold text-amber-800 shrink-0">
-                                  {lang === "en" ? "Popular" : lang === "cn" ? "热销" : "นิยม"}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs font-bold text-orange-600 mt-0.5">
-                              ฿{item.price}
-                            </div>
-                          </div>
-
-                          {/* Plus / Minus Counter Buttons */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {qty > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item, -1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-95"
-                              >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                            )}
-                            {qty > 0 && (
-                              <span className="w-5 text-center text-xs font-bold text-gray-900">
-                                {qty}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item, 1)}
-                              className={`flex h-7 items-center justify-center gap-1 rounded-lg px-2 text-xs font-bold transition-all active:scale-95 ${
-                                qty > 0
-                                  ? "bg-orange-600 text-white hover:bg-orange-700"
-                                  : "border border-gray-200 bg-gray-50 text-gray-800 hover:bg-orange-50 hover:border-orange-300"
-                              }`}
-                            >
-                              <Plus className="h-3 w-3" />
-                              {qty === 0 && <span>สั่ง</span>}
-                            </button>
-                          </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-white font-mono font-bold text-xs shrink-0 mt-0.5">
+                        #{ord.orderNumber}
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-gray-900">{lineName}</span>
+                          {hasSlip ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>โอนแล้ว {ord.slipBankName ? `(${ord.slipBankName})` : "✓"}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                              <span>⏳ รอสลิป</span>
+                            </span>
+                          )}
                         </div>
 
-                        {/* Note field if in cart */}
-                        {qty > 0 && (
-                          <div className="mt-1.5 pl-2 border-l-2 border-orange-400">
-                            <input
-                              type="text"
-                              placeholder="ระบุเพิ่มเติม (เช่น เผ็ดน้อย, ไม่ใส่ผัก, ไข่ดาวไม่สุก)"
-                              value={inCart.note}
-                              onChange={(e) => updateItemNote(item.id, e.target.value)}
-                              className="w-full rounded-md border border-gray-200 bg-gray-50/80 px-2 py-1 text-xs text-gray-800 focus:border-orange-500 focus:bg-white focus:outline-none"
-                            />
-                          </div>
-                        )}
+                        {/* Dish Details */}
+                        <div className="text-xs text-gray-700 mt-0.5 font-medium">
+                          {ord.items.map((it, idx) => (
+                            <span key={idx}>
+                              {it.quantity > 1 ? `${it.quantity}x ` : ""}
+                              <strong>{it.name}</strong>
+                              {it.customNote && <span className="text-amber-800 italic"> ({it.customNote})</span>}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
 
-                {/* Custom Item Trigger */}
-                <div className="mt-4 pt-3 border-t border-gray-100">
-                  {!showCustomItem ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomItem(true)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>สั่งเมนูอื่นนอกรายการ (ตามรูปใบเมนู)</span>
-                    </button>
-                  ) : (
-                    <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-orange-950">ระบุเมนูพิเศษนอกรายการ:</span>
+                    {/* Price, Slip View & Cancel Actions */}
+                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                      <span className="font-mono font-black text-sm sm:text-base text-orange-600">
+                        ฿{ord.totalAmount}
+                      </span>
+
+                      {ord.slipImageUrl && (
                         <button
                           type="button"
-                          onClick={() => setShowCustomItem(false)}
-                          className="text-[11px] text-gray-500 hover:text-gray-700"
+                          onClick={() =>
+                            setSelectedSlip({
+                              url: ord.slipImageUrl,
+                              title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-purple-50 hover:border-purple-300 transition-colors shadow-2xs"
                         >
-                          ยกเลิก
+                          <Eye className="h-3 w-3 text-purple-700" />
+                          <span>ดูสลิป</span>
                         </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <input
-                          type="text"
-                          placeholder="ชื่อเมนู"
-                          value={customName}
-                          onChange={(e) => setCustomName(e.target.value)}
-                          className="col-span-2 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:outline-orange-500"
-                        />
-                        <input
-                          type="number"
-                          placeholder="ราคา (฿)"
-                          value={customPrice}
-                          onChange={(e) => setCustomPrice(e.target.value)}
-                          className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:outline-orange-500"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
-                        value={customNote}
-                        onChange={(e) => setCustomNote(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:outline-orange-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddCustomItem}
-                        className="w-full rounded-lg bg-orange-600 py-1.5 text-xs font-bold text-white hover:bg-orange-700"
-                      >
-                        เพิ่มเมนูพิเศษลงตะกร้า
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+                      )}
 
-              {/* Step 1 Next Button */}
-              {cartItemsList.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="w-full rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] py-3 text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
-                >
-                  <span>ไปขั้นตอนที่ 2: สแกนจ่ายเงิน (฿{totalAmount})</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              )}
+                      {/* Delete with trace (Host only or before sent) */}
+                      {isHost && batch.status === "OPEN" && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                          className="p-1 rounded-lg text-gray-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="ยกเลิกออเดอร์นี้ (บันทึกประวัติ)"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
+        </div>
 
-          {/* ========================================================= */}
-          {/* STEP 2: สแกนจ่ายเงิน PromptPay */}
-          {/* ========================================================= */}
-          {currentStep === 2 && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              {/* Order summary pill */}
-              <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-2xs">
-                <div className="flex items-center justify-between text-xs font-bold text-gray-900 border-b border-gray-100 pb-1.5 mb-2">
-                  <span>รายการที่เลือก ({totalQuantity} กล่อง)</span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(1)}
-                    className="text-xs text-orange-600 hover:underline"
-                  >
-                    แก้ไขเมนู
-                  </button>
-                </div>
-                <div className="space-y-1 text-xs text-gray-700">
-                  {cartItemsList.map(({ item, quantity, note }) => (
-                    <div key={item.id} className="flex justify-between">
-                      <div>
-                        {quantity}x {getMenuItemLocalizedName(item, lang)}
-                        {note && <span className="text-gray-500 text-[11px] ml-1">({note})</span>}
-                      </div>
-                      <div className="font-bold">฿{item.price * quantity}</div>
-                    </div>
-                  ))}
-                  <div className="pt-1.5 border-t border-gray-100 flex justify-between font-black text-sm text-gray-900">
-                    <span>ยอดที่ต้องชำระ:</span>
-                    <span className="text-orange-600 font-black text-base">฿{totalAmount}</span>
-                  </div>
-                </div>
+        {/* 4. The 1-Screen Order Input Form (Force Transfer) */}
+        {!isBatchClosed ? (
+          <div className="rounded-3xl border-2 border-purple-400/80 bg-white p-5 sm:p-6 shadow-md space-y-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">
+                <Plus className="h-3.5 w-3.5" />
+                <span>ลงชื่อสั่งอาหาร (Join Whiteboard)</span>
               </div>
-
-              {/* PromptPay QR Component */}
-              <PromptPayQR
-                shopName={batch.shop.name}
-                accountName={batch.shop.promptpayAccountName}
-                promptpayNumber={batch.shop.promptpayNumber}
-                amount={totalAmount}
-                qrUrl={batch.shop.promptpayQrUrl}
-                phone={batch.shop.phone}
-              />
-
-              {/* Next Step Button */}
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                >
-                  ← กลับไปแก้เมนู
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="flex-1 rounded-xl bg-blue-600 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-                >
-                  <span>โอนแล้ว ไปขั้นตอนที่ 3: แนบสลิป & เลือกจุดส่ง</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+              <h2 className="text-lg font-black text-gray-900 mt-1">
+                พิมพ์เมนูที่คุณอยากกิน แล้วแนบสลิปเพื่อขึ้นกระดาน
+              </h2>
+              <p className="text-xs text-gray-500">
+                ร้านป้าทำอาหารตามสั่งได้ทุกอย่าง หรือแตะเลือกจากเมนูยอดนิยมด้านล่าง
+              </p>
             </div>
-          )}
 
-          {/* ========================================================= */}
-          {/* STEP 3: จุดรับอาหาร & แนบสลิปยืนยัน */}
-          {/* ========================================================= */}
-          {currentStep === 3 && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              {/* Recipient Details */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs space-y-3">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5 border-b border-gray-100 pb-2">
-                  <User className="h-4 w-4 text-orange-600" />
-                  <span>ข้อมูลผู้สั่งอาหาร</span>
-                </h3>
+            {submitError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                      <span>ชื่อเล่น / ชื่อผู้สั่ง</span>
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="เช่น น้องพลอย, ต้น นศ."
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                      <span>เบอร์โทรศัพท์</span>
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="081-xxx-xxxx"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Fixed Campus Drop-off Desk Badge */}
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shrink-0">
-                      <MapPin className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-emerald-950">
-                        จุดรับอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4
-                      </div>
-                      <div className="text-[11px] text-emerald-700">
-                        เคาน์เตอร์ชั้น 1 ฝั่งซ้าย (จุดรับอาหารกลางของมหาวิทยาลัย)
-                      </div>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 shrink-0">
-                    M4 Lobby
-                  </span>
-                </div>
+            <form onSubmit={handleAddToWhiteboard} className="space-y-4">
+              {/* Row 1: LINE ID / Name */}
+              <div>
+                <label className="text-xs font-bold text-gray-700">
+                  LINE ID หรือชื่อของคุณ <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น Golf หรือ @golf_123"
+                  value={customerLineId}
+                  onChange={(e) => setCustomerLineId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                />
               </div>
 
-              {/* Slip Upload Card */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs">
-                <SlipUpload
-                  onFileSelect={(file) => setSlipFile(file)}
-                  selectedFile={slipFile}
+              {/* Row 2: Dish Name & Quick Popular Chips */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">
+                  เมนูที่ต้องการสั่ง <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="พิมพ์เมนูตามใจชอบ เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
+                  value={dishName}
+                  onChange={(e) => setDishName(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
                 />
 
-                {/* Final Submit Button */}
-                <button
-                  type="submit"
-                  disabled={submitting || cartItemsList.length === 0 || !slipFile}
-                  className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm sm:text-base font-black text-white shadow-md hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
-                >
-                  {submitting ? "กำลังส่งออเดอร์..." : `✓ ยืนยันสั่งข้าว (ยอดชำระ ฿${totalAmount})`}
-                </button>
-
-                <p className="mt-2 text-center text-[11px] text-gray-400">
-                  โอนเงินตรงเข้าร้านค้า ไม่ผ่านคนกลาง รายการสลิปจะรวบรวมส่งร้านค้าทันที
-                </p>
+                {/* Popular Dish Chips for 1-Tap Autofill */}
+                {batch.shop.menuItems && batch.shop.menuItems.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-gray-400">เมนูแนะนำ:</span>
+                    {batch.shop.menuItems.slice(0, 5).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setDishName(m.name);
+                          setDishPrice(String(m.price));
+                        }}
+                        className="rounded-lg border border-purple-200 bg-purple-50/60 px-2.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors"
+                      >
+                        {m.name} (฿{m.price})
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Back to Step 2 */}
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="w-full text-center text-xs text-gray-500 hover:text-gray-700 py-1"
-              >
-                ← ย้อนกลับไปดู QR Code ชำระเงิน (ขั้นตอนที่ 2)
-              </button>
-            </div>
-          )}
-        </form>
-          </>
-        )}
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* Sticky Bottom Action Bar for Mobile (Only when open) */}
-      {/* ------------------------------------------------------------- */}
-      {!isBatchClosed && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-2.5 backdrop-blur-md shadow-lg sm:hidden">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] text-gray-500 font-medium">ยอดชำระรวม:</div>
-              <div className="text-lg font-black text-orange-600 leading-tight">
-                ฿{totalAmount}
-                <span className="text-xs font-normal text-gray-500 ml-1">({totalQuantity} กล่อง)</span>
-              </div>
-            </div>
-
-            {currentStep === 1 ? (
-              <button
-                type="button"
-                disabled={cartItemsList.length === 0}
-                onClick={() => setCurrentStep(2)}
-                className="rounded-xl bg-gradient-to-r from-[#5D3085] to-[#B4213A] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40"
-              >
-                ไปสแกนจ่าย ➔
-              </button>
-            ) : currentStep === 2 ? (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(3)}
-                className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
-              >
-                ไปแนบสลิป ➔
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={submitting || !slipFile || !customerName.trim() || !customerPhone.trim()}
-                onClick={handleSubmitOrder}
-                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40"
-              >
-                {submitting ? "กำลังส่ง..." : "ยืนยันสั่งข้าว ✓"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* High-Res Full Menu Photo Lightbox Modal */}
-      {showMenuPhotoModal && batch.shop.menuImageUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm animate-in fade-in">
-          <div className="relative max-h-[92vh] max-w-3xl w-full rounded-2xl bg-white p-3 sm:p-4 shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-                  <ImageIcon className="h-4 w-4" />
+              {/* Row 3: Price & Note */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700">
+                    ราคาอาหาร (฿) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="เช่น 60"
+                    value={dishPrice}
+                    onChange={(e) => setDishPrice(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                  />
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs sm:text-sm text-gray-900">
-                    {batch.shop.name} — ภาพใบเมนูทางการของร้าน
-                  </h3>
-                  <p className="text-[10px] text-gray-500">
-                    ยึดรายการและราคาจริงตามภาพนี้เป็นหลัก
-                  </p>
+                  <label className="text-xs font-bold text-gray-700">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น ไม่ใส่ผักชี, เผ็ดน้อย"
+                    value={dishNote}
+                    onChange={(e) => setDishNote(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                  />
                 </div>
               </div>
+
+              {/* Row 4: Slip Upload with Automatic BOT Slip QR Verification */}
+              <div className="rounded-2xl border border-purple-200 bg-purple-50/40 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                      <span>แนบสลิปโอนเงิน (Force Transfer) <span className="text-rose-500">*</span></span>
+                    </label>
+                    <p className="text-[11px] text-gray-500">
+                      สแกนจ่ายพร้อมเพย์ร้าน แล้วแนบรูปสลิปเพื่อขึ้นกระดาน
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptPayModal(true)}
+                    className="text-xs font-bold text-purple-700 hover:underline"
+                  >
+                    ดู QR พร้อมเพย์ร้าน
+                  </button>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  required
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+                  onChange={handleSlipFileChange}
+                  className="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-purple-900 file:text-white hover:file:bg-purple-800 cursor-pointer"
+                />
+
+                {/* Instant Scan Results */}
+                {scanningSlip && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-purple-900 animate-pulse">
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
+                    <span>กำลังสแกน QR Code ตรวจสอบสลิปธนาคาร...</span>
+                  </div>
+                )}
+
+                {slipVerification && (
+                  <div
+                    className={`rounded-xl p-3 text-xs flex items-center gap-2 font-bold ${
+                      slipVerification.isValid
+                        ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                        : "bg-amber-100 text-amber-900 border border-amber-300"
+                    }`}
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <div>
+                      {slipVerification.isValid ? (
+                        <span>
+                          ✓ ตรวจพบสลิปธนาคาร <strong>{slipVerification.bankName}</strong> (Ref: {slipVerification.transRef})
+                        </span>
+                      ) : (
+                        <span>{slipVerification.error || "แนบรูปสลิปเรียบร้อย"}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={submittingOrder || !slipPreview}
+                className="w-full rounded-2xl bg-purple-900 py-3.5 text-sm sm:text-base font-black text-white shadow-md shadow-purple-900/20 hover:bg-purple-800 disabled:opacity-50 active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                {submittingOrder ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>กำลังบันทึกลงไวท์บอร์ด...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    <span>+ ลงชื่อบนไวท์บอร์ด (บันทึกออเดอร์)</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-center text-xs font-bold text-rose-800">
+            🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)
+          </div>
+        )}
+      </main>
+
+      {/* MODAL 1: Shop PromptPay QR Popup */}
+      {showPromptPayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl text-center space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <h3 className="font-bold text-sm text-gray-900">QR พร้อมเพย์ร้านค้า</h3>
               <button
                 type="button"
-                onClick={() => setShowMenuPhotoModal(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                onClick={() => setShowPromptPayModal(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-2 overflow-y-auto max-h-[75vh] flex items-center justify-center bg-gray-900/5 rounded-xl p-2">
+
+            <div className="mx-auto w-52 h-52 bg-white rounded-2xl border-2 border-purple-200 p-2 shadow-inner flex items-center justify-center">
               <img
-                src={batch.shop.menuImageUrl}
-                alt="Full Shop Menu"
-                className="max-h-[72vh] w-auto object-contain rounded-lg shadow-sm"
+                src={batch.shop.promptpayQrUrl || `https://promptpay.io/${batch.shop.promptpayNumber}.png`}
+                alt="PromptPay QR"
+                className="w-full h-full object-contain"
               />
             </div>
-            <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-              <span>สามารถซูมดูรายละเอียดบนมือถือได้</span>
+
+            <div>
+              <p className="text-xs text-gray-500">ชื่อบัญชี:</p>
+              <p className="text-sm font-black text-gray-900">{batch.shop.promptpayAccountName}</p>
+              <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
+                {batch.shop.promptpayNumber}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(batch.shop.promptpayNumber);
+                alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+              }}
+              className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
+            >
+              คัดลอกหมายเลขพร้อมเพย์
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Slip Viewer */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative max-h-[90vh] max-w-md rounded-2xl bg-white p-4 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <h3 className="font-bold text-xs text-gray-900">{selectedSlip.title}</h3>
               <button
-                type="button"
-                onClick={() => setShowMenuPhotoModal(false)}
-                className="rounded-lg bg-gray-900 px-3 py-1 text-xs font-bold text-white hover:bg-gray-800"
+                onClick={() => setSelectedSlip(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
               >
-                ปิดหน้าต่าง
+                <X className="h-5 w-5" />
               </button>
+            </div>
+            <div className="mt-3 overflow-y-auto max-h-[75vh] flex items-center justify-center bg-gray-50 rounded-lg">
+              <img
+                src={selectedSlip.url}
+                alt="Full Transfer Slip"
+                className="max-h-[70vh] w-auto object-contain rounded"
+              />
             </div>
           </div>
         </div>
       )}
 
-      {showDeskModal && (
-        <CampusDesksModal
-          selectedId={selectedLocationId}
-          onSelect={(id) => setSelectedLocationId(id)}
-          onClose={() => setShowDeskModal(false)}
-        />
+      {/* MODAL 3: "One Long Manifest Image" Generator & Sender */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-lg max-h-[92vh] rounded-3xl bg-white p-5 sm:p-6 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 text-purple-900 font-bold text-xs">
+                  <Send className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-black text-sm text-gray-900">สรุปออเดอร์ส่งร้าน (Send to Shop)</h3>
+                  <p className="text-[11px] text-gray-500">สร้างภาพสรุปยาวใบเดียว ฝังสลิปครบทุกกล่อง</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSendModal(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Preview Area */}
+            <div className="mt-3 flex-1 overflow-y-auto space-y-4 pr-1">
+              {generatingManifest ? (
+                <div className="flex flex-col items-center justify-center p-12 space-y-3 bg-gray-50 rounded-2xl border border-gray-200">
+                  <div className="h-8 w-8 animate-spin rounded-full border-3 border-purple-900 border-t-transparent" />
+                  <span className="text-xs font-black text-purple-900">
+                    กำลังสร้างภาพสรุปยาวใบเดียว (รวมสลิปทุกกล่อง)...
+                  </span>
+                  <span className="text-[11px] text-gray-400">ใช้เวลาประมาณ 1-2 วินาที</span>
+                </div>
+              ) : manifestData ? (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 font-bold flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง M4 และสลิปทุกใบในรูปเดียว)</span>
+                  </div>
+
+                  {/* Long Image Preview */}
+                  <div className="rounded-2xl border-2 border-gray-300 overflow-hidden bg-slate-900 shadow-inner max-h-96 overflow-y-auto">
+                    <img
+                      src={manifestData.dataUrl}
+                      alt="One Long Manifest"
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+
+                  {/* Brief Text Preview Box */}
+                  <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                      <span>ข้อความสรุปสำหรับส่งในแชต:</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(getCompiledOrderText());
+                          setCopiedText(true);
+                          setTimeout(() => setCopiedText(false), 2000);
+                        }}
+                        className="text-[11px] text-purple-700 hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span>{copiedText ? "✓ คัดลอกแล้ว" : "คัดลอกข้อความ"}</span>
+                      </button>
+                    </div>
+                    <pre className="text-[11px] font-sans text-gray-600 whitespace-pre-wrap leading-relaxed">
+                      {getCompiledOrderText()}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Action Buttons */}
+            {manifestData && (
+              <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleShareToLine}
+                  className="w-full sm:flex-1 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] py-3 text-sm font-black text-white shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>แชร์เข้า LINE ร้านทันที</span>
+                </button>
+
+                <a
+                  href={manifestData.dataUrl}
+                  download={`veatec-order-${batch.shop.name}-${batch.date}.jpg`}
+                  className="w-full sm:w-auto rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 py-3 px-4 text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>บันทึกรูปยาว</span>
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

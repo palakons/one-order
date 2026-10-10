@@ -15,6 +15,7 @@ export interface Shop {
   description: string;
   phone: string;
   lineId?: string;
+  gmapUrl?: string; // Google Maps link for the restaurant
   promptpayNumber: string;
   promptpayAccountName: string;
   promptpayQrUrl?: string;
@@ -36,14 +37,21 @@ export interface Order {
   id: string;
   orderNumber: number; // 1, 2, 3...
   batchId: string;
-  customerName: string;
+  customerName: string; // Display Name / Nickname / LINE Name
   customerPhone: string;
-  locationId: string; // loc-v, loc-m1, etc.
+  customerLineId?: string; // LINE handle or LINE ID for notifications
+  locationId: string; // e.g. loc-v (Desk Table M4)
   items: OrderItem[];
   totalAmount: number;
   slipImageUrl: string;
+  slipTransRef?: string; // Unique transaction ref from slip QR (Anti-duplicate)
+  slipBankCode?: string; // Bank code e.g. 014 (SCB)
+  slipBankName?: string; // Bank name e.g. SCB (ไทยพาณิชย์)
+  isSlipVerified?: boolean; // True if BOT slip QR was verified
   createdAt: string;
-  boxLabel: string; // e.g. "#01 Somchai (M2) - ข้าวกะเพราหมูกรอบ"
+  boxLabel: string; // e.g. "#01 Golf - กะเพราหมูกรอบ"
+  deletedAt?: string; // For trace/soft-delete
+  deletedReason?: string; // Reason if cancelled by host
 }
 
 export type BatchStatus = "OPEN" | "LOCKED" | "DELIVERING" | "COMPLETED" | "CANCELLED";
@@ -56,6 +64,8 @@ export interface Batch {
   targetMinAmount: number; // e.g. 200 THB
   status: BatchStatus;
   createdAt: string;
+  hostLineId?: string; // Host / Open party initiator LINE ID
+  sentToShopAt?: string; // ISO string when Host clicked "Send to Shop"
   notes?: string;
   deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk
   deliveredAt?: string; // ISO string when food was placed at campus desks

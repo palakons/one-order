@@ -38,9 +38,10 @@ const SEED_DATA: DatabaseSchema = {
       description: "ร้านอาหารตามสั่งขวัญใจชุมชนป่ายุบใน ใกล้ VISTEC รสจัดจ้าน ให้เยอะ ร้านต้นแบบปลอดโฟมรักษ์ระยอง",
       phone: "089-245-8891",
       lineId: "patai_payubnai",
-      promptpayNumber: "contact shop",
-      promptpayAccountName: "ครัวป้าต่าย ป่ายุบใน (Contact Shop)",
-      promptpayQrUrl: "contact shop",
+      gmapUrl: "https://maps.google.com/?q=ครัวป้าต่าย+ป่ายุบใน+วังจันทร์+ระยอง",
+      promptpayNumber: "0892458891",
+      promptpayAccountName: "ครัวป้าต่าย ป่ายุบใน",
+      promptpayQrUrl: "https://promptpay.io/0892458891.png",
       menuImageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:15",
@@ -64,9 +65,10 @@ const SEED_DATA: DatabaseSchema = {
       description: "ร้านอาหารระดับตำนาน อ.วังจันทร์ ริมถนนสาย 344 แยกชุมแสง วัตถุดิบทะเลสด อาหารป่ารสจัด และหอยจ๊อปูเนื้อทะลัก",
       phone: "081-454-6374",
       lineId: "chaorai_wangchan",
+      gmapUrl: "https://maps.google.com/?q=ร้านอาหารชาวไร่+วังจันทร์+ระยอง",
       promptpayNumber: "0814546374",
       promptpayAccountName: "ร้านอาหารชาวไร่ (Chao Rai Restaurant)",
-      promptpayQrUrl: "contact shop",
+      promptpayQrUrl: "https://promptpay.io/0814546374.png",
       menuImageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:20",
@@ -89,9 +91,10 @@ const SEED_DATA: DatabaseSchema = {
       description: "ร้านดังประจำ ต.ป่ายุบใน กม.68 เมนูขึ้นชื่อข้าวแห้งทะเล ปลาพิโรธรสจัดจ้าน และกระเพาะปลาผัดแห้งสูตรภัตตาคาร",
       phone: "087-137-9837",
       lineId: "mangmee_km68",
+      gmapUrl: "https://maps.google.com/?q=ครัวมั่งมี+วังจันทร์+กม.68+ระยอง",
       promptpayNumber: "0871379837",
       promptpayAccountName: "ครัวมั่งมี โต๊ะจีน (Krua Mangmee)",
-      promptpayQrUrl: "contact shop",
+      promptpayQrUrl: "https://promptpay.io/0871379837.png",
       menuImageUrl: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:25",
@@ -114,9 +117,10 @@ const SEED_DATA: DatabaseSchema = {
       description: "ร้านแซ่บติดรั้ววังจันทร์วัลเลย์ ณ สี่แยกป่ายุบใน เมนูส้มตำปลาร้านัว คอหมูย่างฉ่ำๆ ลาบหมูคั่ว และกะเพราเป็ดพะโล้",
       phone: "064-439-5163",
       lineId: "khunsom_payubnai",
+      gmapUrl: "https://maps.google.com/?q=ครัวคุณส้ม+สี่แยกป่ายุบใน+ระยอง",
       promptpayNumber: "0644395163",
       promptpayAccountName: "ครัวคุณส้ม ป่ายุบใน (Khun Som)",
-      promptpayQrUrl: "contact shop",
+      promptpayQrUrl: "https://promptpay.io/0644395163.png",
       menuImageUrl: "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:30",
@@ -139,9 +143,10 @@ const SEED_DATA: DatabaseSchema = {
       description: "คาเฟ่มินิมอลยอดนิยมของ อ.วังจันทร์ เมนูชาพรีเมียม กาแฟสดหอมกรุ่น และขนมปังโฮมเมด สดชื่นยามบ่าย",
       phone: "082-456-7890",
       lineId: "lins_teahouse",
-      promptpayNumber: "contact shop",
-      promptpayAccountName: "Lin's Tea House (Contact Shop)",
-      promptpayQrUrl: "contact shop",
+      gmapUrl: "https://maps.google.com/?q=Lin's+Tea+House+Wangchan+Rayong",
+      promptpayNumber: "0824567890",
+      promptpayAccountName: "Lin's Tea House & Eatery",
+      promptpayQrUrl: "https://promptpay.io/0824567890.png",
       menuImageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 150,
       defaultCutoffTime: "11:45",
@@ -549,11 +554,16 @@ export async function updateBatchStatus(
 export async function createOrder(input: {
   batchId: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone?: string;
+  customerLineId?: string;
   locationId: string;
   items: Array<{ id?: string; name: string; price: number; quantity: number; customNote?: string }>;
   totalAmount: number;
   slipImageUrl: string;
+  slipTransRef?: string;
+  slipBankCode?: string;
+  slipBankName?: string;
+  isSlipVerified?: boolean;
 }): Promise<Order> {
   let existingOrders: Order[] = [];
 
@@ -562,27 +572,29 @@ export async function createOrder(input: {
       const snap = await getDocs(collection(db, "orders"));
       existingOrders = snap.docs
         .map((d) => d.data() as Order)
-        .filter((o) => o.batchId === input.batchId);
+        .filter((o) => o.batchId === input.batchId && !o.deletedAt);
     } catch (err) {
       console.warn("Firestore check existing orders failed:", err);
     }
   } else {
     const data = await ensureDataFile();
-    existingOrders = data.orders.filter((o) => o.batchId === input.batchId);
+    existingOrders = data.orders.filter((o) => o.batchId === input.batchId && !o.deletedAt);
   }
 
   const orderNumber = existingOrders.length + 1;
   const loc = getLocationById(input.locationId);
   const locCode = loc ? loc.shortCode : input.locationId;
   const itemsSummary = input.items.map((i) => i.name).join(" + ");
-  const boxLabel = `#${String(orderNumber).padStart(2, "0")} ${input.customerName} - ${locCode} [${itemsSummary}]`;
+  const lineTag = input.customerLineId ? `@${input.customerLineId}` : input.customerName;
+  const boxLabel = `#${String(orderNumber).padStart(2, "0")} ${lineTag} - ${locCode} [${itemsSummary}]`;
 
   const newOrder: Order = {
     id: `ord-${Date.now()}`,
     orderNumber,
     batchId: input.batchId,
     customerName: input.customerName,
-    customerPhone: input.customerPhone,
+    customerPhone: input.customerPhone || "",
+    customerLineId: input.customerLineId || "",
     locationId: input.locationId,
     items: input.items.map((it, idx) => ({
       id: it.id || `item-${Date.now()}-${idx}`,
@@ -593,6 +605,10 @@ export async function createOrder(input: {
     })),
     totalAmount: input.totalAmount,
     slipImageUrl: input.slipImageUrl,
+    slipTransRef: input.slipTransRef,
+    slipBankCode: input.slipBankCode,
+    slipBankName: input.slipBankName,
+    isSlipVerified: input.isSlipVerified ?? Boolean(input.slipImageUrl),
     createdAt: new Date().toISOString(),
     boxLabel,
   };
@@ -610,6 +626,38 @@ export async function createOrder(input: {
   data.orders.push(newOrder);
   await writeData(data);
   return newOrder;
+}
+
+export async function deleteOrder(
+  orderId: string,
+  reason = "Cancelled by user/host",
+  by = "Host"
+): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      const snap = await getDoc(orderRef);
+      if (snap.exists()) {
+        await updateDoc(orderRef, {
+          deletedAt: new Date().toISOString(),
+          deletedReason: `${reason} (by ${by})`,
+        });
+        return true;
+      }
+    } catch (err) {
+      console.error("Firestore deleteOrder failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  const ord = data.orders.find((o) => o.id === orderId);
+  if (ord) {
+    ord.deletedAt = new Date().toISOString();
+    ord.deletedReason = `${reason} (by ${by})`;
+    await writeData(data);
+    return true;
+  }
+  return false;
 }
 
 export async function getSuggestions(): Promise<Suggestion[]> {
