@@ -29,6 +29,8 @@ import {
   ArrowLeft,
   MessageSquareHeart,
   RefreshCw,
+  AlertTriangle,
+  Database,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -61,7 +63,26 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
   const [testingLine, setTestingLine] = useState(false);
   const [lineTestResult, setLineTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // System & Firebase Health Diagnostics State
+  const [systemStatus, setSystemStatus] = useState<{
+    firebaseConfigured: boolean;
+    severity: "normal" | "warning" | "interrupted";
+    quotaExhausted: boolean;
+    fallbackMode: boolean;
+    lastError?: string;
+    resetTimeInfo: string;
+  }>({
+    firebaseConfigured: isFirebaseConfigured,
+    severity: "interrupted",
+    quotaExhausted: true,
+    fallbackMode: true,
+    lastError: "RESOURCE_EXHAUSTED: Quota exceeded (Daily free tier write limit reached)",
+    resetTimeInfo: "15:00 น. ICT (00:00 PST)",
+  });
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+
   useEffect(() => {
+    fetchSystemStatus();
     try {
       const isAuth = sessionStorage.getItem("veatec_admin_auth");
       if (isAuth === "true") {
@@ -72,6 +93,21 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
       console.warn("sessionStorage check failed", e);
     }
   }, []);
+
+  const fetchSystemStatus = async () => {
+    try {
+      setRefreshingStatus(true);
+      const res = await fetch("/api/system/status");
+      const data = await res.json();
+      if (data.success && data.status) {
+        setSystemStatus(data.status);
+      }
+    } catch (e) {
+      console.warn("fetchSystemStatus error", e);
+    } finally {
+      setRefreshingStatus(false);
+    }
+  };
 
   const fetchSuggestions = async () => {
     try {
@@ -476,23 +512,139 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
             </p>
           </div>
 
-          {/* Firebase PaaS Status Indicator */}
-          <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-2xs">
+          {/* Compact Quick Status Indicator */}
+          <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-2xs shrink-0">
             <div className="flex items-center gap-2">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
-                  isFirebaseConfigured ? "bg-emerald-500" : "bg-amber-500"
+                  systemStatus.severity === "interrupted"
+                    ? "bg-rose-500 animate-pulse"
+                    : systemStatus.severity === "warning"
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
                 }`}
               />
               <span className="font-bold text-gray-800">
-                {isFirebaseConfigured ? "Firebase Cloud PaaS (Active)" : "Demo / Local Storage Mode"}
+                {systemStatus.severity === "interrupted"
+                  ? "Firebase: Quota Exhausted"
+                  : systemStatus.severity === "warning"
+                  ? "Firebase: Warning"
+                  : "Firebase Cloud: Healthy"}
               </span>
             </div>
             <p className="mt-1 text-[11px] text-gray-500">
-              {isFirebaseConfigured
-                ? "Live Firestore & Cloud Storage enabled"
-                : "Add keys in .env.local to link free Firebase"}
+              {systemStatus.fallbackMode
+                ? "Local Memory Fallback Active"
+                : "Live Firestore PaaS Connected"}
             </p>
+          </div>
+        </div>
+
+        {/* Detailed Firebase Quota & Cloud Health Diagnostics Card */}
+        <div className={`rounded-2xl border p-4 sm:p-5 shadow-xs transition-all ${
+          systemStatus.severity === "interrupted"
+            ? "border-rose-300 bg-linear-to-r from-rose-50/90 via-orange-50/60 to-rose-50/40"
+            : systemStatus.severity === "warning"
+            ? "border-amber-300 bg-amber-50/80"
+            : "border-emerald-200 bg-emerald-50/70"
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-xs ${
+                systemStatus.severity === "interrupted"
+                  ? "bg-rose-600"
+                  : systemStatus.severity === "warning"
+                  ? "bg-amber-500"
+                  : "bg-emerald-600"
+              }`}>
+                {systemStatus.severity === "interrupted" ? (
+                  <Flame className="h-5 w-5" />
+                ) : systemStatus.severity === "warning" ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : (
+                  <Database className="h-5 w-5" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-md px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-white ${
+                    systemStatus.severity === "interrupted"
+                      ? "bg-rose-700"
+                      : systemStatus.severity === "warning"
+                      ? "bg-amber-600"
+                      : "bg-emerald-700"
+                  }`}>
+                    {systemStatus.severity === "interrupted"
+                      ? "Firebase Quota Exhausted"
+                      : systemStatus.severity === "warning"
+                      ? "Quota Warning"
+                      : "Cloud Firestore Healthy"}
+                  </span>
+                  <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 ${
+                    systemStatus.fallbackMode
+                      ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                      : "bg-purple-100 text-purple-900 border-purple-300"
+                  }`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {systemStatus.fallbackMode ? "Local Memory Fallback Active • ระบบเปิดให้บริการ 100%" : "Connected to Cloud"}
+                  </span>
+                </div>
+                <h2 className="text-base font-black text-slate-900">
+                  {systemStatus.severity === "interrupted"
+                    ? "สถานะโควตา Cloud Firestore ฟรีรายวันเต็ม — ระบบเปิด High-Availability Fallback อัตโนมัติ"
+                    : "สถานะการเชื่อมต่อฐานข้อมูล Google Cloud Firestore"}
+                </h2>
+                <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
+                  {systemStatus.severity === "interrupted"
+                    ? "Google Cloud Firestore (Spark Plan) จำกัดการเขียนที่ 20,000 ครั้ง/วัน เกิดจากการ auto-seed ซ้ำในเวอร์ชันก่อนหน้า (แพตช์แก้ไขแล้ว) ระบบ VEATEC ยังคงทำงานปกติครบทุกฟังก์ชันผ่าน Local High-Availability Architecture"
+                    : "ระบบเชื่อมต่อ Google Cloud Firestore สำเร็จ สามารถบันทึกและซิงค์ข้อมูลได้ตามปกติ"}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-start">
+              <button
+                type="button"
+                onClick={fetchSystemStatus}
+                disabled={refreshingStatus}
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5"
+                title="ตรวจสอบสถานะสด"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${refreshingStatus ? "animate-spin" : ""}`} />
+                <span>{refreshingStatus ? "กำลังตรวจสอบ..." : "รีเฟรชสถานะ"}</span>
+              </button>
+              <a
+                href="https://console.firebase.google.com/project/one-order-af750/usage"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs flex items-center gap-1"
+              >
+                <span>Firebase Console ↗</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+
+          {/* 3 Metrics Cards */}
+          <div className="mt-3.5 pt-3 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div className="rounded-xl bg-white/90 border border-slate-200 p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 block">ขีดจำกัดโควตา (Spark Plan)</span>
+              <strong className="text-rose-700 font-extrabold text-xs block">20,000 เขียน / วัน (Exceeded)</strong>
+              <p className="text-[11px] text-slate-500">Document Reads: 50,000 / วัน</p>
+            </div>
+
+            <div className="rounded-xl bg-white/90 border border-slate-200 p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 block">เวลารีเซ็ตโควตารายวัน</span>
+              <strong className="text-purple-900 font-extrabold text-xs block">ทุกวัน 15:00 น. (บ่ายสามโมงตรง ICT)</strong>
+              <p className="text-[11px] text-slate-500">00:00 PST เที่ยงคืน Google แคลิฟอร์เนีย</p>
+            </div>
+
+            <div className="rounded-xl bg-white/90 border border-slate-200 p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 block">วิธีขยายโควตาถาวร</span>
+              <strong className="text-emerald-700 font-extrabold text-xs block">Blaze Plan (Pay as you go)</strong>
+              <p className="text-[11px] text-slate-500">ฟรีโควตาเท่าเดิม แต่ไม่ติดเพดานระบบบล็อก</p>
+            </div>
           </div>
         </div>
 
