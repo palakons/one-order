@@ -33,6 +33,7 @@ import {
   Phone,
   Key,
   SlidersHorizontal,
+  RefreshCw,
 } from "lucide-react";
 
 interface Props {
@@ -86,11 +87,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   // Host Identification (stored locally for party initiator)
   const [isHost, setIsHost] = useState(false);
 
-  // 1. Poll Batch every 3.5 seconds
+  // Manual Refresh state (No background polling to preserve Firestore quota)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
+
+  // 1. Initial load on mount
   useEffect(() => {
-    fetchBatch();
-    const interval = setInterval(fetchBatch, 3500);
-    return () => clearInterval(interval);
+    fetchBatch(false);
+    const now = new Date();
+    setLastRefreshedAt(
+      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    );
   }, [batchId]);
 
   // 2. Load cached Line ID, Phone & Host state
@@ -155,16 +162,26 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
-  const fetchBatch = async () => {
+  const fetchBatch = async (fresh = false) => {
     try {
-      // role=shop query parameter returns unsanitized batch for manifest generation
-      const res = await fetch(`/api/batches/${batchId}?role=shop`);
+      if (fresh) setIsRefreshing(true);
+      // role=shop query parameter returns unsanitized batch for manifest generation; fresh=true bypasses cache
+      const url = fresh ? `/api/batches/${batchId}?role=shop&fresh=true` : `/api/batches/${batchId}?role=shop`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success && data.batch) {
         setBatch(data.batch);
+        const now = new Date();
+        setLastRefreshedAt(
+          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        );
       }
     } catch (err) {
-      console.warn("Poll batch error:", err);
+      console.warn("Fetch batch error:", err);
+    } finally {
+      if (fresh) {
+        setTimeout(() => setIsRefreshing(false), 300);
+      }
     }
   };
 
@@ -494,7 +511,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
       <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 space-y-5">
         {/* Top Navigation & Back */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-purple-900 transition-colors"
@@ -502,9 +519,28 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             <ArrowLeft className="h-4 w-4" />
             <span>← กลับหน้ารวมร้านอาหาร</span>
           </Link>
-          <div className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-900 px-3 py-1 text-xs font-black">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>LIVE DIGITAL WHITEBOARD</span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fetchBatch(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+              title="กดเพื่ออัปเดตข้อมูลและออเดอร์ล่าสุด"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">รีเฟรช</span>
+              {lastRefreshedAt && (
+                <span className="text-[10px] text-slate-400 font-mono font-normal hidden md:inline">
+                  ({lastRefreshedAt})
+                </span>
+              )}
+            </button>
+
+            <div className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-900 px-3 py-1 text-xs font-black">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>LIVE DIGITAL WHITEBOARD</span>
+            </div>
           </div>
         </div>
 

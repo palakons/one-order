@@ -28,6 +28,7 @@ import {
   Check,
   Copy,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
 import { maskPhoneNumber } from "@/lib/utils";
 
@@ -74,24 +75,40 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
     }
   }, [batchId]);
 
+  // Manual Refresh state (No background polling to preserve Firestore quota)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
+
   useEffect(() => {
-    fetchBatch();
-    const interval = setInterval(fetchBatch, 4000);
-    return () => clearInterval(interval);
+    fetchBatch(false);
+    const now = new Date();
+    setLastRefreshedAt(
+      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    );
   }, [batchId]);
 
-  const fetchBatch = async () => {
+  const fetchBatch = async (fresh = false) => {
     try {
-      // Request full merchant data to verify slips
-      const res = await fetch(`/api/batches/${batchId}?role=shop`);
+      if (fresh) setIsRefreshing(true);
+      // Request full merchant data to verify slips; fresh=true bypasses server cache
+      const url = fresh ? `/api/batches/${batchId}?role=shop&fresh=true` : `/api/batches/${batchId}?role=shop`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
         setBatch(data.batch);
+        const now = new Date();
+        setLastRefreshedAt(
+          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        );
       } else {
         if (!batch) setError(data.error || "Batch not found");
       }
     } catch (err: any) {
       if (!batch) setError(err.message || "Failed to load batch");
+    } finally {
+      if (fresh) {
+        setTimeout(() => setIsRefreshing(false), 300);
+      }
     }
   };
 
@@ -328,12 +345,27 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             <span>← กลับหน้าหลัก</span>
           </Link>
 
-          {/* Copy LINE Summary & Print */}
+          {/* Refresh, Copy LINE Summary & Print */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => fetchBatch(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs disabled:opacity-60 cursor-pointer"
+              title="กดเพื่ออัปเดตข้อมูลและออเดอร์ล่าสุด"
+            >
+              <RefreshCw className={`h-4 w-4 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span>รีเฟรช</span>
+              {lastRefreshedAt && (
+                <span className="text-[11px] text-gray-400 font-mono font-normal">
+                  ({lastRefreshedAt})
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={handleCopyCookingSummary}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
             >
               <Copy className="h-4 w-4 text-emerald-600" />
               <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE ร้าน"}</span>
@@ -341,7 +373,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             <LineShareButton batch={batch} />
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               <Printer className="h-4 w-4" />
               <span>พิมพ์ใบรายการ</span>

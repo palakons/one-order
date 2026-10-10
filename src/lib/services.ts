@@ -331,24 +331,8 @@ export function subscribeToBatch(
     }
   }
 
-  // Graceful polling fallback (polls every 3 seconds for active batches)
-  let active = true;
-  const poll = async () => {
-    if (!active) return;
-    try {
-      const res = await fetch(`/api/batches/${batchId}`);
-      const data = await res.json();
-      if (data.success && active) onUpdate(data.batch);
-    } catch (err) {
-      console.error("Poll error", err);
-    }
-  };
-
-  const intervalId = setInterval(poll, 3500);
-  return () => {
-    active = false;
-    clearInterval(intervalId);
-  };
+  // No background polling to preserve Firestore quota
+  return () => {};
 }
 
 // -------------------------------------------------------------

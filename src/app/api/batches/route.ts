@@ -5,8 +5,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
+    const forceFresh = searchParams.get("fresh") === "true";
     const sanitize = role !== "shop" && role !== "host";
-    const batches = await getBatches(sanitize);
+    const batches = await getBatches(sanitize, forceFresh);
     return NextResponse.json({ success: true, batches });
   } catch (error) {
     console.error("Failed to fetch batches:", error);

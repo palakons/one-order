@@ -844,22 +844,45 @@ export async function ensureFirestoreSeeded(): Promise<void> {
 }
 
 // -------------------------------------------------------------
+// In-Memory Short-TTL Cache & Deduplication (Reduces Firestore reads)
+// -------------------------------------------------------------
+let cachedBatches: { data: BatchWithDetails[]; timestamp: number } | null = null;
+let cachedShops: { data: Shop[]; timestamp: number } | null = null;
+const BATCHES_CACHE_TTL_MS = 10000; // 10 seconds deduplication
+const SHOPS_CACHE_TTL_MS = 60000; // 60 seconds
+
+export function invalidateStoreCache() {
+  cachedBatches = null;
+  cachedShops = null;
+}
+
+// -------------------------------------------------------------
 // Public Data API (Automatic Firestore / Local Switch)
 // -------------------------------------------------------------
-export async function getShops(): Promise<Shop[]> {
+export async function getShops(forceFresh = false): Promise<Shop[]> {
+  if (!forceFresh && cachedShops && Date.now() - cachedShops.timestamp < SHOPS_CACHE_TTL_MS) {
+    return cachedShops.data;
+  }
+
+  let result: Shop[] = [];
   if (isFirebaseConfigured && db) {
     try {
       const snap = await trackedGetDocs(collection(db, "shops"), 2000);
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as Shop);
+        result = snap.docs.map((d) => d.data() as Shop);
       }
     } catch (err) {
       console.warn("Firestore getShops failed, using local fallback:", err);
     }
   }
 
-  const data = await ensureDataFile();
-  return data.shops;
+  if (result.length === 0) {
+    const data = await ensureDataFile();
+    result = data.shops;
+  }
+
+  cachedShops = { data: result, timestamp: Date.now() };
+  return result;
 }
 
 export async function getShopById(id: string): Promise<Shop | undefined> {
@@ -877,6 +900,7 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
 }
 
 export async function saveShop(shop: Shop): Promise<Shop> {
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       await trackedSetDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), undefined, 2500);
@@ -898,6 +922,7 @@ export async function saveShop(shop: Shop): Promise<Shop> {
 }
 
 export async function deleteShop(id: string): Promise<boolean> {
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       await trackedDeleteDoc(doc(db, "shops", id), 2500);
@@ -1002,7 +1027,11 @@ export function sanitizeBatchDetails(batch: BatchWithDetails): BatchWithDetails 
   };
 }
 
-export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
+export async function getBatches(sanitize = true, forceFresh = false): Promise<BatchWithDetails[]> {
+  if (!forceFresh && cachedBatches && Date.now() - cachedBatches.timestamp < BATCHES_CACHE_TTL_MS) {
+    return sanitize ? cachedBatches.data.map(sanitizeBatchDetails) : cachedBatches.data;
+  }
+
   let result: BatchWithDetails[] = [];
 
   if (isFirebaseConfigured && db) {
@@ -1059,40 +1088,23 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
     result = data.batches.map((b) => enrichBatch(b, data));
   }
 
+  cachedBatches = { data: result, timestamp: Date.now() };
   return sanitize ? result.map(sanitizeBatchDetails) : result;
 }
 
-export async function getBatchById(id: string, sanitize = false): Promise<BatchWithDetails | undefined> {
-  let result: BatchWithDetails | undefined;
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const batchSnap = await trackedGetDoc(doc(db, "batches", id), 2000);
-      if (batchSnap.exists()) {
-        const batch = batchSnap.data() as Batch;
-        const [ordersSnap, shopsSnap] = await Promise.all([
-          trackedGetDocs(collection(db, "orders")),
-          trackedGetDocs(collection(db, "shops")),
-        ]);
-        const orders = ordersSnap.docs
-          .map((d) => d.data() as Order)
-          .filter((o) => o.batchId === id);
-        const shops = shopsSnap.docs.map((d) => d.data() as Shop);
-        result = enrichBatchFromData(batch, shops, orders);
-      }
-    } catch (err) {
-      console.warn("Firestore getBatchById failed, using local fallback:", err);
+export async function getBatchById(id: string, sanitize = false, forceFresh = false): Promise<BatchWithDetails | undefined> {
+  // Deduplicate and use cache if available and fresh
+  if (!forceFresh && cachedBatches && Date.now() - cachedBatches.timestamp < BATCHES_CACHE_TTL_MS) {
+    const found = cachedBatches.data.find((b) => b.id === id);
+    if (found) {
+      return sanitize ? sanitizeBatchDetails(found) : found;
     }
   }
 
-  if (!result) {
-    const data = await ensureDataFile();
-    const batch = data.batches.find((b) => b.id === id);
-    if (!batch) return undefined;
-    result = enrichBatch(batch, data);
-  }
-
-  return sanitize && result ? sanitizeBatchDetails(result) : result;
+  // Otherwise, load via getBatches to hydrate the in-memory cache
+  const allBatches = await getBatches(false, forceFresh);
+  const found = allBatches.find((b) => b.id === id);
+  return sanitize && found ? sanitizeBatchDetails(found) : found;
 }
 
 function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {
@@ -1203,6 +1215,7 @@ export async function createBatch(batchData: {
     buildingName: batchData.buildingName || "ตึก M4",
   };
 
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       await trackedSetDoc(doc(db, "batches", id), cleanForFirestore(newBatch), undefined, 2500);
@@ -1225,6 +1238,7 @@ export async function updateBatchStatus(
   deliveryPhotoUrl?: string,
   extra?: { isSelfPickup?: boolean; sentToShopAt?: string }
 ): Promise<BatchWithDetails | undefined> {
+  invalidateStoreCache();
   const updatePayload: Record<string, any> = { status };
   if (extra?.isSelfPickup !== undefined) {
     updatePayload.isSelfPickup = extra.isSelfPickup;
@@ -1286,6 +1300,7 @@ export async function createOrder(input: {
   slipBankName?: string;
   isSlipVerified?: boolean;
 }): Promise<Order> {
+  invalidateStoreCache();
   let existingOrders: Order[] = [];
 
   if (isFirebaseConfigured && db) {
@@ -1354,6 +1369,7 @@ export async function deleteOrder(
   reason = "Cancelled by user/host",
   by = "Host"
 ): Promise<boolean> {
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       const orderRef = doc(db, "orders", orderId);

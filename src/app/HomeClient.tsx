@@ -40,6 +40,7 @@ import {
   Check,
   SlidersHorizontal,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
@@ -256,11 +257,17 @@ export default function HomeClient({ initialBatches }: Props) {
   // Host state
   const [isHost, setIsHost] = useState(false);
 
-  // 1. Poll batches every 3.5s
+  // Manual Refresh state (No background polling to preserve Firestore quota)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
+
+  // 1. Initial load on mount
   useEffect(() => {
-    fetchBatches();
-    const interval = setInterval(fetchBatches, 3500);
-    return () => clearInterval(interval);
+    fetchBatches(false);
+    const now = new Date();
+    setLastRefreshedAt(
+      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    );
   }, []);
 
   // 2. Load cached LINE ID, Phone Number & Host status
@@ -280,16 +287,26 @@ export default function HomeClient({ initialBatches }: Props) {
     } catch (e) {}
   }, [activeBatchId, activeBatch?.id, activeBatch?.isSelfPickup, activeBatch?.hostPin]);
 
-  const fetchBatches = async () => {
+  const fetchBatches = async (fresh = false) => {
     try {
-      // role=shop returns unsanitized batches for manifest generation
-      const res = await fetch("/api/batches?role=shop");
+      if (fresh) setIsRefreshing(true);
+      // role=shop returns unsanitized batches for manifest generation; fresh=true bypasses server cache
+      const url = fresh ? "/api/batches?role=shop&fresh=true" : "/api/batches?role=shop";
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success && Array.isArray(data.batches)) {
         setBatches(data.batches);
+        const now = new Date();
+        setLastRefreshedAt(
+          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        );
       }
     } catch (err) {
-      console.warn("Poll batches error:", err);
+      console.warn("Fetch batches error:", err);
+    } finally {
+      if (fresh) {
+        setTimeout(() => setIsRefreshing(false), 300);
+      }
     }
   };
 
@@ -897,16 +914,34 @@ export default function HomeClient({ initialBatches }: Props) {
               </span>
             </button>
 
-            {/* Open New Board Button */}
-            <button
-              type="button"
-              onClick={handleOpenBoardClick}
-              className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-2xs shrink-0 cursor-pointer"
-              title={t.openBoardTitle}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>{t.openNewBoard}</span>
-            </button>
+            {/* Actions: Refresh and Open New Board */}
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => fetchBatches(true)}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+                title="กดเพื่ออัปเดตกระดานและออเดอร์ล่าสุด"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">รีเฟรช</span>
+                {lastRefreshedAt && (
+                  <span className="text-[10px] text-slate-400 font-mono font-normal hidden md:inline">
+                    ({lastRefreshedAt})
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenBoardClick}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-2xs cursor-pointer"
+                title={t.openBoardTitle}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{t.openNewBoard}</span>
+              </button>
+            </div>
           </div>
 
           {/* Level 2: Board Tabs for the active group */}

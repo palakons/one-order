@@ -85,11 +85,17 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     } catch (e) {}
   }, [batchId, initialBatch]);
 
-  // 2. Poll Batch every 3.5 seconds with role=leader
+  // Manual Refresh state (No background polling to preserve Firestore quota)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
+
+  // 2. Initial load on mount
   useEffect(() => {
-    fetchBatch();
-    const interval = setInterval(fetchBatch, 3500);
-    return () => clearInterval(interval);
+    fetchBatch(false);
+    const now = new Date();
+    setLastRefreshedAt(
+      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    );
   }, [batchId]);
 
   // 3. Sync isSelfPickup when batch updates
@@ -99,15 +105,25 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     }
   }, [batch?.isSelfPickup]);
 
-  const fetchBatch = async () => {
+  const fetchBatch = async (fresh = false) => {
     try {
-      const res = await fetch(`/api/batches/${batchId}?role=leader`);
+      if (fresh) setIsRefreshing(true);
+      const url = fresh ? `/api/batches/${batchId}?role=leader&fresh=true` : `/api/batches/${batchId}?role=leader`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success && data.batch) {
         setBatch(data.batch);
+        const now = new Date();
+        setLastRefreshedAt(
+          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        );
       }
     } catch (err) {
-      console.warn("Poll batch error:", err);
+      console.warn("Fetch batch error:", err);
+    } finally {
+      if (fresh) {
+        setTimeout(() => setIsRefreshing(false), 300);
+      }
     }
   };
 
@@ -485,6 +501,21 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fetchBatch(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+              title="กดเพื่ออัปเดตข้อมูลและออเดอร์ล่าสุด"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">รีเฟรช</span>
+              {lastRefreshedAt && (
+                <span className="text-[10px] text-slate-400 font-mono font-normal hidden md:inline">
+                  ({lastRefreshedAt})
+                </span>
+              )}
+            </button>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-black">
               <span>👑 LEADER CONTROL PANEL</span>
             </span>

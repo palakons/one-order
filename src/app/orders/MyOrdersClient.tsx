@@ -76,10 +76,10 @@ export default function MyOrdersClient() {
     }
   }, []);
 
-  // Poll batches to keep status & delivery photo updated
-  const fetchBatches = async () => {
+  const fetchBatches = async (fresh = false) => {
     try {
-      const res = await fetch("/api/batches");
+      const url = fresh ? "/api/batches?fresh=true" : "/api/batches";
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success && Array.isArray(data.batches)) {
         const batchMap: Record<string, BatchWithDetails> = {};
@@ -97,14 +97,12 @@ export default function MyOrdersClient() {
   };
 
   useEffect(() => {
-    fetchBatches();
-    const interval = setInterval(fetchBatches, 5000);
-    return () => clearInterval(interval);
+    fetchBatches(false);
   }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchBatches();
+    fetchBatches(true);
   };
 
   // Search by phone from server batches (for multi-device access)

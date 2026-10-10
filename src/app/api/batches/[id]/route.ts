@@ -15,9 +15,10 @@ export async function GET(
       searchParams.get("role") === "leader" ||
       request.headers.get("x-view-role") === "shop" ||
       request.headers.get("x-view-role") === "leader";
+    const forceFresh = searchParams.get("fresh") === "true";
 
     // Sanitize unless specifically requested by shop or leader role
-    const batch = await getBatchById(id, !isPrivilegedRole);
+    const batch = await getBatchById(id, !isPrivilegedRole, forceFresh);
     if (!batch) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 400 });
     }

@@ -56,8 +56,6 @@ export default function FirebaseStatusBadge() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 20000); // Polling every 20s
-    return () => clearInterval(interval);
   }, []);
 
   const fetchStatus = async () => {
@@ -117,7 +115,10 @@ export default function FirebaseStatusBadge() {
       {/* Small Icon Button next to Language Switcher */}
       <button
         type="button"
-        onClick={() => setShowModal(true)}
+        onClick={() => {
+          fetchStatus();
+          setShowModal(true);
+        }}
         className={`inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border px-1.5 sm:px-2 py-1 text-xs font-bold transition-all shadow-2xs ${severityConfig.buttonClass}`}
         title={`สถานะระบบ Firebase: ${severityConfig.labelFull} (คลิกเพื่อดูรายละเอียด)`}
         aria-label="Firebase status and quota diagnostics"
