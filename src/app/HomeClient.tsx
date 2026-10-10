@@ -39,6 +39,7 @@ import {
   Key,
   Check,
   SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react";
 
 interface Props {
@@ -97,6 +98,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
   // Modals state
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
+  const [isShopExpanded, setIsShopExpanded] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<{ url: string; title: string } | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [generatingManifest, setGeneratingManifest] = useState(false);
@@ -875,50 +877,70 @@ export default function HomeClient({ initialBatches }: Props) {
             {/* 2. Order Pane Header: 3 Compact Cards (Shop, Drop-off, Leader) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Card 1: Shop */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+              <div
+                className={`rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between transition-all min-h-[110px] ${
+                  !isShopExpanded ? "cursor-pointer hover:border-purple-300 hover:shadow-xs" : ""
+                }`}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a, button")) return;
+                  setIsShopExpanded((prev) => !prev);
+                }}
+              >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 truncate">
-                      {activeShopInfo?.cuisine || activeBatch.shop.cuisine}
+                    <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
+                      <Store className="h-3 w-3 text-purple-700" />
+                      <span>{t.shop}</span>
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono font-medium shrink-0">
-                      {activeBatch.date}
-                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsShopExpanded((prev) => !prev)}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-bold transition-colors cursor-pointer"
+                      title={isShopExpanded ? t.collapseMenu : t.expandMenu}
+                    >
+                      <span>{isShopExpanded ? t.collapseMenu : t.expandMenu}</span>
+                      <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isShopExpanded ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
-                  <h2 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
+
+                  <h3
+                    className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1"
+                    title={activeShopInfo?.name || activeBatch.shop.name}
+                  >
                     {activeShopInfo?.name || activeBatch.shop.name}
-                  </h2>
-                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                    {activeShopInfo?.description || activeBatch.shop.description}
-                  </p>
+                  </h3>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-                  {activeBatch.shop.gmapUrl && (
-                    <a
-                      href={activeBatch.shop.gmapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-700 transition-colors"
-                      title={t.viewMenuMaps}
+                {/* When expanded: show Google Maps menu button and PromptPay QR button */}
+                {isShopExpanded && (
+                  <div className="pt-2.5 mt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5 animate-fadeIn">
+                    {activeBatch.shop.gmapUrl && (
+                      <a
+                        href={activeBatch.shop.gmapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition-colors shadow-2xs"
+                        title={t.viewMenuMaps}
+                      >
+                        <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                        <span>{t.viewMenuMaps}</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowPromptPayModal(true)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 text-[11px] font-bold text-purple-900 transition-colors shadow-2xs"
                     >
-                      <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-                      <span>{t.viewMenuMaps}</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 text-[11px] font-bold text-purple-900 transition-colors"
-                  >
-                    <CreditCard className="h-3 w-3 text-purple-700 shrink-0" />
-                    <span>{t.viewShopPromptPay}</span>
-                  </button>
-                </div>
+                      <CreditCard className="h-3 w-3 text-purple-700 shrink-0" />
+                      <span>{t.viewShopPromptPay}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Card 2: Drop off location */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[110px]">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
@@ -929,32 +951,29 @@ export default function HomeClient({ initialBatches }: Props) {
                       {activeLocation.shortCode || "M4"}
                     </span>
                   </div>
-                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
+
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1" title={activeBuildingName}>
                     {activeBuildingName}
                   </h3>
-                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    {activeLocalizedLocation.deskDetail}
-                  </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100">
-                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <span>🛵</span>
-                    <span>{lang === "en" ? "Rider drops order at this desk" : lang === "cn" ? "外卖骑手送达至此取餐台" : "ไรเดอร์จะนำข้าวมาวางไว้ที่โต๊ะนี้"}</span>
-                  </span>
+                <div className="pt-1">
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-1" title={activeLocalizedLocation.deskDetail}>
+                    {activeLocalizedLocation.deskDetail}
+                  </p>
                 </div>
               </div>
 
               {/* Card 3: Leader */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[110px]">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-purple-950 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
-                      <span className="text-amber-500 font-bold">👑</span>
-                      <span>{t.leader}</span>
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
+                        <span className="text-amber-500 font-bold">👑</span>
+                        <span>{t.leader}</span>
+                      </span>
 
-                    <div className="flex items-center gap-1">
                       {activeBatch.status === "ORDERED" && (
                         <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
                           {t.sentToShopBadge}
@@ -966,12 +985,23 @@ export default function HomeClient({ initialBatches }: Props) {
                         </span>
                       )}
                     </div>
+
+                    <Link
+                      href={`/order/${activeBatch.id}/leader`}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-bold transition-colors shadow-2xs"
+                      title={t.manageBoard}
+                    >
+                      <SlidersHorizontal className="h-3 w-3 text-purple-700 shrink-0" />
+                      <span>{t.manageBoard.replace(" ↗", "")}</span>
+                    </Link>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1" title={leaderLine || t.noLeader}>
                     {leaderLine || t.noLeader}
                   </h3>
+                </div>
 
+                <div className="pt-1">
                   {leaderPhone ? (
                     <a
                       href={`tel:${leaderPhone}`}
@@ -985,17 +1015,6 @@ export default function HomeClient({ initialBatches }: Props) {
                       {lang === "en" ? "No phone provided" : lang === "cn" ? "未留电话" : "ไม่มีเบอร์ติดต่อ"}
                     </p>
                   )}
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <Link
-                    href={`/order/${activeBatch.id}/leader`}
-                    className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-950 px-2.5 py-1 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
-                    title={t.manageBoard}
-                  >
-                    <SlidersHorizontal className="h-3 w-3 text-purple-700" />
-                    <span>{t.manageBoard}</span>
-                  </Link>
                 </div>
               </div>
             </div>
