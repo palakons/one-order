@@ -6,7 +6,6 @@ import { MapPin, ShoppingBag, MessageSquareHeart, Globe, ChevronDown } from "luc
 import CampusDesksModal from "./CampusDesksModal";
 import SuggestionModal from "./SuggestionModal";
 import VeatecLogo from "./VeatecLogo";
-import FirebaseStatusBadge from "./FirebaseStatusBadge";
 import { useLanguage, Language } from "@/lib/i18n";
 
 const LANG_OPTIONS: { code: Language; label: string; flag: string; short: string }[] = [
@@ -32,9 +31,6 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-1 sm:gap-1.5">
-            {/* Firebase Quota Severity Status Icon */}
-            <FirebaseStatusBadge />
-
             {/* Compact Language Dropdown Switcher */}
             <div className="relative">
               <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { CAMPUS_LOCATIONS } from "@/lib/locations";
+import { CAMPUS_LOCATIONS, getLocalizedLocation } from "@/lib/locations";
 import { X, Building2, CheckCircle2, Info } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function CampusDesksModal({ onClose, selectedId, onSelect }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
@@ -49,6 +49,8 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
         <div className="overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {CAMPUS_LOCATIONS.map((loc) => {
             const isSelected = selectedId === loc.id;
+            const locInfo = getLocalizedLocation(loc, lang);
+
             return (
               <div
                 key={loc.id}
@@ -70,7 +72,7 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
                 <div className="relative mb-2.5 h-32 w-full overflow-hidden rounded-lg bg-gray-100">
                   <img
                     src={loc.photoUrl}
-                    alt={loc.name}
+                    alt={locInfo.name}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute top-2 left-2 rounded-md bg-black/70 px-2 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
@@ -87,14 +89,14 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
-                      {loc.name}
+                      {locInfo.name}
                     </h3>
                     <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                      จุดรับอาหาร
+                      {t.dropoffPoint}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-600 leading-relaxed">
-                    <strong className="text-gray-800">ตำแหน่งโต๊ะ:</strong> {loc.deskDetail}
+                    <strong className="text-gray-800">{lang === "en" ? "Location:" : lang === "cn" ? "取餐位置：" : "ตำแหน่งโต๊ะ:"}</strong> {locInfo.deskDetail}
                   </p>
                 </div>
 
@@ -103,7 +105,9 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
                     type="button"
                     className="mt-2.5 w-full rounded-lg bg-gray-100 py-1.5 text-xs font-semibold text-gray-800 group-hover:bg-orange-600 group-hover:text-white transition-colors"
                   >
-                    {isSelected ? "✓ เลือกจุดส่งนี้แล้ว" : "เลือกจุดรับอาหารนี้"}
+                    {isSelected
+                      ? (lang === "en" ? "✓ Selected" : lang === "cn" ? "✓ 已选择" : "✓ เลือกจุดส่งนี้แล้ว")
+                      : (lang === "en" ? "Select this pickup desk" : lang === "cn" ? "选择此取餐点" : "เลือกจุดรับอาหารนี้")}
                   </button>
                 )}
               </div>
@@ -117,7 +121,7 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
             onClick={onClose}
             className="rounded-lg bg-gray-900 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
           >
-            ปิดหน้าต่าง
+            {t.closeWindow}
           </button>
         </div>
       </div>

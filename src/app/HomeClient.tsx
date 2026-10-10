@@ -4,11 +4,12 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order, Shop } from "@/lib/types";
-import { CAMPUS_LOCATIONS } from "@/lib/locations";
+import { CAMPUS_LOCATIONS, getLocalizedLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getTimeRemaining } from "@/lib/utils";
+import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
 import confetti from "canvas-confetti";
 import {
   MapPin,
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export default function HomeClient({ initialBatches }: Props) {
+  const { t, lang } = useLanguage();
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
 
   // Helper: compute sensible default cutoff time (current time + 40m rounded to 5m)
@@ -612,7 +614,7 @@ export default function HomeClient({ initialBatches }: Props) {
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
   };
 
-  const timeInfo = activeBatch ? getTimeRemaining(activeBatch.cutoffTime, activeBatch.date) : null;
+  const timeInfo = activeBatch ? getTimeRemaining(activeBatch.cutoffTime, activeBatch.date, lang) : null;
   const isBatchClosed = activeBatch ? activeBatch.status !== "OPEN" || timeInfo?.isExpired : false;
 
   const allSlipsVerified =
@@ -620,61 +622,12 @@ export default function HomeClient({ initialBatches }: Props) {
     activeOrders.every((o) => Boolean(o.slipImageUrl || o.isSlipVerified));
   const missingSlipOrders = activeOrders.filter((o) => !o.slipImageUrl && !o.isSlipVerified);
 
+  const activeShopInfo = activeBatch ? getShopLocalizedInfo(activeBatch.shop, lang) : null;
+  const activeBuildingName = activeBatch ? getLocalizedBuildingName(activeBatch.buildingName || "ตึก M4", lang) : "";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
       <Navbar />
-
-      {/* Craigslist Lean Minimal Header */}
-      <header className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
-        <div className="mx-auto max-w-5xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-purple-900 text-white font-mono font-black text-xs">
-                M4
-              </span>
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-950">
-                VEATEC @ VISTEC M4 — กระดานสั่งข้าวเที่ยง (Digital Whiteboard)
-              </h1>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              รวมออเดอร์ส่งฟรีถึงโต๊ะ Delivery ชั้น 1 ตึก M4 • ปิดรับ 11:15 น. ทุกวัน
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-semibold self-start sm:self-center">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 text-emerald-800 px-2.5 py-1 border border-emerald-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>LIVE SYSTEM</span>
-            </span>
-            <button
-              type="button"
-              onClick={handleOpenBoardClick}
-              className="text-purple-900 hover:bg-purple-100 border border-purple-300 bg-purple-50 px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors font-bold text-xs shadow-2xs"
-              title="เปิดกระดานสั่งอาหารใหม่ สำหรับตึกและร้านที่คุณต้องการ"
-            >
-              <Plus className="h-3.5 w-3.5 text-purple-700" />
-              <span>เปิดกระดาน</span>
-            </button>
-            {archivedBatches.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowArchiveModal(true)}
-                className="text-slate-500 hover:text-purple-900 border border-slate-200 bg-slate-50 px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors"
-                title="คลังกระดานที่ปิดรอบแล้ว (Archived Boards)"
-              >
-                <Archive className="h-3.5 w-3.5 text-slate-400" />
-                <span>Archive ({archivedBatches.length})</span>
-              </button>
-            )}
-            <Link
-              href="/admin"
-              className="text-slate-500 hover:text-purple-900 border border-slate-200 bg-slate-50 px-2.5 py-1 rounded-md"
-            >
-              Admin
-            </Link>
-          </div>
-        </div>
-      </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
         {/* 1. Live Shop Tabs Bar, Open Board & Archive Button */}
@@ -682,7 +635,10 @@ export default function HomeClient({ initialBatches }: Props) {
           {liveBatches.map((b, idx) => {
             const isActive = !viewingArchivedBatch && b.id === activeBatchId;
             const isMet = b.currentTotalAmount >= b.targetMinAmount;
-            const bldgCode = b.buildingName ? b.buildingName.replace("ตึก ", "") : "M4";
+            const bldgCode = b.buildingName
+              ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
+              : "M4";
+            const localizedShop = getShopLocalizedInfo(b.shop, lang);
 
             return (
               <button
@@ -698,7 +654,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     : "bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
                 }`}
               >
-                <span>{idx + 1}. {b.shop.name.split(" ")[0]}</span>
+                <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
                 <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
                   {bldgCode}
                 </span>
@@ -722,10 +678,10 @@ export default function HomeClient({ initialBatches }: Props) {
             type="button"
             onClick={handleOpenBoardClick}
             className="flex items-center gap-1 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs shrink-0"
-            title="เปิดกระดานรวมออเดอร์ใหม่ เลือกร้านและตึกที่ต้องการ"
+            title={t.openBoardTitle}
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>+ เปิดกระดานใหม่</span>
+            <span>{t.openNewBoard}</span>
           </button>
 
           {/* Obscured Archive Button on Tabs Bar */}
@@ -734,10 +690,10 @@ export default function HomeClient({ initialBatches }: Props) {
               type="button"
               onClick={() => setShowArchiveModal(true)}
               className="ml-auto flex items-center gap-1.5 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-              title="ดูกระดานที่ปิดรอบแล้ว (Archived Boards)"
+              title={t.archiveModalTitle}
             >
               <Archive className="h-3.5 w-3.5 text-slate-400" />
-              <span>กระดานเก่า ({archivedBatches.length})</span>
+              <span>{t.archivedBoards} ({archivedBatches.length})</span>
             </button>
           )}
         </div>
@@ -748,7 +704,7 @@ export default function HomeClient({ initialBatches }: Props) {
             <div className="flex items-center gap-2">
               <Archive className="h-4 w-4 text-amber-400 shrink-0" />
               <span>
-                <strong>กำลังดูกระดานเก่า:</strong> {activeBatch.shop.name} ({activeBatch.date}) • ปิดรับออเดอร์แล้ว (Read-Only)
+                <strong>{t.viewingArchivedBanner}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({activeBatch.date}) • {t.readOnlyNotice}
               </span>
             </div>
             <button
@@ -760,7 +716,7 @@ export default function HomeClient({ initialBatches }: Props) {
               className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1"
             >
               <ArrowLeft className="h-3 w-3" />
-              <span>กลับกระดานสด</span>
+              <span>{t.backToLive}</span>
             </button>
           </div>
         )}
@@ -771,9 +727,9 @@ export default function HomeClient({ initialBatches }: Props) {
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
               <Clock className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">ไม่มีกระดานเปิดรับออเดอร์ในขณะนี้</h3>
+            <h3 className="text-base font-bold text-slate-900">{t.noLiveBoards}</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              กระดานของวันนี้อาจยังไม่ได้เปิด หรือรอบสั่งทั้งหมดเสร็จสิ้นแล้ว
+              {t.noLiveBoardsSub}
             </p>
             <div className="flex justify-center gap-2 pt-1">
               <button
@@ -782,7 +738,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs"
               >
                 <Plus className="h-4 w-4" />
-                <span>เปิดกระดานใหม่</span>
+                <span>{t.openNewBoard}</span>
               </button>
               {archivedBatches.length > 0 && (
                 <button
@@ -791,7 +747,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
                 >
                   <Archive className="h-4 w-4 text-slate-500" />
-                  <span>ดูกระดานเก่าในคลัง ({archivedBatches.length})</span>
+                  <span>{t.viewArchivedInArchive} ({archivedBatches.length})</span>
                 </button>
               )}
             </div>
@@ -804,24 +760,24 @@ export default function HomeClient({ initialBatches }: Props) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-200">
-                      {activeBatch.shop.cuisine}
+                      {activeShopInfo?.cuisine || activeBatch.shop.cuisine}
                     </span>
                     <span className="text-xs text-slate-500 font-semibold">
-                      รอบวันที่: {activeBatch.date}
+                      {t.orderDate}: {activeBatch.date}
                     </span>
                   </div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-950 mt-1">
-                    {activeBatch.shop.name}
+                    {activeShopInfo?.name || activeBatch.shop.name}
                   </h2>
                   <p className="text-xs text-slate-600 max-w-xl mt-0.5">
-                    {activeBatch.shop.description}
+                    {activeShopInfo?.description || activeBatch.shop.description}
                   </p>
 
                   {/* Leader Contact & Building Info */}
                   <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
                     <div className="flex flex-wrap items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-purple-950 font-medium shadow-2xs">
                       <span className="text-amber-500 font-bold">👑</span>
-                      <span>หัวหน้าตี้: <strong>{leaderLine || "ยังไม่มีหัวหน้าตี้"}</strong></span>
+                      <span>{t.leader}: <strong>{leaderLine || t.noLeader}</strong></span>
                       {leaderPhone ? (
                         <a
                           href={`tel:${leaderPhone}`}
@@ -829,7 +785,7 @@ export default function HomeClient({ initialBatches }: Props) {
                           title="แตะเพื่อโทรหาหัวหน้าตี้กรณีมีปัญหา"
                         >
                           <Phone className="h-2.5 w-2.5" />
-                          <span>โทร: {leaderPhone}</span>
+                          <span>{t.callLeader}: {leaderPhone}</span>
                         </a>
                       ) : null}
 
@@ -837,27 +793,27 @@ export default function HomeClient({ initialBatches }: Props) {
                       <Link
                         href={`/order/${activeBatch.id}/leader`}
                         className="ml-1 inline-flex items-center gap-1 rounded border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
-                        title="แผงจัดการกระดาน (สำหรับหัวหน้าตี้)"
+                        title={t.manageBoard}
                       >
                         <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700" />
-                        <span>จัดการกระดาน ↗</span>
+                        <span>{t.manageBoard}</span>
                       </Link>
 
                       {activeBatch.status === "ORDERED" && (
                         <span className="inline-flex items-center gap-1 rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
-                          🚀 ส่งร้านแล้ว
+                          {t.sentToShopBadge}
                         </span>
                       )}
                       {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && (
                         <span className="inline-flex items-center gap-1 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
-                          🚶 รับเอง
+                          {t.selfPickupBadge}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 font-medium shadow-2xs">
                       <MapPin className="h-3 w-3 text-emerald-700" />
-                      <span>จุดส่ง: <strong>{activeBatch.buildingName || "ตึก M4"} ชั้น 1</strong></span>
+                      <span>{t.dropoffPoint}: <strong>{activeBuildingName} {t.floor1}</strong></span>
                     </div>
                   </div>
                 </div>
@@ -872,7 +828,7 @@ export default function HomeClient({ initialBatches }: Props) {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-colors shadow-2xs"
                     >
                       <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                      <span>ดูเมนูจาก Maps ↗</span>
+                      <span>{t.viewMenuMaps}</span>
                     </a>
                   )}
                   <button
@@ -881,7 +837,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs"
                   >
                     <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                    <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+                    <span>{t.viewShopPromptPay}</span>
                   </button>
                 </div>
               </div>
@@ -890,11 +846,17 @@ export default function HomeClient({ initialBatches }: Props) {
               <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-800">
-                    ยอดรวมตอนนี้: <strong className="text-sm font-black text-purple-950">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
-                    <span className="text-slate-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
+                    {t.currentTotal}: <strong className="text-sm font-black text-purple-950">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
+                    <span className="text-slate-400 font-normal ml-1">({activeOrders.length} {t.boxesCount})</span>
                   </span>
                   <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
-                    {activeBatch.isMinMet ? "🎉 ครบยอดส่งฟรีแล้ว!" : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`}
+                    {activeBatch.isMinMet
+                      ? t.freeGoalReached
+                      : (lang === "en"
+                          ? `฿${activeBatch.amountRemaining} more for free delivery`
+                          : lang === "cn"
+                          ? `还差 ฿${activeBatch.amountRemaining} 免配送费`
+                          : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`)}
                   </span>
                 </div>
 
@@ -912,7 +874,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-semibold text-slate-600">
                   <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
                     <Clock className="h-3 w-3 text-purple-900" />
-                    <span>{timeInfo?.text} (Cutoff: {activeBatch.cutoffTime} น.)</span>
+                    <span>{timeInfo?.text} (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""})</span>
                   </span>
                 </div>
               </div>
@@ -923,37 +885,37 @@ export default function HomeClient({ initialBatches }: Props) {
               <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
                 <div className="flex items-center gap-2">
                   <h3 className="font-black text-sm text-slate-950">
-                    กระดานออเดอร์ร้าน {activeBatch.shop.name}
+                    {t.boardTitle} {activeShopInfo?.name || activeBatch.shop.name}
                   </h3>
                   <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
-                    {activeOrders.length} กล่อง
+                    {activeOrders.length} {t.boxesCount}
                   </span>
                   {isSelfPickup && (
                     <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
-                      🚶 รับเองหน้าร้าน
+                      {t.selfPickupFull}
                     </span>
                   )}
                 </div>
                 <span className="text-[11px] text-slate-500 font-medium">
-                  อัปเดตเรียลไทม์
+                  {t.realtimeUpdate}
                 </span>
               </div>
 
               {activeOrders.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 space-y-1">
-                  <p className="text-sm font-bold text-slate-600">ยังไม่มีใครลงชื่อบนกระดานนี้</p>
-                  <p className="text-xs text-slate-400">เป็นคนแรกที่เปิดตี้ร้านนี้ได้เลยด้านล่าง!</p>
+                  <p className="text-sm font-bold text-slate-600">{t.noOneOnBoard}</p>
+                  <p className="text-xs text-slate-400">{t.beFirstOnBoard}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
-                        <th className="py-2.5 px-3 w-12 font-mono">#</th>
-                        <th className="py-2.5 px-3 w-36">ผู้สั่ง (LINE ID)</th>
-                        <th className="py-2.5 px-3">รายการอาหาร</th>
-                        <th className="py-2.5 px-3 w-20 text-right">ราคา</th>
-                        <th className="py-2.5 px-3 w-28 text-center">สลิป</th>
+                        <th className="py-2.5 px-3 w-12 font-mono">{t.thNumber}</th>
+                        <th className="py-2.5 px-3 w-36">{t.thCustomer}</th>
+                        <th className="py-2.5 px-3">{t.thDish}</th>
+                        <th className="py-2.5 px-3 w-20 text-right">{t.thPrice}</th>
+                        <th className="py-2.5 px-3 w-28 text-center">{t.thSlip}</th>
                         <th className="py-2.5 px-3 w-12 text-center"></th>
                       </tr>
                     </thead>
@@ -995,11 +957,11 @@ export default function HomeClient({ initialBatches }: Props) {
                                   className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Eye className="h-3 w-3" />
-                                  <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : "ดูสลิป ✓"}</span>
+                                  <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : t.viewSlip}</span>
                                 </button>
                               ) : (
                                 <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
-                                  รอสลิป
+                                  {t.waitingSlip}
                                 </span>
                               )}
                             </td>
@@ -1009,7 +971,7 @@ export default function HomeClient({ initialBatches }: Props) {
                                   type="button"
                                   onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
                                   className="text-slate-300 hover:text-rose-600 p-1 rounded transition-colors"
-                                  title="ยกเลิกออเดอร์นี้"
+                                  title={t.cancelOrderTitle}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1033,7 +995,7 @@ export default function HomeClient({ initialBatches }: Props) {
                       +
                     </span>
                     <h3 className="font-black text-sm sm:text-base text-slate-950">
-                      ลงชื่อสั่งอาหารร้าน {activeBatch.shop.name}
+                      {t.formTitle} {activeShopInfo?.name || activeBatch.shop.name}
                     </h3>
                   </div>
                   <button
@@ -1041,7 +1003,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     onClick={() => setShowPromptPayModal(true)}
                     className="text-xs font-bold text-purple-900 hover:underline"
                   >
-                    ดู QR พร้อมเพย์ร้าน ↗
+                    {t.viewShopPromptPay}
                   </button>
                 </div>
 
@@ -1057,12 +1019,12 @@ export default function HomeClient({ initialBatches }: Props) {
                     {/* Field 1: LINE ID */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-700">
-                        LINE ID หรือชื่อคุณ <span className="text-rose-500">*</span>
+                        {t.lineIdLabel} <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder="เช่น Golf หรือ @golf_123"
+                        placeholder={t.lineIdPlaceholder}
                         value={customerLineId}
                         onChange={(e) => setCustomerLineId(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
@@ -1072,14 +1034,14 @@ export default function HomeClient({ initialBatches }: Props) {
                     {/* Field 2: Phone Number (for shop to call) */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                        <span>เบอร์โทรศัพท์ (ร้านโทรหาเมื่อมีปัญหา) <span className="text-rose-500">*</span></span>
-                        <span className="text-[10px] text-slate-400 font-normal">กรณีของหมด</span>
+                        <span>{t.phoneLabel} <span className="text-rose-500">*</span></span>
+                        <span className="text-[10px] text-slate-400 font-normal">{t.phoneNote}</span>
                       </label>
                       <input
                         type="tel"
                         inputMode="tel"
                         required
-                        placeholder="เช่น 0812345678"
+                        placeholder={t.phonePlaceholder}
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900 font-mono"
@@ -1090,12 +1052,12 @@ export default function HomeClient({ initialBatches }: Props) {
                   {/* Field 3: Dish Name */}
                   <div>
                     <label className="text-[11px] font-bold text-slate-700">
-                      เมนูที่ต้องการสั่ง (พิมพ์อิสระ) <span className="text-rose-500">*</span>
+                      {t.dishNameLabel} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
+                      placeholder={t.dishNamePlaceholder}
                       value={dishName}
                       onChange={(e) => setDishName(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
@@ -1105,20 +1067,23 @@ export default function HomeClient({ initialBatches }: Props) {
                   {/* Quick Popular Dish Chips */}
                   {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400">เมนูแนะนำ:</span>
-                      {activeBatch.shop.menuItems.slice(0, 5).map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => {
-                            setDishName(m.name);
-                            setDishPrice(String(m.price));
-                          }}
-                          className="rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-800 transition-colors"
-                        >
-                          {m.name} (฿{m.price})
-                        </button>
-                      ))}
+                      <span className="text-[10px] font-bold text-slate-400">{t.popularDishes}</span>
+                      {activeBatch.shop.menuItems.slice(0, 5).map((m) => {
+                        const localizedItemName = getMenuItemLocalizedName(m, lang);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setDishName(localizedItemName);
+                              setDishPrice(String(m.price));
+                            }}
+                            className="rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-800 transition-colors"
+                          >
+                            {localizedItemName} (฿{m.price})
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -1126,13 +1091,13 @@ export default function HomeClient({ initialBatches }: Props) {
                     {/* Field 3: Price */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-700">
-                        ราคา (฿) <span className="text-rose-500">*</span>
+                        {t.dishPriceLabel} <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="number"
                         required
                         min="1"
-                        placeholder="เช่น 60"
+                        placeholder={t.dishPricePlaceholder}
                         value={dishPrice}
                         onChange={(e) => setDishPrice(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-mono font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
@@ -1142,11 +1107,11 @@ export default function HomeClient({ initialBatches }: Props) {
                     {/* Field 4: Note */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-700">
-                        หมายเหตุ (ถ้ามี)
+                        {t.dishNoteLabel}
                       </label>
                       <input
                         type="text"
-                        placeholder="เช่น ไม่ใส่ผักชี, พิเศษ"
+                        placeholder={t.dishNotePlaceholder}
                         value={dishNote}
                         onChange={(e) => setDishNote(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
@@ -1159,9 +1124,9 @@ export default function HomeClient({ initialBatches }: Props) {
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
                         <CreditCard className="h-3.5 w-3.5 text-purple-900" />
-                        <span>แนบสลิปโอนเงิน (Force Transfer) <span className="text-rose-500">*</span></span>
+                        <span>{t.slipLabel} <span className="text-rose-500">*</span></span>
                       </label>
-                      <span className="text-[10px] text-slate-500 font-medium">สแกน QR บนสลิปอัตโนมัติ</span>
+                      <span className="text-[10px] text-slate-500 font-medium">{t.slipScanAuto}</span>
                     </div>
 
                     <input
@@ -1176,7 +1141,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     {scanningSlip && (
                       <div className="text-[11px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5">
                         <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
-                        <span>กำลังสแกน QR Code ตรวจสอบสลิปธนาคาร...</span>
+                        <span>{t.slipScanning}</span>
                       </div>
                     )}
 
@@ -1193,19 +1158,19 @@ export default function HomeClient({ initialBatches }: Props) {
                           {slipVerification.isValid ? (
                             <>
                               <div>
-                                ✓ ตรวจพบสลิปธนาคาร <strong>{slipVerification.bankName}</strong>
+                                {t.slipVerified} <strong>{slipVerification.bankName}</strong>
                               </div>
                               {slipVerification.transRef && (
                                 <div className="text-[10px] font-mono text-emerald-800">
-                                  รหัสสลิป (Ref): {slipVerification.transRef}
+                                  {t.slipRef} {slipVerification.transRef}
                                 </div>
                               )}
                             </>
                           ) : (
                             <>
-                              <div>📷 แนบรูปสลิปเรียบร้อยแล้ว</div>
+                              <div>{t.slipAttached}</div>
                               <div className="text-[10px] font-normal text-blue-800">
-                                {slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ — สามารถกดบันทึกออเดอร์ได้ตามปกติ"}
+                                {slipVerification.note || t.slipNote}
                               </div>
                             </>
                           )}
@@ -1223,12 +1188,12 @@ export default function HomeClient({ initialBatches }: Props) {
                     {submittingOrder ? (
                       <>
                         <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        <span>กำลังบันทึกลงกระดาน...</span>
+                        <span>{t.submittingToWhiteboard}</span>
                       </>
                     ) : (
                       <>
                         <Plus className="h-4 w-4" />
-                        <span>+ ลงชื่อบนไวท์บอร์ด (บันทึกออเดอร์)</span>
+                        <span>{t.submitToWhiteboard}</span>
                       </>
                     )}
                   </button>
@@ -1238,8 +1203,8 @@ export default function HomeClient({ initialBatches }: Props) {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center space-y-1 text-slate-600">
                 <p className="text-xs font-bold">
                   {viewingArchivedBatch
-                    ? "📦 กระดานนี้เป็นคลังประวัติ (ปิดรอบแล้ว - อ่านอย่างเดียว)"
-                    : "🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)"}
+                    ? t.boardArchiveNotice
+                    : t.boardClosedNotice}
                 </p>
                 {viewingArchivedBatch && liveBatches.length > 0 && (
                   <button
@@ -1250,7 +1215,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     }}
                     className="text-xs font-bold text-purple-900 underline hover:text-purple-700 pt-1 inline-block"
                   >
-                    สลับไปสั่งอาหารบนกระดานสดวันนี้ ↗
+                    {t.switchToLiveToday}
                   </button>
                 )}
               </div>
@@ -1264,7 +1229,7 @@ export default function HomeClient({ initialBatches }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-center space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-black text-xs text-slate-900">QR พร้อมเพย์ร้านค้า</h3>
+              <h3 className="font-black text-xs text-slate-900">{t.promptPayModalTitle}</h3>
               <button
                 type="button"
                 onClick={() => setShowPromptPayModal(false)}
@@ -1283,7 +1248,7 @@ export default function HomeClient({ initialBatches }: Props) {
             </div>
 
             <div>
-              <p className="text-[11px] text-slate-500 font-medium">ชื่อบัญชี:</p>
+              <p className="text-[11px] text-slate-500 font-medium">{t.accountName}</p>
               <p className="text-sm font-black text-slate-900">{activeBatch.shop.promptpayAccountName}</p>
               <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
                 {activeBatch.shop.promptpayNumber}
@@ -1294,11 +1259,11 @@ export default function HomeClient({ initialBatches }: Props) {
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(activeBatch.shop.promptpayNumber);
-                alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+                alert(t.copiedPromptPay);
               }}
               className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200 transition-colors"
             >
-              คัดลอกหมายเลขพร้อมเพย์
+              {t.copyPromptPay}
             </button>
           </div>
         </div>
@@ -1338,8 +1303,8 @@ export default function HomeClient({ initialBatches }: Props) {
                   <Send className="h-3.5 w-3.5" />
                 </span>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900">สรุปออเดอร์ส่งร้าน (Send to Shop)</h3>
-                  <p className="text-[11px] text-slate-500">สร้างภาพสรุปยาวใบเดียว ฝังสลิปครบทุกกล่อง</p>
+                  <h3 className="font-black text-sm text-slate-900">{t.oneLongManifestTitle}</h3>
+                  <p className="text-[11px] text-slate-500">{t.oneLongManifestSub}</p>
                 </div>
               </div>
               <button
@@ -1356,15 +1321,14 @@ export default function HomeClient({ initialBatches }: Props) {
                 <div className="flex flex-col items-center justify-center p-12 space-y-2 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="h-7 w-7 animate-spin rounded-full border-3 border-purple-900 border-t-transparent" />
                   <span className="text-xs font-black text-purple-900">
-                    กำลังสร้างภาพสรุปยาวใบเดียว (รวมสลิปทุกกล่อง)...
+                    {t.generatingManifest}
                   </span>
-                  <span className="text-[11px] text-slate-400">ใช้เวลาประมาณ 1-2 วินาที</span>
                 </div>
               ) : manifestData ? (
                 <div className="space-y-3">
                   <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง {activeBatch.buildingName || "ตึก M4"} และสลิปทุกใบในรูปเดียว)</span>
+                    <span>{t.manifestSuccess}</span>
                   </div>
 
                   <div className="rounded-xl border border-slate-300 overflow-hidden bg-slate-900 shadow-inner max-h-80 overflow-y-auto">
@@ -1377,7 +1341,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
                   <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                      <span>ข้อความสรุปสำหรับส่งในแชต:</span>
+                      <span>{t.summaryForChat}</span>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1388,7 +1352,7 @@ export default function HomeClient({ initialBatches }: Props) {
                         className="text-[11px] text-purple-900 hover:underline flex items-center gap-1 font-bold"
                       >
                         <Copy className="h-3 w-3" />
-                        <span>{copiedText ? "✓ คัดลอกแล้ว" : "คัดลอกข้อความ"}</span>
+                        <span>{copiedText ? t.copiedText : t.copyText}</span>
                       </button>
                     </div>
                     <pre className="text-[11px] font-sans text-slate-600 whitespace-pre-wrap leading-relaxed">
@@ -1407,17 +1371,17 @@ export default function HomeClient({ initialBatches }: Props) {
                   className="w-full sm:flex-1 rounded-xl bg-[#06C755] hover:bg-[#05b34c] py-2.5 text-xs sm:text-sm font-black text-white shadow-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
                 >
                   <Share2 className="h-4 w-4" />
-                  <span>แชร์เข้า LINE ร้านทันที</span>
+                  <span>{t.shareToLineNow}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleConfirmSentToShop}
                   className="w-full sm:w-auto rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 py-2.5 px-3.5 text-xs font-bold text-purple-900 flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
-                  title="บันทึกว่าส่งร้านแล้วเพื่อเปลี่ยนสถานะกระดาน"
+                  title={t.markSentToShop}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 text-purple-700" />
-                  <span>บันทึกส่งร้านแล้ว (ปิดรอบ)</span>
+                  <span>{t.markSentToShop}</span>
                 </button>
 
                 <a
@@ -1426,7 +1390,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white hover:bg-slate-50 py-2.5 px-3.5 text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  <span>บันทึกรูปยาว</span>
+                  <span>{t.saveLongImage}</span>
                 </a>
               </div>
             )}
@@ -1445,8 +1409,8 @@ export default function HomeClient({ initialBatches }: Props) {
                   <Archive className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-950">คลังกระดานเก่า (Archived Boards)</h3>
-                  <p className="text-xs text-slate-500">กระดานที่ปิดรับออเดอร์แล้ว หรือรอบวันก่อนหน้า</p>
+                  <h3 className="font-bold text-base text-slate-950">{t.archiveModalTitle}</h3>
+                  <p className="text-xs text-slate-500">{t.archiveModalSub}</p>
                 </div>
               </div>
               <button
@@ -1463,15 +1427,15 @@ export default function HomeClient({ initialBatches }: Props) {
               {archivedBatches.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 space-y-1">
                   <Archive className="h-8 w-8 mx-auto text-slate-300" />
-                  <p className="text-sm font-bold text-slate-600">ยังไม่มีกระดานเก่าในคลัง</p>
-                  <p className="text-xs text-slate-400">ทุกกระดานในปัจจุบันยังเปิดเป็น Live Board</p>
+                  <p className="text-sm font-bold text-slate-600">{t.noArchivedBoards}</p>
+                  <p className="text-xs text-slate-400">{t.allActiveLive}</p>
                 </div>
               ) : (
                 archivedBatches.map((b) => (
                   <div key={b.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-slate-900">{b.shop.name}</strong>
+                        <strong className="text-sm font-bold text-slate-900">{getShopLocalizedInfo(b.shop, lang).name}</strong>
                         <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
                           b.status === "COMPLETED"
                             ? "bg-emerald-100 text-emerald-800"
@@ -1479,13 +1443,13 @@ export default function HomeClient({ initialBatches }: Props) {
                             ? "bg-rose-100 text-rose-800"
                             : "bg-slate-100 text-slate-700"
                         }`}>
-                          {b.status === "COMPLETED" ? "ส่งแล้ว ✅" : b.status === "CANCELLED" ? "ยกเลิกแล้ว" : "ปิดรอบแล้ว"}
+                          {b.status === "COMPLETED" ? t.roundCompleted : b.status === "CANCELLED" ? t.roundCancelled : t.roundClosed}
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-3">
-                        <span>รอบวันที่: <strong>{b.date}</strong></span>
-                        <span>Cutoff: <strong>{b.cutoffTime} น.</strong></span>
-                        <span>ยอด: <strong className="text-orange-600">฿{b.currentTotalAmount}</strong> ({b.orders?.filter((o) => !o.deletedAt).length || 0} กล่อง)</span>
+                        <span>{t.orderDate}: <strong>{b.date}</strong></span>
+                        <span>Cutoff: <strong>{b.cutoffTime}{lang === "th" ? " น." : ""}</strong></span>
+                        <span>{t.currentTotal}: <strong className="text-orange-600">฿{b.currentTotalAmount}</strong> ({b.orders?.filter((o) => !o.deletedAt).length || 0} {t.boxesCount})</span>
                       </div>
                     </div>
 
@@ -1499,7 +1463,7 @@ export default function HomeClient({ initialBatches }: Props) {
                         }}
                         className="rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 px-3 py-1.5 text-xs font-bold transition-colors shadow-2xs"
                       >
-                        เปิดดูกระดาน
+                        {t.viewBoard}
                       </button>
                       {b.status === "COMPLETED" && (
                         <Link
@@ -1507,7 +1471,7 @@ export default function HomeClient({ initialBatches }: Props) {
                           className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1.5 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
                         >
                           <Camera className="h-3 w-3" />
-                          <span>ดูรูปส่ง {b.buildingName ? b.buildingName.replace("ตึก ", "") : "ของ"}</span>
+                          <span>{t.viewDeliveryPhoto} {b.buildingName ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "") : ""}</span>
                         </Link>
                       )}
                       <Link
@@ -1515,7 +1479,7 @@ export default function HomeClient({ initialBatches }: Props) {
                         target="_blank"
                         className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1.5 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
                       >
-                        <span>Kitchen Sheet</span>
+                        <span>{t.kitchenSheet}</span>
                         <ExternalLink className="h-3 w-3 text-slate-400" />
                       </Link>
                     </div>
@@ -1531,7 +1495,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 onClick={() => setShowArchiveModal(false)}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
               >
-                ปิดหน้าต่าง
+                {t.closeWindow}
               </button>
             </div>
           </div>
@@ -1549,8 +1513,8 @@ export default function HomeClient({ initialBatches }: Props) {
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base">เปิดกระดานรวมออเดอร์ใหม่</h3>
-                  <p className="text-xs text-purple-200">เลือกตึกปลายทางและร้านอาหารเพื่อเริ่มตี้อาหารประจำวัน</p>
+                  <h3 className="font-bold text-base">{t.openBoardTitle}</h3>
+                  <p className="text-xs text-purple-200">{t.openBoardSubtitle}</p>
                 </div>
               </div>
               <button
@@ -1574,8 +1538,10 @@ export default function HomeClient({ initialBatches }: Props) {
               {/* 1. ร้านอาหาร */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>1. เลือกร้านอาหารที่ต้องการสั่ง <span className="text-rose-500">*</span></span>
-                  <span className="text-[10px] text-slate-500 font-normal">ร้านที่มีในระบบ</span>
+                  <span>{t.stepShop} <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] text-slate-500 font-normal">
+                    {lang === "en" ? "Available in system" : lang === "cn" ? "系统内餐厅" : "ร้านที่มีในระบบ"}
+                  </span>
                 </label>
                 <select
                   value={openShopId}
@@ -1591,13 +1557,18 @@ export default function HomeClient({ initialBatches }: Props) {
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 >
                   {availableShops.length === 0 ? (
-                    <option value="">กำลังโหลดรายชื่อร้าน...</option>
+                    <option value="">
+                      {lang === "en" ? "Loading shops..." : lang === "cn" ? "正在加载餐厅..." : "กำลังโหลดรายชื่อร้าน..."}
+                    </option>
                   ) : (
-                    availableShops.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.cuisine}) {s.minDeliveryAmount ? `• ขั้นต่ำ ฿${s.minDeliveryAmount}` : ""}
-                      </option>
-                    ))
+                    availableShops.map((s) => {
+                      const localizedShop = getShopLocalizedInfo(s, lang);
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {localizedShop.name} ({localizedShop.cuisine}) {s.minDeliveryAmount ? `• ${lang === "en" ? "Min" : lang === "cn" ? "免运" : "ขั้นต่ำ"} ฿${s.minDeliveryAmount}` : ""}
+                        </option>
+                      );
+                    })
                   )}
                 </select>
               </div>
@@ -1605,8 +1576,10 @@ export default function HomeClient({ initialBatches }: Props) {
               {/* 2. ตึกปลายทาง */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>2. เลือกตึกส่งอาหาร (Building Destination) <span className="text-rose-500">*</span></span>
-                  <span className="text-[10px] text-purple-700 font-semibold">เฉพาะตึกนี้</span>
+                  <span>{t.stepBuilding} <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] text-purple-700 font-semibold">
+                    {lang === "en" ? "Destination building" : lang === "cn" ? "送达楼栋" : "เฉพาะตึกนี้"}
+                  </span>
                 </label>
                 <select
                   value={openBuildingId}
@@ -1614,14 +1587,17 @@ export default function HomeClient({ initialBatches }: Props) {
                   required
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 >
-                  {CAMPUS_LOCATIONS.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name} — {loc.deskDetail}
-                    </option>
-                  ))}
+                  {CAMPUS_LOCATIONS.map((loc) => {
+                    const locInfo = getLocalizedLocation(loc, lang);
+                    return (
+                      <option key={loc.id} value={loc.id}>
+                        {locInfo.name} — {locInfo.deskDetail}
+                      </option>
+                    );
+                  })}
                 </select>
                 <p className="text-[11px] text-slate-500">
-                  📍 ไรเดอร์และร้านค้าจะมาส่งที่โต๊ะส่งอาหารของตึกที่เลือกนี้
+                  {t.buildingRiderNotice}
                 </p>
               </div>
 
@@ -1629,31 +1605,31 @@ export default function HomeClient({ initialBatches }: Props) {
               <div className="rounded-xl bg-purple-50/70 border border-purple-200 p-3.5 space-y-3">
                 <div className="flex items-center gap-1.5 text-purple-950 font-bold">
                   <span className="text-sm">👑</span>
-                  <span>3. ข้อมูลผู้เปิดตี้ / หัวหน้าตี้ (Leader Contact)</span>
+                  <span>{t.stepLeader}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700">
-                      ชื่อ / LINE ID <span className="text-rose-500">*</span>
+                      {t.leaderName} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={openLeaderName}
                       onChange={(e) => setOpenLeaderName(e.target.value)}
-                      placeholder="เช่น somchai_v หรือ สมชาย"
+                      placeholder={lang === "en" ? "e.g. Golf or @golf_123" : lang === "cn" ? "例如: 小李 或 @golf_123" : "เช่น somchai_v หรือ สมชาย"}
                       required
                       className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700">
-                      เบอร์โทรศัพท์ <span className="text-rose-500">*</span>
+                      {t.leaderPhone} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="tel"
                       value={openLeaderPhone}
                       onChange={(e) => setOpenLeaderPhone(e.target.value)}
-                      placeholder="เช่น 0812345678"
+                      placeholder="0812345678"
                       required
                       className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono"
                     />
@@ -1663,9 +1639,9 @@ export default function HomeClient({ initialBatches }: Props) {
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-slate-700 flex items-center gap-1">
                       <Key className="h-3 w-3 text-purple-700" />
-                      <span>PIN หัวหน้าตี้ 4 หลัก (สำหรับปิดรอบ/ส่งร้าน)</span>
+                      <span>{t.leaderPin}</span>
                     </label>
-                    <span className="text-[10px] text-purple-700 font-semibold">ค่าเริ่มต้น: 4 ตัวท้ายเบอร์โทร</span>
+                    <span className="text-[10px] text-purple-700 font-semibold">{t.leaderPinHint}</span>
                   </div>
                   <input
                     type="text"
@@ -1676,12 +1652,12 @@ export default function HomeClient({ initialBatches }: Props) {
                     className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono tracking-widest font-bold"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">
-                    💡 ระบบจะจำ PIN นี้ไว้ในเครื่องคุณอัตโนมัติ (ป้องกันไม่ให้ผู้อื่นปิดกระดานหรือส่งร้านแทนคุณ)
+                    {t.leaderPinDesc}
                   </p>
                 </div>
                 <p className="text-[11px] text-purple-900 flex items-start gap-1">
                   <Phone className="h-3 w-3 shrink-0 mt-0.5 text-purple-700" />
-                  <span>เบอร์โทรจะแสดงบนหัวกระดานและใบเสร็จยาว เพื่อให้ร้านค้าหรือไรเดอร์โทรติดต่อเมื่อมีปัญหา</span>
+                  <span>{t.leaderPhoneHelp}</span>
                 </p>
               </div>
 
@@ -1689,7 +1665,7 @@ export default function HomeClient({ initialBatches }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-bold text-slate-800">
-                    เวลาปิดรับ (Cutoff) <span className="text-rose-500">*</span>
+                    {t.stepCutoff} <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="time"
@@ -1701,7 +1677,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold text-slate-800">
-                    เป้ายอดขั้นต่ำ (฿)
+                    {t.stepTargetMin}
                   </label>
                   <input
                     type="number"
@@ -1718,13 +1694,13 @@ export default function HomeClient({ initialBatches }: Props) {
               {/* 5. หมายเหตุ */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-800">
-                  หมายเหตุเพิ่มเติม (Notes / ปล.)
+                  {t.stepNotes}
                 </label>
                 <input
                   type="text"
                   value={openNotes}
                   onChange={(e) => setOpenNotes(e.target.value)}
-                  placeholder="เช่น โอนเงินพร้อมแนบสลิปทันที / อาหารมาส่งวางไว้ที่โต๊ะ"
+                  placeholder={t.stepNotesPlaceholder}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 />
               </div>
@@ -1737,7 +1713,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   disabled={creatingBoard}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
-                  ยกเลิก
+                  {t.cancel}
                 </button>
                 <button
                   type="submit"
@@ -1747,12 +1723,12 @@ export default function HomeClient({ initialBatches }: Props) {
                   {creatingBoard ? (
                     <>
                       <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      <span>กำลังเปิดกระดาน...</span>
+                      <span>{t.openingBoard}</span>
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4" />
-                      <span>เปิดกระดานทันที</span>
+                      <span>{t.openBoardButton}</span>
                     </>
                   )}
                 </button>

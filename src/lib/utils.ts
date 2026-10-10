@@ -1,6 +1,7 @@
 export function getTimeRemaining(
   cutoffTimeStr: string,
-  batchDate?: string
+  batchDate?: string,
+  lang: "th" | "en" | "cn" = "th"
 ): { isExpired: boolean; text: string; remainingMs: number } {
   try {
     let cutoffEpoch: number;
@@ -18,7 +19,8 @@ export function getTimeRemaining(
 
     const diffMs = cutoffEpoch - Date.now();
     if (isNaN(diffMs) || diffMs <= 0) {
-      return { isExpired: true, text: "closed", remainingMs: 0 };
+      const closedText = lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรอบแล้ว";
+      return { isExpired: true, text: closedText, remainingMs: 0 };
     }
 
     const totalSec = Math.floor(diffMs / 1000);
@@ -27,17 +29,25 @@ export function getTimeRemaining(
     const seconds = totalSec % 60;
 
     let text = "";
-    if (hours > 0) {
-      text = minutes > 0 ? `${hours} ชม. ${minutes} นาที` : `${hours} ชม.`;
-    } else if (minutes > 0) {
-      text = seconds > 0 ? `${minutes} นาที ${seconds} วิ` : `${minutes} นาที`;
+    if (lang === "en") {
+      if (hours > 0) text = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+      else if (minutes > 0) text = seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+      else text = `${seconds}s`;
+      return { isExpired: false, text: `${text} left`, remainingMs: diffMs };
+    } else if (lang === "cn") {
+      if (hours > 0) text = minutes > 0 ? `${hours}小时${minutes}分` : `${hours}小时`;
+      else if (minutes > 0) text = seconds > 0 ? `${minutes}分${seconds}秒` : `${minutes}分`;
+      else text = `${seconds}秒`;
+      return { isExpired: false, text: `还剩 ${text}`, remainingMs: diffMs };
     } else {
-      text = `${seconds} วิ`;
+      if (hours > 0) text = minutes > 0 ? `${hours} ชม. ${minutes} นาที` : `${hours} ชม.`;
+      else if (minutes > 0) text = seconds > 0 ? `${minutes} นาที ${seconds} วิ` : `${minutes} นาที`;
+      else text = `${seconds} วิ`;
+      return { isExpired: false, text: `อีก ${text}`, remainingMs: diffMs };
     }
-
-    return { isExpired: false, text: `อีก ${text}`, remainingMs: diffMs };
   } catch {
-    return { isExpired: false, text: `ปิด ${cutoffTimeStr} น.`, remainingMs: 0 };
+    const fallback = lang === "en" ? `Closes at ${cutoffTimeStr}` : lang === "cn" ? `截止时间 ${cutoffTimeStr}` : `ปิด ${cutoffTimeStr} น.`;
+    return { isExpired: false, text: fallback, remainingMs: 0 };
   }
 }
 
