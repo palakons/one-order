@@ -11,12 +11,17 @@ interface Props {
 async function DeliveryDataLoader({ params }: Props) {
   await connection();
   const { id } = await params;
-  // Fetch sanitized batch details (masks phone numbers, strips private slips)
-  const batch = await getBatchById(id, true);
-  if (!batch) {
+  try {
+    // Fetch sanitized batch details (masks phone numbers, strips private slips)
+    const batch = await getBatchById(id, true);
+    if (!batch) {
+      notFound();
+    }
+    return <DeliveryClient initialBatch={batch} batchId={id} />;
+  } catch (err) {
+    console.error("DeliveryDataLoader error:", err);
     notFound();
   }
-  return <DeliveryClient initialBatch={batch} batchId={id} />;
 }
 
 export default function DeliveryPage({ params }: Props) {

@@ -10,8 +10,13 @@ interface Props {
 async function ShopManifestLoader({ params }: Props) {
   await connection();
   const { id } = await params;
-  const initialBatch = await getBatchById(id);
-  return <ShopManifestClient batchId={id} initialBatch={initialBatch || null} />;
+  try {
+    const initialBatch = await getBatchById(id);
+    return <ShopManifestClient batchId={id} initialBatch={initialBatch || null} />;
+  } catch (err) {
+    console.error("ShopManifestLoader error:", err);
+    return <ShopManifestClient batchId={id} initialBatch={null} />;
+  }
 }
 
 export default function ShopManifestPage({ params }: Props) {

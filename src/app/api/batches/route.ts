@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { getBatches, createBatch } from "@/lib/store";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const batches = await getBatches();
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get("role");
+    const sanitize = role !== "shop" && role !== "host";
+    const batches = await getBatches(sanitize);
     return NextResponse.json({ success: true, batches });
   } catch (error) {
     console.error("Failed to fetch batches:", error);

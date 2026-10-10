@@ -5,11 +5,16 @@ import AdminClient from "./AdminClient";
 
 async function AdminDataLoader() {
   await connection();
-  const [batches, shops] = await Promise.all([
-    getBatches(),
-    getShops(),
-  ]);
-  return <AdminClient initialBatches={batches} initialShops={shops} />;
+  try {
+    const [batches, shops] = await Promise.all([
+      getBatches(),
+      getShops(),
+    ]);
+    return <AdminClient initialBatches={batches} initialShops={shops} />;
+  } catch (err) {
+    console.error("AdminDataLoader error:", err);
+    return <AdminClient initialBatches={[]} initialShops={[]} />;
+  }
 }
 
 export default function AdminPage() {

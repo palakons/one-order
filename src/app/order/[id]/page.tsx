@@ -10,8 +10,13 @@ interface Props {
 async function OrderPageLoader({ params }: Props) {
   await connection();
   const { id } = await params;
-  const initialBatch = await getBatchById(id);
-  return <OrderPageClient batchId={id} initialBatch={initialBatch || null} />;
+  try {
+    const initialBatch = await getBatchById(id);
+    return <OrderPageClient batchId={id} initialBatch={initialBatch || null} />;
+  } catch (err) {
+    console.error("OrderPageLoader error:", err);
+    return <OrderPageClient batchId={id} initialBatch={null} />;
+  }
 }
 
 export default function OrderPage({ params }: Props) {

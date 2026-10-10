@@ -291,14 +291,40 @@ function cleanForFirestore<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
 }
 
-async function ensureFirestoreSeeded(): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+// Timeout helper to ensure Firestore never hangs serverless function execution
+async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Firestore query timed out after ${ms}ms`));
+    }, ms);
+  });
   try {
-    for (const shop of SEED_DATA.shops) {
-      await setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), { merge: true });
-    }
-    for (const batch of SEED_DATA.batches) {
-      await setDoc(doc(db, "batches", batch.id), cleanForFirestore(batch), { merge: true });
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timer!);
+    return result;
+  } catch (err) {
+    clearTimeout(timer!);
+    throw err;
+  }
+}
+
+let hasAttemptedSeed = false;
+export async function ensureFirestoreSeeded(): Promise<void> {
+  if (!isFirebaseConfigured || !db || hasAttemptedSeed) return;
+  const firestore = db;
+  hasAttemptedSeed = true;
+  try {
+    const testSnap = await withTimeout(getDocs(collection(firestore, "shops")), 2000);
+    if (testSnap.empty) {
+      await Promise.all([
+        ...SEED_DATA.shops.map((shop) =>
+          withTimeout(setDoc(doc(firestore, "shops", shop.id), cleanForFirestore(shop), { merge: true }), 3000)
+        ),
+        ...SEED_DATA.batches.map((batch) =>
+          withTimeout(setDoc(doc(firestore, "batches", batch.id), cleanForFirestore(batch), { merge: true }), 3000)
+        ),
+      ]);
     }
   } catch (err) {
     console.warn("Firestore seed check warning:", err);
@@ -311,9 +337,10 @@ async function ensureFirestoreSeeded(): Promise<void> {
 export async function getShops(): Promise<Shop[]> {
   if (isFirebaseConfigured && db) {
     try {
-      await ensureFirestoreSeeded();
-      const snap = await getDocs(collection(db, "shops"));
-      return snap.docs.map((d) => d.data() as Shop);
+      const snap = await withTimeout(getDocs(collection(db, "shops")), 2000);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as Shop);
+      }
     } catch (err) {
       console.warn("Firestore getShops failed, using local fallback:", err);
     }
@@ -326,7 +353,7 @@ export async function getShops(): Promise<Shop[]> {
 export async function getShopById(id: string): Promise<Shop | undefined> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await getDoc(doc(db, "shops", id));
+      const snap = await withTimeout(getDoc(doc(db, "shops", id)), 2000);
       if (snap.exists()) return snap.data() as Shop;
     } catch (err) {
       console.warn("Firestore getShopById failed, using local fallback:", err);
@@ -340,7 +367,7 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
 export async function saveShop(shop: Shop): Promise<Shop> {
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop));
+      await withTimeout(setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop)), 2500);
       return shop;
     } catch (err) {
       console.warn("Firestore saveShop failed, using local fallback:", err);
@@ -385,20 +412,24 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
 
   if (isFirebaseConfigured && db) {
     try {
-      await ensureFirestoreSeeded();
-      const [batchesSnap, ordersSnap, shopsSnap] = await Promise.all([
-        getDocs(collection(db, "batches")),
-        getDocs(collection(db, "orders")),
-        getDocs(collection(db, "shops")),
-      ]);
-
-      const batches = batchesSnap.docs.map((d) => d.data() as Batch);
-      const orders = ordersSnap.docs.map((d) => d.data() as Order);
-      const shops = shopsSnap.docs.map((d) => d.data() as Shop);
-
-      result = batches.map((b) =>
-        enrichBatchFromData(b, shops, orders.filter((o) => o.batchId === b.id))
+      const [batchesSnap, ordersSnap, shopsSnap] = await withTimeout(
+        Promise.all([
+          getDocs(collection(db, "batches")),
+          getDocs(collection(db, "orders")),
+          getDocs(collection(db, "shops")),
+        ]),
+        2500
       );
+
+      if (!batchesSnap.empty) {
+        const batches = batchesSnap.docs.map((d) => d.data() as Batch);
+        const orders = ordersSnap.docs.map((d) => d.data() as Order);
+        const shops = shopsSnap.docs.map((d) => d.data() as Shop);
+
+        result = batches.map((b) =>
+          enrichBatchFromData(b, shops, orders.filter((o) => o.batchId === b.id))
+        );
+      }
     } catch (err) {
       console.warn("Firestore getBatches failed, using local fallback:", err);
     }
@@ -417,13 +448,16 @@ export async function getBatchById(id: string, sanitize = false): Promise<BatchW
 
   if (isFirebaseConfigured && db) {
     try {
-      const batchSnap = await getDoc(doc(db, "batches", id));
+      const batchSnap = await withTimeout(getDoc(doc(db, "batches", id)), 2000);
       if (batchSnap.exists()) {
         const batch = batchSnap.data() as Batch;
-        const [ordersSnap, shopsSnap] = await Promise.all([
-          getDocs(collection(db, "orders")),
-          getDocs(collection(db, "shops")),
-        ]);
+        const [ordersSnap, shopsSnap] = await withTimeout(
+          Promise.all([
+            getDocs(collection(db, "orders")),
+            getDocs(collection(db, "shops")),
+          ]),
+          2000
+        );
         const orders = ordersSnap.docs
           .map((d) => d.data() as Order)
           .filter((o) => o.batchId === id);
@@ -501,7 +535,7 @@ export async function createBatch(batchData: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "batches", id), cleanForFirestore(newBatch));
+      await withTimeout(setDoc(doc(db, "batches", id), cleanForFirestore(newBatch)), 2500);
       const shops = await getShops();
       return enrichBatchFromData(newBatch, shops, []);
     } catch (err) {
@@ -530,7 +564,7 @@ export async function updateBatchStatus(
 
   if (isFirebaseConfigured && db) {
     try {
-      await updateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload));
+      await withTimeout(updateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload)), 2500);
       return getBatchById(batchId);
     } catch (err) {
       console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
@@ -569,7 +603,7 @@ export async function createOrder(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await getDocs(collection(db, "orders"));
+      const snap = await withTimeout(getDocs(collection(db, "orders")), 2000);
       existingOrders = snap.docs
         .map((d) => d.data() as Order)
         .filter((o) => o.batchId === input.batchId && !o.deletedAt);
@@ -615,7 +649,7 @@ export async function createOrder(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder));
+      await withTimeout(setDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder)), 2500);
       return newOrder;
     } catch (err) {
       console.error("Firestore createOrder failed, using local fallback:", err);
@@ -636,12 +670,15 @@ export async function deleteOrder(
   if (isFirebaseConfigured && db) {
     try {
       const orderRef = doc(db, "orders", orderId);
-      const snap = await getDoc(orderRef);
+      const snap = await withTimeout(getDoc(orderRef), 2000);
       if (snap.exists()) {
-        await updateDoc(orderRef, {
-          deletedAt: new Date().toISOString(),
-          deletedReason: `${reason} (by ${by})`,
-        });
+        await withTimeout(
+          updateDoc(orderRef, {
+            deletedAt: new Date().toISOString(),
+            deletedReason: `${reason} (by ${by})`,
+          }),
+          2500
+        );
         return true;
       }
     } catch (err) {
@@ -663,7 +700,7 @@ export async function deleteOrder(
 export async function getSuggestions(): Promise<Suggestion[]> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await getDocs(collection(db, "suggestions"));
+      const snap = await withTimeout(getDocs(collection(db, "suggestions")), 2000);
       const list = snap.docs.map((d) => d.data() as Suggestion);
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (err) {
@@ -695,7 +732,7 @@ export async function createSuggestion(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion));
+      await withTimeout(setDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion)), 2500);
       return newSuggestion;
     } catch (err) {
       console.error("Firestore createSuggestion failed, using local fallback:", err);
@@ -713,7 +750,7 @@ export async function deleteSuggestion(id: string): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
       const { deleteDoc } = await import("firebase/firestore");
-      await deleteDoc(doc(db, "suggestions", id));
+      await withTimeout(deleteDoc(doc(db, "suggestions", id)), 2500);
       return true;
     } catch (err) {
       console.warn("Firestore deleteSuggestion failed:", err);
@@ -739,7 +776,7 @@ export async function getActiveLineGroupIds(): Promise<string[]> {
 
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await getDoc(doc(db, "system", "line_config"));
+      const snap = await withTimeout(getDoc(doc(db, "system", "line_config")), 2000);
       if (snap.exists()) {
         const data = snap.data();
         if (Array.isArray(data.groupIds)) {
@@ -766,17 +803,20 @@ export async function saveActiveLineGroupId(groupId: string): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
       const ref = doc(db, "system", "line_config");
-      const snap = await getDoc(ref);
+      const snap = await withTimeout(getDoc(ref), 2000);
       const existing: string[] = snap.exists() ? (snap.data().groupIds || []) : [];
       const updated = Array.from(new Set([...existing, cleanId]));
-      await setDoc(
-        ref,
-        {
-          activeGroupId: cleanId,
-          groupIds: updated,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
+      await withTimeout(
+        setDoc(
+          ref,
+          {
+            activeGroupId: cleanId,
+            groupIds: updated,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        ),
+        2500
       );
     } catch (err) {
       console.warn("Firestore saveActiveLineGroupId failed:", err);
