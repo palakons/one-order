@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async redirects() {
+    return [
+      {
+        source: "/leader/:id",
+        destination: "/order/:id/leader",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

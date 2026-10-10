@@ -35,7 +35,7 @@ export const translations = {
     freeDeliveryUnlockedSub: "ส่งฟรีถึงตึกแน่นอน ✅",
     needMore: "ขาดอีก",
     viewMenuOrder: "ดูเมนู & สั่งข้าว",
-    deliveryPointBanner: "จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 อาคาร M4 (ส่งพร้อมกันทุกร้านช่วง 11:30 - 12:00)",
+    deliveryPointBanner: "จุดส่งอาหาร: อาคาร M4 ชั้น 1 (ส่งพร้อมกันทุกร้านช่วง 11:30 - 12:00)",
     ordersCount: "ออเดอร์",
     noOrdersYet: "ยังไม่มีออเดอร์ เป็นคนแรกเลย!",
     orderBoxCount: "{count} กล่อง",

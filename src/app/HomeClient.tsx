@@ -504,7 +504,7 @@ export default function HomeClient({ initialBatches }: Props) {
       txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
       txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
     } else {
-      txt += `\n🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} (โต๊ะส่งอาหาร Delivery ชั้น 1)\n`;
+      txt += `\n🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} ชั้น 1\n`;
     }
     if (leaderPhone || leaderLine) {
       txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
@@ -835,7 +835,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
                     <div className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 font-medium shadow-2xs">
                       <MapPin className="h-3 w-3 text-emerald-700" />
-                      <span>จุดส่ง: <strong>{activeBatch.buildingName || "ตึก M4"}</strong> (โต๊ะส่งอาหาร Delivery)</span>
+                      <span>จุดส่ง: <strong>{activeBatch.buildingName || "ตึก M4"} ชั้น 1</strong></span>
                     </div>
                   </div>
                 </div>
@@ -850,7 +850,7 @@ export default function HomeClient({ initialBatches }: Props) {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-colors shadow-2xs"
                     >
                       <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                      <span>Google Maps ↗</span>
+                      <span>ดูเมนูจาก Maps ↗</span>
                     </a>
                   )}
                   <button
@@ -872,9 +872,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     <span className="text-slate-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
                   </span>
                   <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
-                    {activeBatch.isMinMet
-                      ? `🎉 ครบยอดส่งฟรีที่${activeBatch.buildingName || "ตึก M4"} แล้ว!`
-                      : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`}
+                    {activeBatch.isMinMet ? "🎉 ครบยอดส่งฟรีแล้ว!" : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`}
                   </span>
                 </div>
 
@@ -894,105 +892,41 @@ export default function HomeClient({ initialBatches }: Props) {
                     <Clock className="h-3 w-3 text-purple-900" />
                     <span>{timeInfo?.text} (Cutoff: {activeBatch.cutoffTime} น.)</span>
                   </span>
-                  <span className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    <MapPin className="h-3 w-3 text-emerald-700" />
-                    <span>ส่งที่: โต๊ะส่งอาหาร Delivery ชั้น 1 {activeBatch.buildingName || "ตึก M4"}</span>
-                  </span>
                 </div>
               </div>
             </div>
 
-            {/* 3. Slip-Gated "Send to Shop" Action Bar & Self-Pickup Option */}
-            <div className="space-y-2.5">
-              {/* Self-Pickup Option when minimum goal is not met */}
-              {!activeBatch.isMinMet && (
-                <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-start gap-2">
-                    <span className="text-base mt-0.5">🚶</span>
-                    <div>
-                      <h4 className="font-bold text-xs text-amber-950">
-                        ยอดสั่งยังไม่ถึงเป้าส่งฟรี (ขาดอีก ฿{activeBatch.amountRemaining})
-                      </h4>
-                      <p className="text-[11px] text-amber-800">
-                        หัวหน้าตี้สามารถเลือกสั่งแบบ <strong>"ไปรับเองหน้าร้าน (Self-Pickup)"</strong> เพื่อส่งออเดอร์ให้ร้านทำอาหารได้เลย
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      requireHostAuth(() => {
-                        setIsSelfPickup(!isSelfPickup);
-                      });
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-2xs self-start sm:self-auto ${
-                      isSelfPickup
-                        ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400"
-                        : "bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/50"
-                    }`}
-                  >
-                    <Check className={`h-3.5 w-3.5 ${isSelfPickup ? "opacity-100" : "opacity-0"}`} />
-                    <span>{isSelfPickup ? "✓ เลือกรับเองหน้าร้านแล้ว" : "เปลี่ยนเป็น: รับเองหน้าร้าน"}</span>
-                  </button>
+            {/* 3. Leader Portal Banner */}
+            <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-950 via-purple-900 to-indigo-950 p-4 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-purple-950 font-black text-xl shrink-0 shadow-xs">
+                  👑
                 </div>
-              )}
-
-              <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-block h-2 w-2 rounded-full ${allSlipsVerified ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-                    <span className="text-xs font-black text-slate-900">
-                      {allSlipsVerified
-                        ? isSelfPickup
-                          ? "สลิปครบ 100% แล้ว พร้อมส่งร้านแบบรับเองหน้าร้าน! 🚶"
-                          : "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
-                        : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
-                    </span>
-                  </div>
-                  {!allSlipsVerified && missingSlipOrders.length > 0 && (
-                    <p className="text-[11px] text-amber-800 font-medium mt-0.5">
-                      รอสลิปจาก: <strong>{missingSlipOrders.map((o) => o.customerLineId || o.customerName).join(", ")}</strong>
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Close Board button for Leader */}
-                  <button
-                    type="button"
-                    onClick={handleCloseBoard}
-                    className="rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 py-2 text-xs font-bold transition-colors flex items-center gap-1"
-                    title="ปิดรับออเดอร์ (เฉพาะหัวหน้าตี้)"
-                  >
-                    <Lock className="h-3.5 w-3.5 text-slate-500" />
-                    <span>ปิดรับออเดอร์</span>
-                  </button>
-
-                  {allSlipsVerified ? (
-                    <button
-                      type="button"
-                      onClick={handleOpenSendModal}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-xl text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto ${
-                        isSelfPickup
-                          ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/10"
-                          : "bg-purple-900 hover:bg-purple-800"
-                      }`}
-                    >
-                      <Send className="h-4 w-4" />
-                      <span>
-                        {isSelfPickup
-                          ? "🚶 รวมส่งร้านแบบรับเอง (Self-Pickup)"
-                          : "🚀 รวมส่งร้าน (Send to Shop)"}
+                    <h3 className="font-bold text-sm">แผงควบคุมหัวหน้าตี้ (Leader Portal)</h3>
+                    {activeBatch.status === "ORDERED" ? (
+                      <span className="text-[10px] font-bold bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full">
+                        🚀 ส่งร้านแล้ว
                       </span>
-                    </button>
-                  ) : (
-                    <span className="inline-block text-[11px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                      ปุ่มจะเปิดเมื่อสลิปครบทุกกล่อง
-                    </span>
-                  )}
+                    ) : activeBatch.isSelfPickup ? (
+                      <span className="text-[10px] font-bold bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
+                        🚶 รับเองหน้าร้าน
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-purple-200 mt-0.5">
+                    สำหรับหัวหน้าตี้: รวมส่งร้านค้า, ปรับเป็นรับเองหน้าร้าน หรือปิดรับออเดอร์
+                  </p>
                 </div>
               </div>
+
+              <Link
+                href={`/order/${activeBatch.id}/leader`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 font-black px-4 py-2.5 text-xs shadow-md transition-all active:scale-95 shrink-0"
+              >
+                <span>เข้าแผงควบคุมหัวหน้าตี้ ↗</span>
+              </Link>
             </div>
 
             {/* 4. The Live Whiteboard Table */}
@@ -1816,74 +1750,6 @@ export default function HomeClient({ initialBatches }: Props) {
                       <span>เปิดกระดานทันที</span>
                     </>
                   )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 9. Host PIN Verification Modal (Light Security) */}
-      {showPinModal && activeBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-900">
-                  <Key className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">ยืนยันสิทธิ์หัวหน้าตี้ (Host PIN)</h3>
-                  <p className="text-[11px] text-slate-500">กรอก PIN 4 หลักเพื่อดำเนินการ</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPinModal(false)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVerifyPin} className="space-y-3">
-              {pinError && (
-                <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-800">
-                  {pinError}
-                </div>
-              )}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">
-                  PIN 4 หลัก (หรือ 4 ตัวท้ายของเบอร์โทรหัวหน้าตี้):
-                </label>
-                <input
-                  type="password"
-                  maxLength={6}
-                  value={enteredPin}
-                  onChange={(e) => setEnteredPin(e.target.value)}
-                  placeholder="เช่น 1234"
-                  autoFocus
-                  required
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-lg font-mono font-bold tracking-widest text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
-                />
-                <p className="text-[10px] text-slate-400 text-center">
-                  👑 หัวหน้าตี้: {leaderLine}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowPinModal(false)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-4 py-1.5 text-xs font-bold shadow-xs"
-                >
-                  ยืนยัน PIN
                 </button>
               </div>
             </form>

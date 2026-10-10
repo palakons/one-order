@@ -177,7 +177,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           }`
       ),
       `---------------------------------`,
-      `📍 จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ${buildingName}`,
+      `📍 จุดส่งอาหาร: ${buildingName} ชั้น 1`,
       `👑 หัวหน้าตี้ / ผู้ประสานงาน: ${leaderLine}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}`,
     ];
     navigator.clipboard.writeText(lines.join("\n"));
@@ -563,7 +563,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           <div className="mt-6 pt-4 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-emerald-950">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-              <span>จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 {buildingName}</span>
+              <span>จุดส่งอาหาร: {buildingName} ชั้น 1</span>
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
               <span>👑 หัวหน้าตี้: <strong>{leaderLine}</strong></span>

@@ -10,10 +10,14 @@ export async function GET(
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const isShopRole = searchParams.get("role") === "shop" || request.headers.get("x-view-role") === "shop";
+    const isPrivilegedRole =
+      searchParams.get("role") === "shop" ||
+      searchParams.get("role") === "leader" ||
+      request.headers.get("x-view-role") === "shop" ||
+      request.headers.get("x-view-role") === "leader";
 
-    // Sanitize unless specifically requested by shop manifest role
-    const batch = await getBatchById(id, !isShopRole);
+    // Sanitize unless specifically requested by shop or leader role
+    const batch = await getBatchById(id, !isPrivilegedRole);
     if (!batch) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 400 });
     }

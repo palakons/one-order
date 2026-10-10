@@ -169,7 +169,7 @@ export async function generateOneLongManifestImage(
   if (isSelfPickup) {
     ctx.fillText(`🚶 รูปแบบ: รับเองหน้าร้าน (Self-Pickup) • ลูกค้าไปรับเองที่ร้าน`, padding + 16, 133);
   } else {
-    ctx.fillText(`📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${bldg}`, padding + 16, 133);
+    ctx.fillText(`📍 จุดส่ง: ${bldg} ชั้น 1`, padding + 16, 133);
   }
 
   // Sub metadata
