@@ -714,6 +714,34 @@ export default function HomeClient({ initialBatches }: Props) {
 
   const activeShopInfo = activeBatch ? getShopLocalizedInfo(activeBatch.shop, lang) : null;
   const activeBuildingName = activeBatch ? getLocalizedBuildingName(activeBatch.buildingName || "ตึก M4", lang) : "";
+  const activeLocation = activeBatch
+    ? CAMPUS_LOCATIONS.find((l) => l.id === activeBatch.buildingId) || CAMPUS_LOCATIONS[0]
+    : CAMPUS_LOCATIONS[0];
+  const activeLocalizedLocation = getLocalizedLocation(activeLocation, lang);
+
+  const timeProgressPercent = useMemo(() => {
+    if (!activeBatch || !timeInfo) return 0;
+    if (timeInfo.isExpired) return 0;
+    let startMs = activeBatch.createdAt ? new Date(activeBatch.createdAt).getTime() : 0;
+    let cutoffMs = 0;
+    if (activeBatch.date && /^\d{4}-\d{2}-\d{2}$/.test(activeBatch.date)) {
+      cutoffMs = new Date(`${activeBatch.date}T${activeBatch.cutoffTime}:00+07:00`).getTime();
+    } else {
+      const bkkDateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      cutoffMs = new Date(`${bkkDateStr}T${activeBatch.cutoffTime}:00+07:00`).getTime();
+    }
+    if (!startMs || cutoffMs - startMs > 4 * 3600 * 1000 || startMs >= cutoffMs) {
+      startMs = cutoffMs - 60 * 60 * 1000;
+    }
+    const totalDuration = Math.max(1, cutoffMs - startMs);
+    const remaining = Math.max(0, Math.min(totalDuration, timeInfo.remainingMs));
+    return Math.min(100, Math.max(0, (remaining / totalDuration) * 100));
+  }, [activeBatch, timeInfo]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
@@ -844,113 +872,159 @@ export default function HomeClient({ initialBatches }: Props) {
           </div>
         ) : activeBatch ? (
           <div className="space-y-4">
-            {/* 2. Active Whiteboard Header Box */}
-            <div className="rounded-2xl border border-slate-300 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-200">
+            {/* 2. Order Pane Header: 3 Compact Cards (Shop, Drop-off, Leader) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Card 1: Shop */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 truncate">
                       {activeShopInfo?.cuisine || activeBatch.shop.cuisine}
                     </span>
-                    <span className="text-xs text-slate-500 font-semibold">
-                      {t.orderDate}: {activeBatch.date}
+                    <span className="text-[11px] text-slate-400 font-mono font-medium shrink-0">
+                      {activeBatch.date}
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-950 mt-1">
+                  <h2 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
                     {activeShopInfo?.name || activeBatch.shop.name}
                   </h2>
-                  <p className="text-xs text-slate-600 max-w-xl mt-0.5">
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                     {activeShopInfo?.description || activeBatch.shop.description}
                   </p>
-
-                  {/* Leader Contact & Building Info */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
-                    <div className="flex flex-wrap items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-purple-950 font-medium shadow-2xs">
-                      <span className="text-amber-500 font-bold">👑</span>
-                      <span>{t.leader}: <strong>{leaderLine || t.noLeader}</strong></span>
-                      {leaderPhone ? (
-                        <a
-                          href={`tel:${leaderPhone}`}
-                          className="ml-0.5 inline-flex items-center gap-1 rounded bg-purple-900 text-white px-2 py-0.5 text-[11px] font-mono font-bold hover:bg-purple-800 transition-colors shadow-2xs"
-                          title="แตะเพื่อโทรหาหัวหน้าตี้กรณีมีปัญหา"
-                        >
-                          <Phone className="h-2.5 w-2.5" />
-                          <span>{t.callLeader}: {leaderPhone}</span>
-                        </a>
-                      ) : null}
-
-                      {/* Subtle Board Managing Button */}
-                      <Link
-                        href={`/order/${activeBatch.id}/leader`}
-                        className="ml-1 inline-flex items-center gap-1 rounded border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
-                        title={t.manageBoard}
-                      >
-                        <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700" />
-                        <span>{t.manageBoard}</span>
-                      </Link>
-
-                      {activeBatch.status === "ORDERED" && (
-                        <span className="inline-flex items-center gap-1 rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
-                          {t.sentToShopBadge}
-                        </span>
-                      )}
-                      {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
-                          {t.selfPickupBadge}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 font-medium shadow-2xs">
-                      <MapPin className="h-3 w-3 text-emerald-700" />
-                      <span>{t.dropoffPoint}: <strong>{activeBuildingName} {t.floor1}</strong></span>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Google Maps & PromptPay Buttons */}
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                   {activeBatch.shop.gmapUrl && (
                     <a
                       href={activeBatch.shop.gmapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-700 transition-colors"
+                      title={t.viewMenuMaps}
                     >
-                      <MapPin className="h-3.5 w-3.5 text-rose-600" />
+                      <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
                       <span>{t.viewMenuMaps}</span>
                     </a>
                   )}
                   <button
                     type="button"
                     onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 text-[11px] font-bold text-purple-900 transition-colors"
                   >
-                    <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                    <CreditCard className="h-3 w-3 text-purple-700 shrink-0" />
                     <span>{t.viewShopPromptPay}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Progress & Cutoff Status Row */}
-              <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-800">
-                    {t.currentTotal}: <strong className="text-sm font-black text-purple-950">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
-                    <span className="text-slate-400 font-normal ml-1">({totalBoxesInBatch} {t.boxesCount})</span>
+              {/* Card 2: Drop off location */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-emerald-600" />
+                      <span>{t.dropoffPoint}</span>
+                    </span>
+                    <span className="rounded bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[10px] font-mono font-bold">
+                      {activeLocation.shortCode || "M4"}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
+                    {activeBuildingName}
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    {activeLocalizedLocation.deskDetail}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                    <span>🛵</span>
+                    <span>{lang === "en" ? "Rider drops order at this desk" : lang === "cn" ? "外卖骑手送达至此取餐台" : "ไรเดอร์จะนำข้าวมาวางไว้ที่โต๊ะนี้"}</span>
                   </span>
+                </div>
+              </div>
+
+              {/* Card 3: Leader */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-purple-950 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
+                      <span className="text-amber-500 font-bold">👑</span>
+                      <span>{t.leader}</span>
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      {activeBatch.status === "ORDERED" && (
+                        <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
+                          {t.sentToShopBadge}
+                        </span>
+                      )}
+                      {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && (
+                        <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
+                          {t.selfPickupBadge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1">
+                    {leaderLine || t.noLeader}
+                  </h3>
+
+                  {leaderPhone ? (
+                    <a
+                      href={`tel:${leaderPhone}`}
+                      className="inline-flex items-center gap-1 text-xs font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline"
+                    >
+                      <Phone className="h-3 w-3 text-purple-700" />
+                      <span>{leaderPhone}</span>
+                    </a>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      {lang === "en" ? "No phone provided" : lang === "cn" ? "未留电话" : "ไม่มีเบอร์ติดต่อ"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <Link
+                    href={`/order/${activeBatch.id}/leader`}
+                    className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-950 px-2.5 py-1 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
+                    title={t.manageBoard}
+                  >
+                    <SlidersHorizontal className="h-3 w-3 text-purple-700" />
+                    <span>{t.manageBoard}</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3.5">
+              {/* Bar 1: Price / Order Starter Filling Bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-800 flex items-center gap-1.5">
+                    <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
+                    <span>
+                      {t.currentTotal}: <strong className="text-sm font-black text-slate-950 font-mono">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
+                    </span>
+                    <span className="text-slate-400 font-normal">({totalBoxesInBatch} {t.boxesCount})</span>
+                  </span>
+
                   <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
                     {activeBatch.isMinMet
                       ? t.freeGoalReached
                       : (lang === "en"
-                          ? `฿${activeBatch.amountRemaining} more for free delivery`
+                          ? `฿${activeBatch.amountRemaining} more to free delivery`
                           : lang === "cn"
-                          ? `还差 ฿${activeBatch.amountRemaining} 免配送费`
+                          ? `还差 ฿${activeBatch.amountRemaining} 免运`
                           : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`)}
                   </span>
                 </div>
 
-                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
                   <div
                     className={`h-full transition-all duration-300 ${
                       activeBatch.isMinMet
@@ -960,12 +1034,52 @@ export default function HomeClient({ initialBatches }: Props) {
                     style={{ width: `${Math.min(100, (activeBatch.currentTotalAmount / activeBatch.targetMinAmount) * 100)}%` }}
                   />
                 </div>
+              </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-semibold text-slate-600">
-                  <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
-                    <Clock className="h-3 w-3 text-purple-900" />
-                    <span>{timeInfo?.text} (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""})</span>
+              {/* Bar 2: Time Left Bar */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-800 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-purple-900" />
+                    <span>
+                      {lang === "en" ? "Time Left:" : lang === "cn" ? "剩余时间:" : "เวลาที่เหลือ:"}{" "}
+                      <strong className="text-sm font-black text-slate-950 font-mono">
+                        {timeInfo?.text}
+                      </strong>
+                    </span>
+                    <span className="text-slate-500 font-normal text-[11px]">
+                      (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""})
+                    </span>
                   </span>
+
+                  <span>
+                    {isBatchClosed ? (
+                      <span className="rounded-md bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
+                        {lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรับแล้ว"}
+                      </span>
+                    ) : timeInfo?.remainingMs && timeInfo.remainingMs <= 15 * 60 * 1000 ? (
+                      <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-bold animate-pulse">
+                        {lang === "en" ? "Closing Soon" : lang === "cn" ? "即将截止" : "ใกล้ปิดรอบ"}
+                      </span>
+                    ) : (
+                      <span className="rounded-md bg-purple-100 text-purple-900 px-2 py-0.5 text-[10px] font-bold">
+                        {lang === "en" ? "Accepting Orders" : lang === "cn" ? "接单中" : "กำลังเปิดรับ"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      timeInfo?.isExpired
+                        ? "bg-slate-300"
+                        : timeProgressPercent <= 25
+                        ? "bg-linear-to-r from-amber-500 to-rose-500"
+                        : "bg-linear-to-r from-purple-800 to-purple-600"
+                    }`}
+                    style={{ width: `${timeInfo?.isExpired ? 100 : timeProgressPercent}%` }}
+                  />
                 </div>
               </div>
             </div>
