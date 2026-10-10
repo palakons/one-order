@@ -906,20 +906,32 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
                 {slipVerification && (
                   <div
-                    className={`rounded-xl p-3 text-xs flex items-center gap-2 font-bold ${
+                    className={`rounded-xl p-3 text-xs flex items-center gap-2.5 font-bold ${
                       slipVerification.isValid
                         ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                        : "bg-amber-100 text-amber-900 border border-amber-300"
+                        : "bg-blue-50 text-blue-900 border border-blue-200"
                     }`}
                   >
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <div>
+                    <CheckCircle2 className={`h-4 w-4 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
+                    <div className="space-y-0.5">
                       {slipVerification.isValid ? (
-                        <span>
-                          ✓ ตรวจพบสลิปธนาคาร <strong>{slipVerification.bankName}</strong> (Ref: {slipVerification.transRef})
-                        </span>
+                        <>
+                          <div>
+                            ✓ ตรวจพบสลิปธนาคาร <strong>{slipVerification.bankName}</strong>
+                          </div>
+                          {slipVerification.transRef && (
+                            <div className="text-[11px] font-mono text-emerald-800">
+                              รหัสสลิป (Ref): {slipVerification.transRef}
+                            </div>
+                          )}
+                        </>
                       ) : (
-                        <span>{slipVerification.error || "แนบรูปสลิปเรียบร้อย"}</span>
+                        <>
+                          <div>📷 แนบรูปสลิปเรียบร้อยแล้ว</div>
+                          <div className="text-[11px] font-normal text-blue-800">
+                            {slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ — สามารถกดบันทึกออเดอร์ได้ตามปกติ"}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

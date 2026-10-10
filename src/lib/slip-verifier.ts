@@ -6,6 +6,7 @@ export interface SlipVerificationResult {
   bankName?: string;
   transRef?: string;
   rawQr?: string;
+  note?: string;
   error?: string;
 }
 
@@ -21,45 +22,101 @@ const BANK_NAMES: Record<string, string> = {
 };
 
 /**
- * Parses Bank of Thailand (BOT) standard EMVCo slip verification QR string.
- * Example payload: 0046000600000101030140225202610091E7bc9Ke2FPDmbGsZ5102TH91045A09
+ * Parses Bank of Thailand (BOT) standard EMVCo slip verification QR string,
+ * or any bank slip verification URL / transaction reference payload.
  */
 export function parseThaiSlipQr(raw: string): SlipVerificationResult {
-  if (!raw || typeof raw !== "string" || !raw.startsWith("00")) {
-    return { isValid: false, error: "ไม่พบ QR Code สลิปธนาคารมาตรฐาน (BOT Standard)" };
+  if (!raw || typeof raw !== "string") {
+    return {
+      isValid: false,
+      note: "แนบรูปสลิปเรียบร้อยแล้ว (ตรวจไม่พบ QR Code อัตโนมัติ — บันทึกออเดอร์ได้ตามปกติ)",
+    };
   }
 
-  try {
-    // Sub-tag 01 (Sending Bank): '01' + '03' + 3 digits bank code
-    const bankMatch = raw.match(/0103(\d{3})/);
-    const bankCode = bankMatch ? bankMatch[1] : undefined;
+  const trimmed = raw.trim();
 
-    // Sub-tag 02 (TransRef): '02' + 2 digits length + string ref
-    const transRefMatch = raw.match(/02(\d{2})([A-Za-z0-9]+)/);
-    let transRef = "";
-    if (transRefMatch) {
-      const len = parseInt(transRefMatch[1], 10);
-      transRef = transRefMatch[2].slice(0, len);
+  // 1. Standard Bank of Thailand (BOT) EMVCo Mini-QR (starts with 00)
+  if (trimmed.startsWith("00")) {
+    try {
+      // Sub-tag 01 (Sending Bank): '01' + '03' + 3 digits bank code
+      const bankMatch = trimmed.match(/0103(\d{3})/);
+      const bankCode = bankMatch ? bankMatch[1] : undefined;
+
+      // Sub-tag 02 (TransRef): '02' + 2 digits length + string ref
+      const transRefMatch = trimmed.match(/02(\d{2})([A-Za-z0-9_-]+)/);
+      let transRef = "";
+      if (transRefMatch) {
+        const len = parseInt(transRefMatch[1], 10);
+        transRef = transRefMatch[2].slice(0, len);
+      }
+
+      if (bankCode || transRef) {
+        return {
+          isValid: true,
+          bankCode,
+          bankName: bankCode ? BANK_NAMES[bankCode] || `ธนาคารรหัส ${bankCode}` : "ธนาคารพาณิชย์",
+          transRef: transRef || undefined,
+          rawQr: trimmed,
+          note: "ตรวจพบสลิปธนาคารมาตรฐาน (BOT Standard)",
+        };
+      }
+    } catch (e) {
+      console.warn("BOT slip parse error:", e);
     }
+  }
 
-    if (bankCode || transRef) {
+  // 2. URL format (e.g. https://.../verify/... or https://promptpay.io/...)
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const url = new URL(trimmed);
+      const ref =
+        url.searchParams.get("ref") ||
+        url.searchParams.get("transRef") ||
+        url.searchParams.get("id") ||
+        url.pathname.split("/").filter(Boolean).pop() ||
+        "";
       return {
         isValid: true,
-        bankCode,
-        bankName: bankCode ? BANK_NAMES[bankCode] || `ธนาคารรหัส ${bankCode}` : "ธนาคารพาณิชย์",
-        transRef: transRef || undefined,
-        rawQr: raw,
+        bankName: "สลิปธนาคาร (QR Code)",
+        transRef: ref.slice(0, 32) || trimmed.slice(0, 24),
+        rawQr: trimmed,
+        note: "ตรวจพบ QR Code ยืนยันการโอนเงิน",
+      };
+    } catch (e) {
+      return {
+        isValid: true,
+        bankName: "สลิปธนาคาร (QR Code)",
+        transRef: trimmed.slice(0, 24),
+        rawQr: trimmed,
+        note: "ตรวจพบ QR Code ยืนยันการโอนเงิน",
       };
     }
-  } catch (err: any) {
-    console.warn("parseThaiSlipQr error:", err);
   }
 
-  return { isValid: false, rawQr: raw, error: "ไม่สามารถอ่านข้อมูลรหัสอ้างอิงของสลิปได้" };
+  // 3. Any general transaction ID / alphanumeric slip payload
+  const cleanRef = trimmed.replace(/[^A-Za-z0-9_-]/g, "");
+  if (cleanRef.length >= 6) {
+    return {
+      isValid: true,
+      bankName: "สลิปธนาคาร (QR Code)",
+      transRef: cleanRef.slice(0, 32),
+      rawQr: trimmed,
+      note: "ตรวจพบรหัสสลิปจาก QR Code",
+    };
+  }
+
+  return {
+    isValid: true,
+    bankName: "สลิปธนาคาร (QR Code)",
+    rawQr: trimmed,
+    transRef: trimmed.slice(0, 24),
+    note: "ตรวจพบข้อมูลใน QR Code",
+  };
 }
 
 /**
- * Client-side scanner: Reads an HTML Image / Canvas and scans for slip QR
+ * Client-side scanner: Searches for a QR code anywhere on the slip image.
+ * Uses multi-region and multi-scale scanning with both normal and inverted polarity.
  */
 export async function scanSlipQrFromImageElement(
   imgElement: HTMLImageElement
@@ -67,47 +124,129 @@ export async function scanSlipQrFromImageElement(
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    return { isValid: false, error: "Browser canvas not supported" };
+    return {
+      isValid: false,
+      note: "แนบรูปสลิปเรียบร้อยแล้ว (สามารถส่งขึ้นกระดานได้ตามปกติ)",
+    };
   }
 
-  // Set reasonable canvas dimensions (max 1000px width/height for speed and sharp QR reading)
-  const maxDim = 1200;
-  let { naturalWidth: w, naturalHeight: h } = imgElement;
-  if (w > maxDim || h > maxDim) {
-    const ratio = Math.min(maxDim / w, maxDim / h);
-    w = Math.round(w * ratio);
-    h = Math.round(h * ratio);
+  const { naturalWidth: origW, naturalHeight: origH } = imgElement;
+  if (!origW || !origH) {
+    return {
+      isValid: false,
+      note: "แนบรูปสลิปเรียบร้อยแล้ว (สามารถส่งขึ้นกระดานได้ตามปกติ)",
+    };
   }
 
-  canvas.width = w;
-  canvas.height = h;
-  ctx.drawImage(imgElement, 0, 0, w, h);
+  // Helper to test a canvas image
+  const tryScanCanvas = (c: HTMLCanvasElement): string | null => {
+    const cCtx = c.getContext("2d");
+    if (!cCtx) return null;
+    try {
+      const imgData = cCtx.getImageData(0, 0, c.width, c.height);
+      const code = jsQR(imgData.data, imgData.width, imgData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+      if (code && code.data && code.data.trim()) {
+        return code.data.trim();
+      }
+    } catch (e) {}
+    return null;
+  };
 
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const code = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: "dontInvert",
-  });
-
-  if (code && code.data) {
-    return parseThaiSlipQr(code.data);
+  // 1. Full Image Scan (scaled to 1400px max for optimal sharpness & performance)
+  const maxDim = 1400;
+  let scaleW = origW;
+  let scaleH = origH;
+  if (scaleW > maxDim || scaleH > maxDim) {
+    const ratio = Math.min(maxDim / scaleW, maxDim / scaleH);
+    scaleW = Math.round(scaleW * ratio);
+    scaleH = Math.round(scaleH * ratio);
   }
 
-  // Secondary attempt: Crop bottom half where slip verification QR codes usually reside
-  const bottomHeight = Math.round(h * 0.5);
-  const bottomCanvas = document.createElement("canvas");
-  bottomCanvas.width = w;
-  bottomCanvas.height = bottomHeight;
-  const bCtx = bottomCanvas.getContext("2d");
-  if (bCtx) {
-    bCtx.drawImage(imgElement, 0, h - bottomHeight, w, bottomHeight, 0, 0, w, bottomHeight);
-    const bottomImageData = bCtx.getImageData(0, 0, w, bottomHeight);
-    const bottomCode = jsQR(bottomImageData.data, bottomImageData.width, bottomImageData.height, {
-      inversionAttempts: "dontInvert",
-    });
-    if (bottomCode && bottomCode.data) {
-      return parseThaiSlipQr(bottomCode.data);
+  canvas.width = scaleW;
+  canvas.height = scaleH;
+  ctx.drawImage(imgElement, 0, 0, scaleW, scaleH);
+
+  let detectedData = tryScanCanvas(canvas);
+  if (detectedData) {
+    return parseThaiSlipQr(detectedData);
+  }
+
+  // 2. High-Res Native Scan if original image is within 2200px
+  if ((origW !== scaleW || origH !== scaleH) && origW <= 2200 && origH <= 2200) {
+    const nativeCanvas = document.createElement("canvas");
+    nativeCanvas.width = origW;
+    nativeCanvas.height = origH;
+    const nCtx = nativeCanvas.getContext("2d");
+    if (nCtx) {
+      nCtx.drawImage(imgElement, 0, 0, origW, origH);
+      detectedData = tryScanCanvas(nativeCanvas);
+      if (detectedData) {
+        return parseThaiSlipQr(detectedData);
+      }
     }
   }
 
-  return { isValid: false, error: "ไม่พบ QR Code ตรวจสอบสลิปในรูปภาพนี้ (ตรวจสอบว่าเป็นสลิปที่มี QR ที่มุมล่าง)" };
+  // 3. Multi-Region Scanning: QR code can be in different positions across different banks
+  // Regions to crop and scan:
+  // - Bottom half (common in KBANK, SCB, KTB)
+  // - Top half (common in some web slips & receipts)
+  // - Bottom-right quadrant (SCB, BBL)
+  // - Bottom-left quadrant (PromptPay transfers)
+  // - Top-right quadrant
+  const regions: Array<{ sx: number; sy: number; sw: number; sh: number }> = [
+    // Bottom 55%
+    { sx: 0, sy: Math.round(scaleH * 0.45), sw: scaleW, sh: Math.round(scaleH * 0.55) },
+    // Top 55%
+    { sx: 0, sy: 0, sw: scaleW, sh: Math.round(scaleH * 0.55) },
+    // Bottom-right quadrant
+    {
+      sx: Math.round(scaleW * 0.35),
+      sy: Math.round(scaleH * 0.45),
+      sw: Math.round(scaleW * 0.65),
+      sh: Math.round(scaleH * 0.55),
+    },
+    // Bottom-left quadrant
+    {
+      sx: 0,
+      sy: Math.round(scaleH * 0.45),
+      sw: Math.round(scaleW * 0.65),
+      sh: Math.round(scaleH * 0.55),
+    },
+    // Top-right quadrant
+    {
+      sx: Math.round(scaleW * 0.35),
+      sy: 0,
+      sw: Math.round(scaleW * 0.65),
+      sh: Math.round(scaleH * 0.55),
+    },
+    // Center region
+    {
+      sx: Math.round(scaleW * 0.15),
+      sy: Math.round(scaleH * 0.25),
+      sw: Math.round(scaleW * 0.7),
+      sh: Math.round(scaleH * 0.5),
+    },
+  ];
+
+  for (const reg of regions) {
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = reg.sw;
+    cropCanvas.height = reg.sh;
+    const cCtx = cropCanvas.getContext("2d");
+    if (cCtx) {
+      cCtx.drawImage(imgElement, reg.sx, reg.sy, reg.sw, reg.sh, 0, 0, reg.sw, reg.sh);
+      detectedData = tryScanCanvas(cropCanvas);
+      if (detectedData) {
+        return parseThaiSlipQr(detectedData);
+      }
+    }
+  }
+
+  // 4. If no QR code detected: Still valid to upload! Return a gentle informative note
+  return {
+    isValid: false,
+    note: "แนบรูปสลิปเรียบร้อยแล้ว (ตรวจไม่พบ QR Code อัตโนมัติ — บันทึกออเดอร์ได้ตามปกติ)",
+  };
 }

@@ -1193,18 +1193,34 @@ export default function HomeClient({ initialBatches }: Props) {
 
                     {slipVerification && (
                       <div
-                        className={`rounded-lg p-2 text-[11px] font-bold flex items-center gap-1.5 ${
+                        className={`rounded-lg p-2.5 text-[11px] font-bold flex items-center gap-2 ${
                           slipVerification.isValid
                             ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : "bg-amber-100 text-amber-900 border border-amber-300"
+                            : "bg-blue-50 text-blue-900 border border-blue-200"
                         }`}
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          {slipVerification.isValid
-                            ? `✓ ตรวจพบสลิปธนาคาร ${slipVerification.bankName} (Ref: ${slipVerification.transRef})`
-                            : (slipVerification.error || "แนบรูปสลิปเรียบร้อย")}
-                        </span>
+                        <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
+                        <div className="space-y-0.5">
+                          {slipVerification.isValid ? (
+                            <>
+                              <div>
+                                ✓ ตรวจพบสลิปธนาคาร <strong>{slipVerification.bankName}</strong>
+                              </div>
+                              {slipVerification.transRef && (
+                                <div className="text-[10px] font-mono text-emerald-800">
+                                  รหัสสลิป (Ref): {slipVerification.transRef}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div>📷 แนบรูปสลิปเรียบร้อยแล้ว</div>
+                              <div className="text-[10px] font-normal text-blue-800">
+                                {slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ — สามารถกดบันทึกออเดอร์ได้ตามปกติ"}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
