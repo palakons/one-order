@@ -5,7 +5,7 @@ import HomeClient from "./HomeClient";
 
 async function HomeDataLoader() {
   await connection();
-  const batches = await getBatches();
+  const batches = await getBatches(false);
   return <HomeClient initialBatches={batches} />;
 }
 

@@ -1,401 +1,970 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import CampusDesksModal from "@/components/CampusDesksModal";
-import { BatchWithDetails, Shop } from "@/lib/types";
-import { Utensils, Truck, ArrowRight, Clock, ChefHat, CheckCircle2, ShoppingBag, X, ChevronRight } from "lucide-react";
-import { useLanguage, getShopLocalizedInfo } from "@/lib/i18n";
+import { BatchWithDetails, Order } from "@/lib/types";
+import { compressImage } from "@/lib/services";
+import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
+import { generateOneLongManifestImage } from "@/lib/manifest-image";
+import { getTimeRemaining } from "@/lib/utils";
+import confetti from "canvas-confetti";
+import {
+  MapPin,
+  Clock,
+  ExternalLink,
+  CreditCard,
+  Share2,
+  Copy,
+  Download,
+  Eye,
+  CheckCircle2,
+  AlertTriangle,
+  Camera,
+  X,
+  Trash2,
+  Send,
+  Plus,
+  ShoppingBag,
+  Store,
+} from "lucide-react";
 
 interface Props {
   initialBatches: BatchWithDetails[];
 }
 
-interface ShopTheme {
-  primary: string;
-  glowColor: string;
-  bgGradient: string;
-  borderColor: string;
-  tagBg: string;
-  progressBar: string;
-  buttonClass: string;
-}
-
-function getShopDiffuseTheme(shop: Shop): ShopTheme {
-  const id = (shop.id || "").toLowerCase();
-  const name = (shop.name || "").toLowerCase();
-  const cuisine = (shop.cuisine || "").toLowerCase();
-
-  // 1. ครัวป้าต่าย ป่ายุบใน (Fiery Basil / Stir-fry)
-  if (id.includes("tai") || id.includes("nee") || name.includes("ต่าย") || name.includes("ป้าณี")) {
-    return {
-      primary: "#EA580C",
-      glowColor: "rgba(234, 88, 12, 0.28)",
-      bgGradient: "from-orange-50/70 via-white to-amber-50/30",
-      borderColor: "border-orange-200/90 hover:border-orange-400",
-      tagBg: "bg-orange-100/90 text-orange-900 border-orange-200",
-      progressBar: "bg-gradient-to-r from-orange-500 to-amber-500",
-      buttonClass: "bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white shadow-xs shadow-orange-600/20",
-    };
-  }
-
-  // 2. ร้านอาหารชาวไร่ วังจันทร์ (Legendary Seafood & Chinese)
-  if (id.includes("chao") || id.includes("chai") || name.includes("ชาวไร่")) {
-    return {
-      primary: "#D97706",
-      glowColor: "rgba(217, 119, 6, 0.28)",
-      bgGradient: "from-amber-50/70 via-white to-yellow-50/30",
-      borderColor: "border-amber-200/90 hover:border-amber-400",
-      tagBg: "bg-amber-100/90 text-amber-900 border-amber-200",
-      progressBar: "bg-gradient-to-r from-amber-500 to-yellow-500",
-      buttonClass: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-xs shadow-amber-600/20",
-    };
-  }
-
-  // 3. ครัวมั่งมี วังจันทร์ กม.68 (Homemade Chinese-Thai & Seafood)
-  if (id.includes("mangmee") || id.includes("wan") || name.includes("มั่งมี")) {
-    return {
-      primary: "#E11D48",
-      glowColor: "rgba(225, 29, 72, 0.25)",
-      bgGradient: "from-rose-50/70 via-white to-orange-50/30",
-      borderColor: "border-rose-200/90 hover:border-rose-400",
-      tagBg: "bg-rose-100/90 text-rose-900 border-rose-200",
-      progressBar: "bg-gradient-to-r from-rose-500 to-orange-500",
-      buttonClass: "bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white shadow-xs shadow-rose-600/20",
-    };
-  }
-
-  // 4. ครัวคุณส้ม สี่แยกป่ายุบใน (Som Tum / Isan)
-  if (id.includes("som") || id.includes("somtum") || name.includes("ส้ม")) {
-    return {
-      primary: "#059669",
-      glowColor: "rgba(5, 150, 105, 0.26)",
-      bgGradient: "from-emerald-50/70 via-white to-teal-50/30",
-      borderColor: "border-emerald-200/90 hover:border-emerald-400",
-      tagBg: "bg-emerald-100/90 text-emerald-900 border-emerald-200",
-      progressBar: "bg-gradient-to-r from-emerald-500 to-teal-500",
-      buttonClass: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xs shadow-emerald-600/20",
-    };
-  }
-
-  // 5. Lin's Tea House & Cafe (Wangchan Cafe & Drinks)
-  if (id.includes("lin") || id.includes("cafe") || name.includes("lin") || cuisine.includes("เครื่องดื่ม") || cuisine.includes("กาแฟ") || cuisine.includes("ชา")) {
-    return {
-      primary: "#7C3AED",
-      glowColor: "rgba(124, 58, 237, 0.28)",
-      bgGradient: "from-purple-50/70 via-white to-indigo-50/30",
-      borderColor: "border-purple-200/90 hover:border-purple-400",
-      tagBg: "bg-purple-100/90 text-purple-900 border-purple-200",
-      progressBar: "bg-gradient-to-r from-purple-500 to-indigo-500",
-      buttonClass: "bg-gradient-to-r from-purple-800 to-indigo-800 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs shadow-purple-900/20",
-    };
-  }
-
-  // Fallback
-  return {
-    primary: "#EA580C",
-    glowColor: "rgba(234, 88, 12, 0.25)",
-    bgGradient: "from-orange-50/70 via-white to-amber-50/30",
-    borderColor: "border-orange-200/90 hover:border-orange-400",
-    tagBg: "bg-orange-100/90 text-orange-900 border-orange-200",
-    progressBar: "bg-gradient-to-r from-orange-500 to-amber-500",
-    buttonClass: "bg-gradient-to-r from-orange-600 to-amber-600 text-white",
-  };
-}
-
 export default function HomeClient({ initialBatches }: Props) {
-  const { t, lang } = useLanguage();
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
-  const [showDesksModal, setShowDesksModal] = useState(false);
-  const [activeOrder, setActiveOrder] = useState<any | null>(null);
-  const [dismissedOrder, setDismissedOrder] = useState(false);
+  const [activeBatchId, setActiveBatchId] = useState<string>(
+    initialBatches[0]?.id || ""
+  );
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("veatec_user_orders");
-      if (stored) {
-        const orders = JSON.parse(stored);
-        if (Array.isArray(orders) && orders.length > 0) {
-          setActiveOrder(orders[0]);
-        }
-      }
-    } catch (e) {
-      console.warn("Could not read recent order", e);
-    }
-  }, []);
+  // Active batch object
+  const activeBatch = batches.find((b) => b.id === activeBatchId) || batches[0] || null;
 
+  // Modals state
+  const [showPromptPayModal, setShowPromptPayModal] = useState(false);
+  const [selectedSlip, setSelectedSlip] = useState<{ url: string; title: string } | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [generatingManifest, setGeneratingManifest] = useState(false);
+  const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Whiteboard Form Inputs
+  const [customerLineId, setCustomerLineId] = useState("");
+  const [dishName, setDishName] = useState("");
+  const [dishPrice, setDishPrice] = useState("");
+  const [dishNote, setDishNote] = useState("");
+
+  // Slip upload & BOT verification
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [slipPreview, setSlipPreview] = useState<string | null>(null);
+  const [scanningSlip, setScanningSlip] = useState(false);
+  const [slipVerification, setSlipVerification] = useState<SlipVerificationResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Submission state
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Host state
+  const [isHost, setIsHost] = useState(false);
+
+  // 1. Poll batches every 3.5s
   useEffect(() => {
-    const interval = setInterval(fetchBatches, 4000);
+    fetchBatches();
+    const interval = setInterval(fetchBatches, 3500);
     return () => clearInterval(interval);
   }, []);
 
+  // 2. Load cached LINE ID & Host status
+  useEffect(() => {
+    try {
+      const savedLine = localStorage.getItem("veatec_user_line");
+      if (savedLine) setCustomerLineId(savedLine);
+      if (activeBatchId) {
+        const hostBatch = localStorage.getItem(`veatec_host_${activeBatchId}`);
+        setIsHost(hostBatch === "true");
+      }
+    } catch (e) {}
+  }, [activeBatchId]);
+
   const fetchBatches = async () => {
     try {
-      const res = await fetch("/api/batches");
+      // role=shop returns unsanitized batches for manifest generation
+      const res = await fetch("/api/batches?role=shop");
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.batches)) {
         setBatches(data.batches);
       }
     } catch (err) {
-      console.error("Error fetching batches:", err);
+      console.warn("Poll batches error:", err);
     }
   };
 
+  // Slip File Change & Auto BOT QR Scan
+  const handleSlipFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubmitError(null);
+    setSlipFile(file);
+    setScanningSlip(true);
+    setSlipVerification(null);
+
+    try {
+      const compressedDataUrl = await compressImage(file, 1000, 0.85);
+      setSlipPreview(compressedDataUrl);
+
+      const tempImg = new Image();
+      tempImg.onload = async () => {
+        const verifyRes = await scanSlipQrFromImageElement(tempImg);
+        setSlipVerification(verifyRes);
+        setScanningSlip(false);
+      };
+      tempImg.src = compressedDataUrl;
+    } catch (err) {
+      setScanningSlip(false);
+    }
+  };
+
+  // Add Order directly to Whiteboard
+  const handleAddToWhiteboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeBatch) return;
+
+    setSubmitError(null);
+    const cleanLine = customerLineId.trim();
+    const cleanDish = dishName.trim();
+    const priceNum = parseFloat(dishPrice);
+
+    if (!cleanLine) {
+      setSubmitError("กรุณากรอก LINE ID หรือชื่อแสดงผล");
+      return;
+    }
+    if (!cleanDish) {
+      setSubmitError("กรุณากรอกเมนูอาหารที่ต้องการสั่ง");
+      return;
+    }
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setSubmitError("กรุณาระบุราคาอาหารเป็นตัวเลขที่ถูกต้อง");
+      return;
+    }
+    if (!slipPreview) {
+      setSubmitError("กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)");
+      return;
+    }
+
+    setSubmittingOrder(true);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId: activeBatch.id,
+          customerName: cleanLine,
+          customerLineId: cleanLine,
+          customerPhone: "",
+          locationId: "loc-m4",
+          items: [
+            {
+              name: cleanDish,
+              price: priceNum,
+              quantity: 1,
+              customNote: dishNote.trim() || undefined,
+            },
+          ],
+          totalAmount: priceNum,
+          slipImageUrl: slipPreview,
+          slipTransRef: slipVerification?.transRef,
+          slipBankCode: slipVerification?.bankCode,
+          slipBankName: slipVerification?.bankName,
+          isSlipVerified: slipVerification?.isValid || false,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการลงชื่อ");
+      }
+
+      try {
+        localStorage.setItem("veatec_user_line", cleanLine);
+        if (!activeBatch.orders || activeBatch.orders.length === 0) {
+          localStorage.setItem(`veatec_host_${activeBatch.id}`, "true");
+          setIsHost(true);
+        }
+      } catch (e) {}
+
+      // Reset form
+      setDishName("");
+      setDishPrice("");
+      setDishNote("");
+      setSlipFile(null);
+      setSlipPreview(null);
+      setSlipVerification(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+      await fetchBatches();
+    } catch (err: any) {
+      setSubmitError(err.message || "ไม่สามารถลงชื่อบนไวท์บอร์ดได้");
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  // Cancel order (with audit trace)
+  const handleCancelOrder = async (orderId: string, orderNumber: number, lineName: string) => {
+    if (!confirm(`ยืนยันการยกเลิกกล่อง #${orderNumber} (${lineName}) ใช่หรือไม่?\n(ระบบจะบันทึกประวัติการยกเลิกไว้)`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/orders?id=${orderId}&reason=Cancelled by Host&by=${encodeURIComponent(customerLineId || "Host")}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("ยกเลิกรายการเรียบร้อยแล้ว");
+        fetchBatches();
+      } else {
+        alert(data.error || "ไม่สามารถยกเลิกได้");
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการยกเลิก");
+    }
+  };
+
+  // Compile Brief Text for LINE
+  const getCompiledOrderText = () => {
+    if (!activeBatch) return "";
+    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}\n`;
+    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
+    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeBatch.orders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `------------------------------------\n`;
+    activeBatch.orders.forEach((o) => {
+      const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
+      const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
+      txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
+    });
+    txt += `------------------------------------\n`;
+    txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
+    return txt;
+  };
+
+  // Open "Send to Shop" Modal & Generate Long Manifest Image
+  const handleOpenSendModal = async () => {
+    if (!activeBatch) return;
+    setShowSendModal(true);
+    setGeneratingManifest(true);
+    setManifestData(null);
+    setCopiedText(false);
+
+    try {
+      const manifest = await generateOneLongManifestImage(activeBatch);
+      setManifestData(manifest);
+    } catch (err) {
+      console.error("Manifest generation error:", err);
+      alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setGeneratingManifest(false);
+    }
+  };
+
+  // Share to LINE
+  const handleShareToLine = async () => {
+    if (!manifestData || !activeBatch) return;
+    const shareText = getCompiledOrderText();
+
+    if (navigator.share && navigator.canShare) {
+      const imageFile = new File([manifestData.blob], `veatec-order-${activeBatch.shop.name}-${activeBatch.date}.jpg`, {
+        type: "image/jpeg",
+      });
+
+      if (navigator.canShare({ files: [imageFile] })) {
+        try {
+          await navigator.share({
+            title: `ออเดอร์ร้าน ${activeBatch.shop.name}`,
+            text: shareText,
+            files: [imageFile],
+          });
+          return;
+        } catch (err: any) {
+          if (err.name !== "AbortError") {
+            console.warn("Native share error:", err);
+          } else {
+            return;
+          }
+        }
+      }
+    }
+
+    // Fallback: Download image and open LINE app with text
+    const link = document.createElement("a");
+    link.href = manifestData.dataUrl;
+    link.download = `veatec-order-${activeBatch.shop.name}-${activeBatch.date}.jpg`;
+    link.click();
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+    } catch (e) {}
+
+    alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+  };
+
+  const timeInfo = activeBatch ? getTimeRemaining(activeBatch.cutoffTime, activeBatch.date) : null;
+  const isBatchClosed = activeBatch ? activeBatch.status !== "OPEN" || timeInfo?.isExpired : false;
+  const activeOrders = activeBatch ? (activeBatch.orders || []).filter((o) => !o.deletedAt) : [];
+
+  const allSlipsVerified =
+    activeOrders.length > 0 &&
+    activeOrders.every((o) => Boolean(o.slipImageUrl || o.isSlipVerified));
+  const missingSlipOrders = activeOrders.filter((o) => !o.slipImageUrl && !o.isSlipVerified);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50/20 via-white to-gray-50 text-gray-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
       <Navbar />
 
-      {/* Active Order Live Polling Sticky Bar */}
-      {activeOrder && !dismissedOrder && (() => {
-        const matchingBatch = batches.find((b) => b.id === activeOrder.batchId);
-        const status = matchingBatch ? matchingBatch.status : "OPEN";
-        const isCompleted = status === "COMPLETED";
-        const isDelivering = status === "DELIVERING";
-        const isCooking = status === "LOCKED";
+      {/* Craigslist Lean Minimal Header */}
+      <header className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+        <div className="mx-auto max-w-5xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-purple-900 text-white font-mono font-black text-xs">
+                M4
+              </span>
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-950">
+                VEATEC @ VISTEC M4 — กระดานสั่งข้าวเที่ยง (Digital Whiteboard)
+              </h1>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              รวมออเดอร์ส่งฟรีถึงโต๊ะ Delivery ชั้น 1 ตึก M4 • ปิดรับ 11:15 น. ทุกวัน
+            </p>
+          </div>
 
-        const bgClass = isCompleted
-          ? "bg-gradient-to-r from-emerald-600 via-teal-700 to-purple-900 text-white shadow-md shadow-emerald-900/10"
-          : isDelivering
-          ? "bg-gradient-to-r from-blue-600 to-indigo-800 text-white shadow-md shadow-blue-900/10"
-          : isCooking
-          ? "bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-md shadow-amber-900/10"
-          : "bg-gradient-to-r from-purple-900 via-purple-800 to-[#B4213A] text-white shadow-md shadow-purple-900/10";
+          <div className="flex items-center gap-2 text-xs font-semibold self-start sm:self-center">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 text-emerald-800 px-2.5 py-1 border border-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>LIVE SYSTEM</span>
+            </span>
+            <Link
+              href="/admin"
+              className="text-slate-500 hover:text-purple-900 border border-slate-200 bg-slate-50 px-2.5 py-1 rounded-md"
+            >
+              Admin
+            </Link>
+          </div>
+        </div>
+      </header>
 
-        const titleText = isCompleted
-          ? `${t.foodArrivedM4} (#${activeOrder.orderNumber} ${activeOrder.customerName})`
-          : isDelivering
-          ? `${t.riderDelivering} (${activeOrder.shopName})`
-          : isCooking
-          ? `${t.chefCooking} (${activeOrder.shopName})`
-          : `${t.orderSaved} #${activeOrder.orderNumber} (${activeOrder.shopName})`;
+      <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
+        {/* 1. Shop Tabs Bar (5 Shops with Live Totals) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+          {batches.map((b, idx) => {
+            const isActive = b.id === activeBatchId;
+            const isMet = b.currentTotalAmount >= b.targetMinAmount;
 
-        const subText = isCompleted
-          ? t.tapToViewBox.replace("{box}", activeOrder.boxLabel || t.dropoffShort)
-          : isDelivering
-          ? t.tapToViewStatus
-          : isCooking
-          ? t.cookingQueue
-          : t.waitingCutoff.replace("{time}", matchingBatch?.cutoffTime || "11:15");
-
-        return (
-          <div className="w-full px-2 sm:px-4 py-1.5 transition-all animate-in fade-in slide-in-from-top-2">
-            <div className={`mx-auto max-w-4xl rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 ${bgClass}`}>
-              <Link href="/orders" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-95">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white shrink-0 backdrop-blur-xs">
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-5 w-5 animate-pulse" />
-                  ) : isDelivering ? (
-                    <Truck className="h-5 w-5" />
-                  ) : isCooking ? (
-                    <ChefHat className="h-5 w-5" />
-                  ) : (
-                    <Clock className="h-5 w-5" />
-                  )}
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setActiveBatchId(b.id)}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl px-3.5 py-2 text-xs font-bold transition-all border-t border-x ${
+                  isActive
+                    ? "bg-white border-slate-300 text-slate-950 shadow-xs -mb-px z-10 font-black border-b-2 border-b-white"
+                    : "bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
+                }`}
+              >
+                <span>{idx + 1}. {b.shop.name.split(" ")[0]}</span>
+                <span
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono font-bold ${
+                    isMet
+                      ? "bg-emerald-600 text-white"
+                      : b.currentTotalAmount > 0
+                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                      : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
                 </span>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="text-xs sm:text-sm font-black truncate">{titleText}</div>
-                  <div className="text-[11px] text-white/85 truncate">{subText}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeBatch ? (
+          <div className="space-y-4">
+            {/* 2. Active Whiteboard Header Box */}
+            <div className="rounded-2xl border border-slate-300 bg-white p-4 sm:p-5 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-200">
+                      {activeBatch.shop.cuisine}
+                    </span>
+                    <span className="text-xs text-slate-500 font-semibold">
+                      รอบวันที่: {activeBatch.date}
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-950 mt-1">
+                    {activeBatch.shop.name}
+                  </h2>
+                  <p className="text-xs text-slate-600 max-w-xl mt-0.5">
+                    {activeBatch.shop.description}
+                  </p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-white/70 shrink-0 hidden sm:block" />
-              </Link>
+
+                {/* Google Maps & PromptPay Buttons */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {activeBatch.shop.gmapUrl && (
+                    <a
+                      href={activeBatch.shop.gmapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-colors shadow-2xs"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-rose-600" />
+                      <span>Google Maps ↗</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptPayModal(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs"
+                  >
+                    <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                    <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress & Cutoff Status Row */}
+              <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-800">
+                    ยอดรวมตอนนี้: <strong className="text-sm font-black text-purple-950">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
+                    <span className="text-slate-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
+                  </span>
+                  <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
+                    {activeBatch.isMinMet
+                      ? "🎉 ครบยอดส่งฟรีที่ตึก M4 แล้ว!"
+                      : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`}
+                  </span>
+                </div>
+
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      activeBatch.isMinMet
+                        ? "bg-emerald-600"
+                        : "bg-amber-500"
+                    }`}
+                    style={{ width: `${Math.min(100, (activeBatch.currentTotalAmount / activeBatch.targetMinAmount) * 100)}%` }}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-semibold text-slate-600">
+                  <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
+                    <Clock className="h-3 w-3 text-purple-900" />
+                    <span>{timeInfo?.text} (Cutoff: {activeBatch.cutoffTime} น.)</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <MapPin className="h-3 w-3 text-emerald-700" />
+                    <span>ส่งที่: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Slip-Gated "Send to Shop" Action Bar */}
+            <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-block h-2 w-2 rounded-full ${allSlipsVerified ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                  <span className="text-xs font-black text-slate-900">
+                    {allSlipsVerified
+                      ? "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
+                      : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
+                  </span>
+                </div>
+                {!allSlipsVerified && missingSlipOrders.length > 0 && (
+                  <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                    รอสลิปจาก: <strong>{missingSlipOrders.map((o) => o.customerLineId || o.customerName).join(", ")}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                {allSlipsVerified ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenSendModal}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>🚀 รวมส่งร้าน (Send to Shop)</span>
+                  </button>
+                ) : (
+                  <span className="inline-block text-[11px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    ปุ่มจะเปิดเมื่อสลิปครบทุกกล่อง
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 4. The Live Whiteboard Table */}
+            <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-xs">
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-sm text-slate-950">
+                    กระดานออเดอร์ร้าน {activeBatch.shop.name}
+                  </h3>
+                  <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
+                    {activeOrders.length} กล่อง
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  อัปเดตเรียลไทม์
+                </span>
+              </div>
+
+              {activeOrders.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 space-y-1">
+                  <p className="text-sm font-bold text-slate-600">ยังไม่มีใครลงชื่อบนกระดานนี้</p>
+                  <p className="text-xs text-slate-400">เป็นคนแรกที่เปิดตี้ร้านนี้ได้เลยด้านล่าง!</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3 w-12 font-mono">#</th>
+                        <th className="py-2.5 px-3 w-36">ผู้สั่ง (LINE)</th>
+                        <th className="py-2.5 px-3">รายการอาหาร</th>
+                        <th className="py-2.5 px-3 w-20 text-right">ราคา</th>
+                        <th className="py-2.5 px-3 w-28 text-center">สลิป</th>
+                        <th className="py-2.5 px-3 w-12 text-center"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {activeOrders.map((ord) => {
+                        const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
+                        const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
+
+                        return (
+                          <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                              #{ord.orderNumber}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-slate-900">
+                              {lineName}
+                            </td>
+                            <td className="py-3 px-3 text-slate-800 font-medium">
+                              {ord.items.map((it, idx) => (
+                                <span key={idx}>
+                                  {it.quantity > 1 ? `${it.quantity}x ` : ""}
+                                  <strong>{it.name}</strong>
+                                  {it.customNote && <span className="text-amber-800 italic"> ({it.customNote})</span>}
+                                </span>
+                              ))}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-black text-orange-600 text-right">
+                              ฿{ord.totalAmount}
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              {hasSlip ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedSlip({
+                                      url: ord.slipImageUrl,
+                                      title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                  <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : "ดูสลิป ✓"}</span>
+                                </button>
+                              ) : (
+                                <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                                  รอสลิป
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              {isHost && activeBatch.status === "OPEN" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                                  className="text-slate-300 hover:text-rose-600 p-1 rounded transition-colors"
+                                  title="ยกเลิกออเดอร์นี้"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* 5. Fast 1-Screen Order Input Form (Force Transfer) */}
+            {!isBatchClosed ? (
+              <div className="rounded-2xl border-2 border-purple-900 bg-white p-4 sm:p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded bg-purple-900 text-white font-black text-xs">
+                      +
+                    </span>
+                    <h3 className="font-black text-sm sm:text-base text-slate-950">
+                      ลงชื่อสั่งอาหารร้าน {activeBatch.shop.name}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptPayModal(true)}
+                    className="text-xs font-bold text-purple-900 hover:underline"
+                  >
+                    ดู QR พร้อมเพย์ร้าน ↗
+                  </button>
+                </div>
+
+                {submitError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800 flex items-center gap-2 font-medium">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleAddToWhiteboard} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Field 1: LINE ID */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700">
+                        LINE ID หรือชื่อคุณ <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น Golf หรือ @golf_123"
+                        value={customerLineId}
+                        onChange={(e) => setCustomerLineId(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                      />
+                    </div>
+
+                    {/* Field 2: Dish Name */}
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        เมนูที่ต้องการสั่ง (พิมพ์อิสระ) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
+                        value={dishName}
+                        onChange={(e) => setDishName(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Popular Dish Chips */}
+                  {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400">เมนูแนะนำ:</span>
+                      {activeBatch.shop.menuItems.slice(0, 5).map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setDishName(m.name);
+                            setDishPrice(String(m.price));
+                          }}
+                          className="rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-800 transition-colors"
+                        >
+                          {m.name} (฿{m.price})
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Field 3: Price */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700">
+                        ราคา (฿) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="เช่น 60"
+                        value={dishPrice}
+                        onChange={(e) => setDishPrice(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-mono font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                      />
+                    </div>
+
+                    {/* Field 4: Note */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700">
+                        หมายเหตุ (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น ไม่ใส่ผักชี, พิเศษ"
+                        value={dishNote}
+                        onChange={(e) => setDishNote(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Field 5: Slip Upload with BOT QR Verification */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
+                        <CreditCard className="h-3.5 w-3.5 text-purple-900" />
+                        <span>แนบสลิปโอนเงิน (Force Transfer) <span className="text-rose-500">*</span></span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-medium">สแกน QR บนสลิปอัตโนมัติ</span>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      required
+                      accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+                      onChange={handleSlipFileChange}
+                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-900 file:text-white hover:file:bg-purple-800 cursor-pointer"
+                    />
+
+                    {scanningSlip && (
+                      <div className="text-[11px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
+                        <span>กำลังสแกน QR Code ตรวจสอบสลิปธนาคาร...</span>
+                      </div>
+                    )}
+
+                    {slipVerification && (
+                      <div
+                        className={`rounded-lg p-2 text-[11px] font-bold flex items-center gap-1.5 ${
+                          slipVerification.isValid
+                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                            : "bg-amber-100 text-amber-900 border border-amber-300"
+                        }`}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {slipVerification.isValid
+                            ? `✓ ตรวจพบสลิปธนาคาร ${slipVerification.bankName} (Ref: ${slipVerification.transRef})`
+                            : (slipVerification.error || "แนบรูปสลิปเรียบร้อย")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={submittingOrder || !slipPreview}
+                    className="w-full rounded-xl bg-purple-900 py-3 text-xs sm:text-sm font-black text-white hover:bg-purple-800 disabled:opacity-50 active:scale-99 transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    {submittingOrder ? (
+                      <>
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <span>กำลังบันทึกลงกระดาน...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        <span>+ ลงชื่อบนไวท์บอร์ด (บันทึกออเดอร์)</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-center text-xs font-bold text-rose-800">
+                🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)
+              </div>
+            )}
+          </div>
+        ) : null}
+      </main>
+
+      {/* MODAL 1: PromptPay QR */}
+      {showPromptPayModal && activeBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-center space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-black text-xs text-slate-900">QR พร้อมเพย์ร้านค้า</h3>
               <button
                 type="button"
-                onClick={() => setDismissedOrder(true)}
-                className="rounded-lg p-1 text-white/70 hover:text-white hover:bg-white/10 shrink-0 transition-colors"
-                title="ซ่อนแถบแจ้งเตือน"
+                onClick={() => setShowPromptPayModal(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            <div className="mx-auto w-48 h-48 bg-white rounded-xl border border-slate-300 p-2 shadow-inner flex items-center justify-center">
+              <img
+                src={activeBatch.shop.promptpayQrUrl || `https://promptpay.io/${activeBatch.shop.promptpayNumber}.png`}
+                alt="PromptPay QR"
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <div>
+              <p className="text-[11px] text-slate-500 font-medium">ชื่อบัญชี:</p>
+              <p className="text-sm font-black text-slate-900">{activeBatch.shop.promptpayAccountName}</p>
+              <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
+                {activeBatch.shop.promptpayNumber}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(activeBatch.shop.promptpayNumber);
+                alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+              }}
+              className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200 transition-colors"
+            >
+              คัดลอกหมายเลขพร้อมเพย์
+            </button>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
-      {/* Lean Hero Header: Single Subtext + Clear 1-2-3 Step Flow */}
-      <section className="border-b border-purple-100/60 bg-gradient-to-b from-purple-50/40 via-white to-transparent px-3 pt-5 pb-5">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            {t.heroTitle}
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-gray-600 font-medium">
-            {t.heroSubtitle}
-          </p>
-
-          {/* Clear Compact 1-2-3 Step Flow */}
-          <div className="mt-3.5 grid grid-cols-3 gap-2 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-900 text-[10px] font-black text-white shrink-0">
-                1
-              </span>
-              <span className="text-xs font-bold text-gray-800 truncate">{t.step1}</span>
+      {/* MODAL 2: Slip Viewer */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative max-h-[90vh] max-w-md rounded-2xl bg-white p-4 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-bold text-xs text-slate-900">{selectedSlip.title}</h3>
+              <button
+                onClick={() => setSelectedSlip(null)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B4213A] text-[10px] font-black text-white shrink-0">
-                2
-              </span>
-              <span className="text-xs font-bold text-gray-800 truncate">{t.step2}</span>
-            </div>
-            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200/70 bg-white/95 px-2 py-1.5 shadow-2xs">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white shrink-0">
-                3
-              </span>
-              <span className="text-xs font-bold text-gray-800 truncate">{t.step3}</span>
+            <div className="mt-2 overflow-y-auto max-h-[75vh] flex items-center justify-center bg-slate-50 rounded">
+              <img
+                src={selectedSlip.url}
+                alt="Full Transfer Slip"
+                className="max-h-[70vh] w-auto object-contain rounded"
+              />
             </div>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Main Content Area */}
-      <main className="mx-auto max-w-5xl px-3 py-5 sm:px-6 space-y-4">
-        {/* Section Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-black text-gray-900 flex items-center gap-1.5">
-              <Utensils className="h-4 w-4 text-purple-900" />
-              <span>{t.activeRoundToday}</span>
-            </h2>
-            <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
-              {batches.length}
-            </span>
-          </div>
-        </div>
+      {/* MODAL 3: One Long Manifest Image Generator */}
+      {showSendModal && activeBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-lg max-h-[92vh] rounded-2xl bg-white p-5 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded bg-purple-900 text-white font-bold text-xs">
+                  <Send className="h-3.5 w-3.5" />
+                </span>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">สรุปออเดอร์ส่งร้าน (Send to Shop)</h3>
+                  <p className="text-[11px] text-slate-500">สร้างภาพสรุปยาวใบเดียว ฝังสลิปครบทุกกล่อง</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSendModal(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-        {/* Batches Grid */}
-        {batches.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-            <ShoppingBag className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-2 text-sm font-bold text-gray-900">ยังไม่มีรอบสั่งอาหารเปิดอยู่ขณะนี้</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              รอแอดมินหรือผู้ดูแลเปิดรอบสั่งอาหารประจำวัน
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {batches.map((batch) => {
-              const isUnlocked = batch.currentTotalAmount >= batch.targetMinAmount;
-              const remaining = Math.max(0, batch.targetMinAmount - batch.currentTotalAmount);
-              const percentage = Math.min(100, Math.round((batch.currentTotalAmount / batch.targetMinAmount) * 100));
-              const theme = getShopDiffuseTheme(batch.shop);
-              const shopInfo = getShopLocalizedInfo(batch.shop, lang);
-
-              return (
-                <div
-                  key={batch.id}
-                  className={`group relative overflow-hidden flex flex-col justify-between rounded-2xl border ${theme.borderColor} bg-gradient-to-br ${theme.bgGradient} p-3.5 shadow-2xs hover:shadow-md transition-all duration-300`}
-                >
-                  {/* Diffuse bloom absorbing the logo color */}
-                  <div
-                    className="absolute -top-10 -left-10 w-32 h-32 rounded-full blur-2xl opacity-40 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none"
-                    style={{ backgroundColor: theme.glowColor }}
-                  />
-
-                  <div className="relative space-y-2.5">
-                    {/* Header: Shop Logo Avatar + Name + Cutoff */}
-                    <div className="flex items-start gap-3">
-                      {/* Shop Logo Avatar */}
-                      <div className="relative h-13 w-13 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-xl border-2 border-white bg-white shadow-xs">
-                        {batch.shop.menuImageUrl ? (
-                          <img
-                            src={batch.shop.menuImageUrl}
-                            alt={shopInfo.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-700 font-black text-lg">
-                            {shopInfo.name.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Name & Badges */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1 text-[11px]">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border truncate max-w-[140px] ${theme.tagBg}`}>
-                            {shopInfo.cuisine}
-                          </span>
-                          <span className="font-semibold text-gray-500 flex items-center gap-0.5 shrink-0">
-                            <Clock className="h-3 w-3 text-orange-500" />
-                            <span>{t.cutoffAt} {batch.cutoffTime}</span>
-                          </span>
-                        </div>
-
-                        <h3 className="mt-1 text-base font-black text-gray-900 group-hover:text-purple-950 transition-colors leading-tight truncate">
-                          {shopInfo.name}
-                        </h3>
-                      </div>
-                    </div>
-
-                    {/* Target Progress Bar */}
-                    <div className="rounded-xl bg-white/85 backdrop-blur-2xs p-2 border border-gray-100/80 space-y-1">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-gray-700">
-                          ฿{batch.currentTotalAmount} <span className="text-gray-400 font-normal">/ ฿{batch.targetMinAmount}</span>
-                          <span className="text-[10px] text-gray-400 font-normal ml-1">({batch.orderCount} {t.ordersCount})</span>
-                        </span>
-                        <span
-                          className={`text-[11px] font-bold ${
-                            isUnlocked ? "text-emerald-700 font-black" : "text-amber-800"
-                          }`}
-                        >
-                          {isUnlocked ? t.freeDeliveryUnlocked : `${t.needMore} ฿${remaining}`}
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isUnlocked ? "bg-emerald-500" : theme.progressBar
-                          }`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
+            <div className="mt-3 flex-1 overflow-y-auto space-y-3 pr-1">
+              {generatingManifest ? (
+                <div className="flex flex-col items-center justify-center p-12 space-y-2 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="h-7 w-7 animate-spin rounded-full border-3 border-purple-900 border-t-transparent" />
+                  <span className="text-xs font-black text-purple-900">
+                    กำลังสร้างภาพสรุปยาวใบเดียว (รวมสลิปทุกกล่อง)...
+                  </span>
+                  <span className="text-[11px] text-slate-400">ใช้เวลาประมาณ 1-2 วินาที</span>
+                </div>
+              ) : manifestData ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900 font-bold flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง M4 และสลิปทุกใบในรูปเดียว)</span>
                   </div>
 
-                  {/* Compact Bottom Actions */}
-                  <div className="relative flex items-center gap-1.5 pt-2 mt-2 border-t border-gray-100/90">
-                    <Link
-                      href={`/order/${batch.id}`}
-                      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl ${theme.buttonClass} px-3 py-2 text-xs font-bold shadow-2xs transition-all active:scale-[0.98]`}
-                    >
-                      <ShoppingBag className="h-3.5 w-3.5" />
-                      <span>{batch.status === "COMPLETED" ? "ดูรายการอาหาร" : t.viewMenuOrder}</span>
-                    </Link>
-                    {batch.status === "COMPLETED" && (
-                      <Link
-                        href={`/delivery/${batch.id}`}
-                        className="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition-colors shrink-0"
-                        title="อาหารส่งถึง M4 แล้ว • ดูรูปถ่ายหลักฐาน"
+                  <div className="rounded-xl border border-slate-300 overflow-hidden bg-slate-900 shadow-inner max-h-80 overflow-y-auto">
+                    <img
+                      src={manifestData.dataUrl}
+                      alt="One Long Manifest"
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                      <span>ข้อความสรุปสำหรับส่งในแชต:</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(getCompiledOrderText());
+                          setCopiedText(true);
+                          setTimeout(() => setCopiedText(false), 2000);
+                        }}
+                        className="text-[11px] text-purple-900 hover:underline flex items-center gap-1 font-bold"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      </Link>
-                    )}
+                        <Copy className="h-3 w-3" />
+                        <span>{copiedText ? "✓ คัดลอกแล้ว" : "คัดลอกข้อความ"}</span>
+                      </button>
+                    </div>
+                    <pre className="text-[11px] font-sans text-slate-600 whitespace-pre-wrap leading-relaxed">
+                      {getCompiledOrderText()}
+                    </pre>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
+              ) : null}
+            </div>
 
-      {/* Clean Compact Footer */}
-      <footer className="mt-12 border-t border-gray-200 bg-white py-5">
-        <div className="mx-auto max-w-5xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
-          <div>
-            <strong>VEATEC</strong> · ระบบรวมสั่งอาหารประชาคม VISTEC (จุดรับ: ตึก M4 ชั้น 1)
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setShowDesksModal(true)} className="hover:text-purple-900 font-medium">
-              จุดรับข้าว (ตึก M4)
-            </button>
-            <Link href="/orders" className="hover:text-purple-900 font-medium">
-              ตรวจเช็คออเดอร์
-            </Link>
+            {manifestData && (
+              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleShareToLine}
+                  className="w-full sm:flex-1 rounded-xl bg-[#06C755] hover:bg-[#05b34c] py-2.5 text-xs sm:text-sm font-black text-white shadow-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>แชร์เข้า LINE ร้านทันที</span>
+                </button>
+
+                <a
+                  href={manifestData.dataUrl}
+                  download={`veatec-order-${activeBatch.shop.name}-${activeBatch.date}.jpg`}
+                  className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white hover:bg-slate-50 py-2.5 px-3.5 text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>บันทึกรูปยาว</span>
+                </a>
+              </div>
+            )}
           </div>
         </div>
-      </footer>
-
-      {showDesksModal && <CampusDesksModal onClose={() => setShowDesksModal(false)} />}
+      )}
     </div>
   );
 }
