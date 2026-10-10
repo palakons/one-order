@@ -1086,12 +1086,12 @@ export default function HomeClient({ initialBatches }: Props) {
             </div>
           </div>
         ) : activeBatch ? (
-          <div className="space-y-4">
-            {/* 2. Order Pane Header: 3 Compact Cards (Shop, Drop-off, Leader) - Always in 1 row */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+          <div className="space-y-2.5 sm:space-y-3">
+            {/* 2. Order Pane Header: 3 Squeezed Cards in 1 Row (Shop, Drop-off, Leader) */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Card 1: Shop */}
               <div
-                className={`rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all min-h-[88px] sm:min-h-[110px] cursor-pointer hover:border-purple-300 hover:shadow-xs ${
+                className={`rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between transition-all cursor-pointer hover:border-purple-300 hover:shadow-xs ${
                   isShopExpanded ? "border-purple-300 bg-purple-50/20 ring-1 ring-purple-200" : ""
                 }`}
                 onClick={(e) => {
@@ -1099,133 +1099,104 @@ export default function HomeClient({ initialBatches }: Props) {
                   setIsShopExpanded((prev) => !prev);
                 }}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-purple-900 bg-purple-50 px-1.5 sm:px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1 shrink-0">
-                      <Store className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
-                      <span className="truncate">{t.shop}</span>
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1 text-purple-900 shrink-0">
+                    <Store className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
+                    <span className="truncate">{t.shop}</span>
+                  </span>
+
+                  <span className="inline-flex items-center gap-0.5 text-purple-700 text-[9px] sm:text-[10px] font-bold shrink-0">
+                    <span className="hidden xs:inline sm:inline">
+                      {isShopExpanded ? (lang === "en" ? "Hide" : lang === "cn" ? "收起" : "ซ่อน") : (lang === "en" ? "Menu" : lang === "cn" ? "菜单" : "เมนู")}
                     </span>
+                    <ChevronDown className={`h-2.5 w-2.5 transition-transform duration-200 ${isShopExpanded ? "rotate-180" : ""}`} />
+                  </span>
+                </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setIsShopExpanded((prev) => !prev)}
-                      className="inline-flex items-center gap-0.5 sm:gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[9px] sm:text-[11px] font-bold transition-colors cursor-pointer shrink-0"
-                      title={isShopExpanded ? t.collapseMenu : t.expandMenu}
-                    >
-                      <span className="hidden xs:inline sm:inline">
-                        {isShopExpanded ? (lang === "en" ? "Hide" : lang === "cn" ? "收起" : "ซ่อน") : (lang === "en" ? "Menu" : lang === "cn" ? "菜单" : "เมนู")}
-                      </span>
-                      <ChevronDown className={`h-2.5 w-2.5 sm:h-3 sm:w-3 transition-transform duration-200 ${isShopExpanded ? "rotate-180 text-purple-700" : ""}`} />
-                    </button>
-                  </div>
-
+                <div className="my-0.5">
                   <h3
-                    className="text-xs sm:text-base font-black text-slate-950 leading-snug truncate"
+                    className="text-xs sm:text-sm font-black text-slate-950 leading-tight truncate"
                     title={activeShopInfo?.name || activeBatch.shop.name}
                   >
                     {activeShopInfo?.name || activeBatch.shop.name}
                   </h3>
                 </div>
 
-                <div className="pt-0.5">
-                  <p className="text-[10px] sm:text-xs text-purple-700 font-semibold truncate flex items-center gap-0.5">
-                    <span className="truncate">
-                      {isShopExpanded
-                        ? (lang === "en" ? "Hide menu ▲" : lang === "cn" ? "收起菜单 ▲" : "ซ่อนเมนู ▲")
-                        : (lang === "en" ? "View menu ▾" : lang === "cn" ? "查看菜单 ▾" : "แตะดูเมนู ▾")}
-                    </span>
-                  </p>
+                <div className="text-[9px] sm:text-[10px] text-purple-700 font-medium truncate">
+                  {isShopExpanded
+                    ? (lang === "en" ? "▲ Close" : lang === "cn" ? "▲ 收起" : "▲ ปิดเมนู")
+                    : (lang === "en" ? "▾ Tap menu" : lang === "cn" ? "▾ 查看菜单" : "▾ แตะดูเมนู")}
                 </div>
               </div>
 
               {/* Card 2: Drop off location */}
-              <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2 sm:p-3.5 shadow-2xs flex flex-col justify-between min-h-[88px] sm:min-h-[110px]">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shrink-0">
-                      <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-600 shrink-0" />
-                      <span className="truncate">{t.dropoffPoint}</span>
-                    </span>
-                    <span className="rounded bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold shrink-0">
-                      {activeLocation.shortCode || "M4"}
-                    </span>
-                  </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1 text-emerald-800 shrink-0">
+                    <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-600 shrink-0" />
+                    <span className="truncate">{t.dropoffPoint}</span>
+                  </span>
+                  <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 text-[9px] sm:text-[10px] font-mono font-bold shrink-0">
+                    {activeLocation.shortCode || "M4"}
+                  </span>
+                </div>
 
-                  <h3 className="text-xs sm:text-base font-black text-slate-950 leading-snug truncate" title={activeBuildingName}>
+                <div className="my-0.5">
+                  <h3 className="text-xs sm:text-sm font-black text-slate-950 leading-tight truncate" title={activeBuildingName}>
                     {activeBuildingName}
                   </h3>
                 </div>
 
-                <div className="pt-0.5">
-                  <p className="text-[10px] sm:text-xs text-slate-500 font-medium leading-relaxed truncate" title={activeLocalizedLocation.deskDetail}>
-                    {activeLocalizedLocation.deskDetail}
-                  </p>
+                <div className="text-[9px] sm:text-[10px] text-slate-500 font-medium truncate" title={activeLocalizedLocation.deskDetail}>
+                  {activeLocalizedLocation.deskDetail}
                 </div>
               </div>
 
               {/* Card 3: Leader or Retention Status */}
-              <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2 sm:p-3.5 shadow-2xs flex flex-col justify-between min-h-[88px] sm:min-h-[110px]">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <span className="text-[10px] sm:text-[11px] font-bold text-purple-900 bg-purple-50 px-1 sm:px-1.5 py-0.5 rounded-md border border-purple-200 flex items-center gap-0.5 shrink-0">
-                        <span className="text-amber-500 font-bold">👑</span>
-                        <span className="truncate">{t.leader}</span>
-                      </span>
+              <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1 text-purple-900 shrink-0 min-w-0">
+                    <span className="text-amber-500">👑</span>
+                    <span className="truncate">{t.leader}</span>
+                  </span>
 
-                      {activeBatch.isDeleted && (
-                        <span className="rounded bg-rose-100 text-rose-800 px-1 py-0.5 text-[8px] sm:text-[9px] font-bold shrink-0">
-                          {lang === "en" ? "Purged" : lang === "cn" ? "已清" : "ลบแล้ว"}
-                        </span>
-                      )}
-                      {activeBatch.status === "ORDERED" && !activeBatch.isDeleted && (
-                        <span className="rounded bg-emerald-100 text-emerald-800 px-1 py-0.5 text-[8px] sm:text-[9px] font-bold shrink-0">
-                          {t.sentToShopBadge}
-                        </span>
-                      )}
-                      {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && !activeBatch.isDeleted && (
-                        <span className="rounded bg-amber-100 text-amber-800 px-1 py-0.5 text-[8px] sm:text-[9px] font-bold shrink-0">
-                          {t.selfPickupBadge}
-                        </span>
-                      )}
-                    </div>
+                  {!activeBatch.isDeleted ? (
+                    <Link
+                      href={`/order/${activeBatch.id}/leader`}
+                      className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
+                      title={t.manageBoard}
+                    >
+                      <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                      <span className="hidden sm:inline">{t.manageBoard.replace(" ↗", "")}</span>
+                    </Link>
+                  ) : (
+                    <span className="rounded bg-rose-100 text-rose-800 px-1 py-0.2 text-[8px] font-bold shrink-0">
+                      Purged
+                    </span>
+                  )}
+                </div>
 
-                    {!activeBatch.isDeleted && (
-                      <Link
-                        href={`/order/${activeBatch.id}/leader`}
-                        className="inline-flex items-center gap-0.5 sm:gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 p-1 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[11px] font-bold transition-colors shadow-2xs shrink-0"
-                        title={t.manageBoard}
-                      >
-                        <SlidersHorizontal className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
-                        <span className="hidden sm:inline">{t.manageBoard.replace(" ↗", "")}</span>
-                      </Link>
-                    )}
-                  </div>
-
-                  <h3 className="text-xs sm:text-base font-black text-slate-950 leading-snug truncate" title={activeBatch.isDeleted ? "PDPA Purged" : (leaderLine || t.noLeader)}>
+                <div className="my-0.5">
+                  <h3 className="text-xs sm:text-sm font-black text-slate-950 leading-tight truncate" title={activeBatch.isDeleted ? "PDPA Purged" : (leaderLine || t.noLeader)}>
                     {activeBatch.isDeleted
                       ? (lang === "en" ? "Data Purged" : lang === "cn" ? "数据已清除" : "ข้อมูลถูกลบแล้ว")
                       : (leaderLine || t.noLeader)}
                   </h3>
                 </div>
 
-                <div className="pt-0.5">
+                <div className="text-[9px] sm:text-[10px] truncate">
                   {activeBatch.isDeleted ? (
-                    <p className="text-[10px] sm:text-xs text-slate-400 truncate">
-                      {lang === "en" ? "Privacy retention" : lang === "cn" ? "隐私保护" : "ความเป็นส่วนตัว"}
-                    </p>
+                    <span className="text-slate-400">PDPA</span>
                   ) : leaderPhone ? (
                     <a
                       href={`tel:${leaderPhone}`}
-                      className="inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline truncate"
+                      className="inline-flex items-center gap-0.5 font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline truncate"
                     >
-                      <Phone className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
+                      <Phone className="h-2.5 w-2.5 text-purple-700 shrink-0" />
                       <span className="truncate">{leaderPhone}</span>
                     </a>
                   ) : (
-                    <p className="text-[10px] sm:text-xs text-slate-400 truncate">
-                      {lang === "en" ? "No phone" : lang === "cn" ? "未留电话" : "ไม่มีเบอร์"}
-                    </p>
+                    <span className="text-slate-400">{lang === "en" ? "No phone" : lang === "cn" ? "未留电话" : "ไม่มีเบอร์"}</span>
                   )}
                 </div>
               </div>
@@ -1297,7 +1268,7 @@ export default function HomeClient({ initialBatches }: Props) {
             ) : (
               <>
                 {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3.5">
+                <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3.5 shadow-2xs space-y-2 sm:space-y-2.5">
                   {/* Bar 1: Price / Order Starter Filling Bar */}
                   <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold">
