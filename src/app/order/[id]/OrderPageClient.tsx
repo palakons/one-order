@@ -249,9 +249,9 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     if (!batch) return "";
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}\n`;
     txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
-    txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${batch.orders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
-    batch.orders.forEach((o) => {
+    activeOrders.forEach((o) => {
       const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
       txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
@@ -270,7 +270,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     setCopiedText(false);
 
     try {
-      const manifest = await generateOneLongManifestImage(batch);
+      const manifest = await generateOneLongManifestImage({ ...batch, orders: activeOrders });
       setManifestData(manifest);
     } catch (err) {
       console.error("Manifest generation error:", err);

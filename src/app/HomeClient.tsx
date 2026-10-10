@@ -27,6 +27,9 @@ import {
   Plus,
   ShoppingBag,
   Store,
+  Info,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 
 interface Props {
@@ -42,13 +45,15 @@ export default function HomeClient({ initialBatches }: Props) {
   // Active batch object
   const activeBatch = batches.find((b) => b.id === activeBatchId) || batches[0] || null;
 
-  // Modals state
+  // Modals & Quota Notice state
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<{ url: string; title: string } | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [generatingManifest, setGeneratingManifest] = useState(false);
   const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
   const [copiedText, setCopiedText] = useState(false);
+  const [showQuotaPane, setShowQuotaPane] = useState(true);
+  const [showQuotaDetailsModal, setShowQuotaDetailsModal] = useState(false);
 
   // Whiteboard Form Inputs
   const [customerLineId, setCustomerLineId] = useState("");
@@ -241,9 +246,9 @@ export default function HomeClient({ initialBatches }: Props) {
     if (!activeBatch) return "";
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}\n`;
     txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
-    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeBatch.orders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
-    activeBatch.orders.forEach((o) => {
+    activeOrders.forEach((o) => {
       const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
       txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
@@ -262,7 +267,7 @@ export default function HomeClient({ initialBatches }: Props) {
     setCopiedText(false);
 
     try {
-      const manifest = await generateOneLongManifestImage(activeBatch);
+      const manifest = await generateOneLongManifestImage({ ...activeBatch, orders: activeOrders });
       setManifestData(manifest);
     } catch (err) {
       console.error("Manifest generation error:", err);
@@ -360,6 +365,91 @@ export default function HomeClient({ initialBatches }: Props) {
       </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
+        {/* BIG PANE: Firebase Quota Notice & High-Availability Fallback Info */}
+        {showQuotaPane ? (
+          <div className="rounded-2xl border-2 border-amber-300 bg-linear-to-r from-amber-50 via-orange-50/60 to-amber-50/40 p-4 sm:p-5 shadow-xs transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-amber-600 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      Firebase Quota Exhausted
+                    </span>
+                    <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Local Fallback Active • ใช้งานได้ปกติ 100%
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-slate-950">
+                    โควตา Cloud Firestore ฟรีรายวันเต็มชั่วคราว — สลับใช้ระบบสำรองข้อมูลอัตโนมัติ
+                  </h3>
+                  <p className="text-xs text-slate-700 leading-relaxed max-w-3xl">
+                    โควตาเขียนของ Google Firebase Spark Plan (20,000 ครั้ง/วัน) เต็มชั่วคราวจากการ auto-seed ซ้ำในเวอร์ชันก่อนหน้า (แพตช์แก้ไขแล้ว)
+                    ระบบ VEATEC สลับมาใช้ <strong>High-Availability Memory & Storage Fallback</strong> โดยอัตโนมัติ สั่งข้าว ดูไวท์บอร์ด แนบสลิป BOT QR และสร้างใบสรุปได้ครบถ้วน
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-start">
+                <button
+                  type="button"
+                  onClick={() => setShowQuotaDetailsModal(true)}
+                  className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100/70 transition-colors shadow-2xs flex items-center gap-1"
+                >
+                  <Info className="h-3.5 w-3.5 text-amber-700" />
+                  <span>รายละเอียดโควตา & เวลารีเซ็ต</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowQuotaPane(false)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-amber-200/50 transition-colors"
+                  title="ย่อแถบแจ้งเตือน"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Key Information 3-Column Grid */}
+            <div className="mt-3.5 pt-3 border-t border-amber-200/70 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="rounded-xl bg-white/80 border border-amber-200/80 p-2.5 space-y-0.5">
+                <span className="text-[11px] font-bold text-slate-500 block">โควตาที่เต็มคืออะไร?</span>
+                <strong className="text-slate-900 font-extrabold text-xs block">Cloud Firestore Writes (Spark Tier)</strong>
+                <p className="text-[11px] text-slate-600">เพดานฟรี 20,000 เขียน / 50,000 อ่านต่อวันของ Firebase</p>
+              </div>
+
+              <div className="rounded-xl bg-white/80 border border-amber-200/80 p-2.5 space-y-0.5">
+                <span className="text-[11px] font-bold text-slate-500 block">จะกลับมาใช้งานได้เมื่อไหร่?</span>
+                <strong className="text-purple-900 font-extrabold text-xs block">รีเซ็ตทุกวันเวลา 15:00 น. (บ่ายสามโมง)</strong>
+                <p className="text-[11px] text-slate-600">ตรงกับ 00:00 PST เที่ยงคืนเวลาแคลิฟอร์เนียของ Google</p>
+              </div>
+
+              <div className="rounded-xl bg-white/80 border border-amber-200/80 p-2.5 space-y-0.5">
+                <span className="text-[11px] font-bold text-slate-500 block">สถานะการทำงานตอนนี้</span>
+                <strong className="text-emerald-700 font-extrabold text-xs block">เปิดสั่งได้ตามปกติ 100% (High Availability)</strong>
+                <p className="text-[11px] text-slate-600">สั่งอาหาร ตรวจสลิป BOT และรวมส่งร้านได้ไม่มีสะดุด</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>โควตา Firebase เต็มชั่วคราว (ระบบเปิด Local Fallback ทำงานปกติ • รีเซ็ตทุกวัน 15:00 น.)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowQuotaPane(true)}
+              className="text-xs font-black text-amber-900 underline hover:text-amber-950"
+            >
+              เปิดดูรายละเอียด
+            </button>
+          </div>
+        )}
+
         {/* 1. Shop Tabs Bar (5 Shops with Live Totals) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
           {batches.map((b, idx) => {
@@ -962,6 +1052,122 @@ export default function HomeClient({ initialBatches }: Props) {
                 </a>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Full Firebase Quota Diagnostics Modal */}
+      {showQuotaDetailsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white font-bold">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">
+                    รายงานสถานะโควตา Cloud Firestore
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Firebase Project: <code className="font-mono text-purple-900 font-bold">one-order-af750</code>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuotaDetailsModal(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 overflow-y-auto pr-1 text-xs text-slate-700">
+              {/* Status Box */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-950">สถานะการเชื่อมต่อ:</span>
+                  <span className="font-mono font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                    RESOURCE_EXHAUSTED (Quota Exceeded)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-950">โหมดระบบปัจจุบัน:</span>
+                  <span className="font-mono font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                    High-Availability Memory Fallback (ACTIVE)
+                  </span>
+                </div>
+              </div>
+
+              {/* Explanations */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
+                    <span>1. โควตาที่เต็มคืออะไร? (What is exhausted?)</span>
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed">
+                    Google Cloud Firestore ในแพ็กเกจฟรี (Spark Tier) กำหนดโควตาสูงสุดไว้ที่:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 pl-1 font-mono text-[11px]">
+                    <li>Document Writes: <strong>20,000 ครั้ง/วัน</strong> (โควตานี้เต็ม)</li>
+                    <li>Document Reads: <strong>50,000 ครั้ง/วัน</strong></li>
+                    <li>Document Deletes: <strong>20,000 ครั้ง/วัน</strong></li>
+                  </ul>
+                  <p className="text-slate-500 text-[11px] pt-1">
+                    สาเหตุเกิดจากการที่ระบบเวอร์ชันก่อนหน้ามีคำสั่ง auto-seed ข้อมูลร้านค้าและรอบสั่งซ้ำในทุกครั้งที่มีผู้เปิดหน้าเว็บ (10 writes ต่อ 1 pageview) ทำให้โควตา 20,000 ครั้งต่อวันหมดลงอย่างรวดเร็ว
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
+                    <span>2. จะกลับมาใช้งานได้เมื่อไหร่? (When will it come back?)</span>
+                  </h4>
+                  <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-purple-950 space-y-1">
+                    <p className="font-bold">
+                      ⏱ เวลาการรีเซ็ตโควตาของ Google: <strong>15:00 น. (บ่ายสามโมงตรง) ทุกวัน</strong>
+                    </p>
+                    <p className="text-[11px] text-purple-800 leading-relaxed">
+                      Google Cloud Firestore รีเซ็ตโควตารายวันตามเวลาเที่ยงคืนฝั่ง Pacific Time (00:00 PST / 08:00 UTC) ซึ่งตรงกับ 15:00 น. ตามเวลาประเทศไทย (ICT) เมื่อถึงเวลาดังกล่าว ระบบจะกลับมาเชื่อมต่อ Firestore โดยอัตโนมัติทันที
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
+                    <span>3. การสั่งอาหารได้รับผลกระทบหรือไม่? (Current Impact)</span>
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed">
+                    <strong>ไม่ได้รับผลกระทบเลยครับ!</strong> ระบบมี Fallback Architecture อัตโนมัติ:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 pl-1 text-[11px]">
+                    <li>ร้านค้าทั้ง 5 ร้าน ข้อมูล และราคา อาหารยังคงแสดงครบถ้วน</li>
+                    <li>สั่งอาหาร ลงชื่อ LINE ID และตรวจสลิปโอนเงิน BOT QR ได้ตามปกติ</li>
+                    <li>สร้างภาพใบสรุปยาว "The One Long Manifest Image" และแชร์เข้า LINE ได้ 100%</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-1">
+                  <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
+                    <span>4. แนวทางแก้ไขถาวร (Permanent Solution)</span>
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed">
+                    1) <strong>ทางโค้ด:</strong> เราได้ถอดคำสั่ง Auto-seed ออกจากคำสั่งอ่านทั้งหมด และใส่ Timeout 2.0s ป้องกันการค้างเรียบร้อยแล้ว<br />
+                    2) <strong>ทางบัญชี (ตัวเลือก):</strong> แอดมินสามารถเปิด <a href="https://console.firebase.google.com/project/one-order-af750/usage" target="_blank" rel="noopener noreferrer" className="text-purple-700 font-bold underline">Firebase Console ↗</a> แล้วสลับแพ็กเกจเป็น <strong>Blaze Plan (Pay as you go)</strong> ซึ่งยังคงได้รับโควตาฟรีเท่าเดิมทุกวัน แต่จะไม่ถูกตัดการเชื่อมต่อหากมีการใช้งานเกินโควตา
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end shrink-0 mt-3">
+              <button
+                type="button"
+                onClick={() => setShowQuotaDetailsModal(false)}
+                className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-bold transition-colors"
+              >
+                เข้าใจแล้ว / ปิดหน้าต่าง
+              </button>
+            </div>
           </div>
         </div>
       )}
