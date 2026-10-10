@@ -21,6 +21,7 @@ export async function GET(request: Request) {
 
     for (const b of rawBatches) {
       for (const ord of b.orders || []) {
+        if (ord.deletedAt) continue;
         const ordDigits = (ord.customerPhone || "").replace(/\D/g, "");
         if (
           ordDigits === cleanSearch ||

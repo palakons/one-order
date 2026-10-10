@@ -5,7 +5,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CampusDesksModal from "@/components/CampusDesksModal";
 import { BatchWithDetails, BatchStatus } from "@/lib/types";
-import { getLocationById } from "@/lib/locations";
+import { getLocationById, setRuntimeLocations } from "@/lib/locations";
 import {
   ShoppingBag,
   ArrowLeft,
@@ -60,16 +60,84 @@ export default function MyOrdersClient() {
   const [showDesks, setShowDesks] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load local orders from localStorage
+  // Fetch drop-off locations dynamically from DB
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.locations) && data.locations.length > 0) {
+          setRuntimeLocations(data.locations);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const fetchOrdersByPhone = async (phone: string, showAlert = false) => {
+    const cleanPhone = phone.trim().replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    try {
+      setRefreshing(true);
+      const res = await fetch(`/api/orders?phone=${encodeURIComponent(cleanPhone)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+        const foundOrders: LocalOrder[] = data.orders.map((o: any) => ({
+          orderId: o.orderId,
+          batchId: o.batchId,
+          shopName: o.shopName,
+          date: o.date,
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone,
+          locationId: o.locationId,
+          totalAmount: o.totalAmount,
+          boxLabel: o.boxLabel,
+          slipImageUrl: o.slipImageUrl,
+          items: o.items,
+          createdAt: o.createdAt,
+        }));
+
+        setLocalOrders((prev) => {
+          const merged = [...foundOrders];
+          prev.forEach((lo) => {
+            if (!merged.some((m) => m.orderId === lo.orderId)) {
+              merged.push(lo);
+            }
+          });
+          merged.sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+          try {
+            localStorage.setItem("veatec_user_orders", JSON.stringify(merged.slice(0, 30)));
+            localStorage.setItem("veatec_user_phone", cleanPhone);
+          } catch (err) {}
+          return merged;
+        });
+      } else if (showAlert) {
+        alert(`ไม่พบออเดอร์ที่ตรงกับเบอร์ ${phone} ในระบบ`);
+      }
+    } catch (err) {
+      console.error("Phone search error:", err);
+      if (showAlert) alert("เกิดข้อผิดพลาดในการค้นหาออเดอร์");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Load local orders from localStorage or auto-lookup by saved phone
   useEffect(() => {
     try {
       const stored = localStorage.getItem("veatec_user_orders");
+      let parsedCount = 0;
       if (stored) {
-        setLocalOrders(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setLocalOrders(parsed);
+        parsedCount = parsed.length;
       }
       const savedPhone = localStorage.getItem("veatec_user_phone");
       if (savedPhone) {
         setSearchPhone(savedPhone);
+        if (parsedCount === 0) {
+          fetchOrdersByPhone(savedPhone, false);
+        }
       }
     } catch (e) {
       console.warn("Error reading local orders:", e);
@@ -103,58 +171,15 @@ export default function MyOrdersClient() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchBatches(true);
+    if (searchPhone) {
+      fetchOrdersByPhone(searchPhone, false);
+    }
   };
 
   // Search by phone from server batches (for multi-device access)
   const handlePhoneSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = searchPhone.trim().replace(/\D/g, "");
-    if (!cleanPhone) return;
-
-    try {
-      setRefreshing(true);
-      const res = await fetch(`/api/orders?phone=${encodeURIComponent(cleanPhone)}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
-        const foundOrders: LocalOrder[] = data.orders.map((o: any) => ({
-          orderId: o.orderId,
-          batchId: o.batchId,
-          shopName: o.shopName,
-          date: o.date,
-          orderNumber: o.orderNumber,
-          customerName: o.customerName,
-          customerPhone: o.customerPhone,
-          locationId: o.locationId,
-          totalAmount: o.totalAmount,
-          boxLabel: o.boxLabel,
-          slipImageUrl: o.slipImageUrl,
-          items: o.items,
-          createdAt: o.createdAt,
-        }));
-
-        // Merge with existing local orders without duplicates
-        const merged = [...foundOrders];
-        localOrders.forEach((lo) => {
-          if (!merged.some((m) => m.orderId === lo.orderId)) {
-            merged.push(lo);
-          }
-        });
-        // Sort newest first
-        merged.sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
-        setLocalOrders(merged);
-        try {
-          localStorage.setItem("veatec_user_orders", JSON.stringify(merged.slice(0, 30)));
-          localStorage.setItem("veatec_user_phone", searchPhone.trim());
-        } catch (err) {}
-      } else {
-        alert(`ไม่พบออเดอร์ที่ตรงกับเบอร์ ${searchPhone} ในระบบ`);
-      }
-    } catch (err) {
-      console.error("Phone search error:", err);
-      alert("เกิดข้อผิดพลาดในการค้นหาออเดอร์");
-    } finally {
-      setRefreshing(false);
-    }
+    await fetchOrdersByPhone(searchPhone, true);
   };
 
   // Status mapping helper
@@ -182,7 +207,7 @@ export default function MyOrdersClient() {
           label: "กำลังเตรียม & รอส่งอาหาร",
           badgeColor: "bg-amber-100 text-amber-800 border-amber-200 font-bold",
           icon: ChefHat,
-          subtext: "ครัวกำลังทำอาหารตามออเดอร์ • รอส่งถึงโต๊ะ M4 ตามรอบเวลา",
+          subtext: "ครัวกำลังทำอาหารตามออเดอร์ • รอส่งถึงจุดรับอาหารตามรอบเวลา",
         };
     }
   };
@@ -377,7 +402,7 @@ export default function MyOrdersClient() {
                       <div className="grid grid-cols-2 gap-2 text-center">
                         {[
                           { step: 1, label: "1. สั่งซื้อ & เตรียมอาหาร" },
-                          { step: 2, label: "2. วางที่โต๊ะ M4 แล้ว 🎉" },
+                          { step: 2, label: `2. วางที่โต๊ะ ${loc?.shortCode || "จุดรับของ"} แล้ว 🎉` },
                         ].map((s) => {
                           const isDone = statusInfo.step >= s.step;
                           const isCurrent = statusInfo.step === s.step;
@@ -430,9 +455,22 @@ export default function MyOrdersClient() {
 
                       {/* Pickup Location */}
                       <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3 space-y-1">
-                        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-purple-700" />
-                          <span>จุดรับอาหาร (Campus Desk)</span>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-purple-700" />
+                            <span>จุดรับอาหาร (Campus Desk)</span>
+                          </div>
+                          {loc?.mapUrl && (
+                            <a
+                              href={loc.mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-purple-700 hover:text-purple-900 hover:underline"
+                            >
+                              <span>แผนที่</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          )}
                         </div>
                         <div className="text-xs font-bold text-gray-900">
                           {loc?.name || ord.locationId}
@@ -530,7 +568,7 @@ export default function MyOrdersClient() {
                             className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
                           >
                             <Camera className="h-3 w-3 text-emerald-600" />
-                            <span>ดูรูปส่ง M4</span>
+                            <span>ดูรูปจุดรับของ</span>
                           </Link>
                         )}
                         {ord.slipImageUrl && (

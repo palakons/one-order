@@ -665,6 +665,31 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           localStorage.setItem(`veatec_host_${activeBatch.id}`, "true");
           setIsHost(true);
         }
+
+        if (data.order) {
+          const existingOrdersStr = localStorage.getItem("veatec_user_orders");
+          const existingOrders = existingOrdersStr ? JSON.parse(existingOrdersStr) : [];
+          const newOrderEntry = {
+            orderId: data.order.id,
+            batchId: data.order.batchId,
+            shopName: activeBatch.shop.name,
+            date: activeBatch.date,
+            orderNumber: data.order.orderNumber,
+            customerName: data.order.customerName,
+            customerPhone: data.order.customerPhone,
+            locationId: data.order.locationId,
+            totalAmount: data.order.totalAmount,
+            boxLabel: data.order.boxLabel,
+            slipImageUrl: data.order.slipImageUrl,
+            items: data.order.items,
+            createdAt: data.order.createdAt,
+          };
+          const updatedOrders = [
+            newOrderEntry,
+            ...existingOrders.filter((o: any) => o.orderId !== newOrderEntry.orderId),
+          ].slice(0, 30);
+          localStorage.setItem("veatec_user_orders", JSON.stringify(updatedOrders));
+        }
       } catch (e) {}
 
       // Reset form
