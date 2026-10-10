@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { Shop, Batch, Order, BatchWithDetails, BatchStatus, Suggestion } from "./types";
-import { getLocationById } from "./locations";
+import { getLocationById, DeliveryLocation, CAMPUS_LOCATIONS } from "./locations";
 import { getBangkokDate, getDaysDifference } from "./utils";
 import { isFirebaseConfigured, db } from "./firebase";
 import {
@@ -11,6 +11,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 interface DatabaseSchema {
@@ -18,6 +19,7 @@ interface DatabaseSchema {
   batches: Batch[];
   orders: Order[];
   suggestions?: Suggestion[];
+  locations?: DeliveryLocation[];
 }
 
 declare global {
@@ -363,9 +365,9 @@ export interface SystemStatus {
   resetTimeInfo: string;
 }
 
-let lastSystemSeverity: FirebaseSeverity = "interrupted"; // initial state reflects currently exceeded daily quota
-let lastQuotaExhausted = true;
-let lastErrorMessage: string | null = "RESOURCE_EXHAUSTED: Quota exceeded (Daily free tier write limit reached)";
+let lastSystemSeverity: FirebaseSeverity = "normal";
+let lastQuotaExhausted = false;
+let lastErrorMessage: string | null = null;
 
 export function recordFirestoreError(err: any) {
   const errMsg = String(err?.message || err || "");
@@ -380,6 +382,13 @@ export function recordFirestoreError(err: any) {
     lastSystemSeverity = "warning";
   }
   lastErrorMessage = errMsg;
+}
+
+export function resetSystemQuota(): SystemStatus {
+  lastSystemSeverity = "normal";
+  lastQuotaExhausted = false;
+  lastErrorMessage = null;
+  return getSystemStatus();
 }
 
 export function getSystemStatus(): SystemStatus {
@@ -405,7 +414,11 @@ export async function checkFirestoreHealth(): Promise<SystemStatus> {
   }
 
   try {
-    await withTimeout(getDocs(collection(db, "shops")), 1500);
+    await withTimeout(getDocs(collection(db, "shops")), 2500);
+    // Probe succeeded without error - clear quota exhausted flag
+    lastSystemSeverity = "normal";
+    lastQuotaExhausted = false;
+    lastErrorMessage = null;
     return getSystemStatus();
   } catch (err: any) {
     recordFirestoreError(err);
@@ -487,6 +500,89 @@ export async function saveShop(shop: Shop): Promise<Shop> {
   }
   await writeData(data);
   return shop;
+}
+
+export async function deleteShop(id: string): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await withTimeout(deleteDoc(doc(db, "shops", id)), 2500);
+    } catch (err) {
+      console.warn("Firestore deleteShop failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  const index = data.shops.findIndex((s) => s.id === id);
+  if (index >= 0) {
+    data.shops.splice(index, 1);
+    await writeData(data);
+    return true;
+  }
+  return false;
+}
+
+export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const snap = await withTimeout(getDocs(collection(db, "locations")), 2500);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as DeliveryLocation);
+      }
+    } catch (err) {
+      console.warn("Firestore getDeliveryLocations failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  if (data.locations && data.locations.length > 0) {
+    return data.locations;
+  }
+  return CAMPUS_LOCATIONS;
+}
+
+export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<DeliveryLocation> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await withTimeout(setDoc(doc(db, "locations", loc.id), cleanForFirestore(loc)), 2500);
+    } catch (err) {
+      console.warn("Firestore saveDeliveryLocation failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  if (!data.locations) {
+    data.locations = [...CAMPUS_LOCATIONS];
+  }
+  const idx = data.locations.findIndex((l) => l.id === loc.id);
+  if (idx >= 0) {
+    data.locations[idx] = loc;
+  } else {
+    data.locations.push(loc);
+  }
+  await writeData(data);
+  return loc;
+}
+
+export async function deleteDeliveryLocation(id: string): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await withTimeout(deleteDoc(doc(db, "locations", id)), 2500);
+    } catch (err) {
+      console.warn("Firestore deleteDeliveryLocation failed:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  if (!data.locations) {
+    data.locations = [...CAMPUS_LOCATIONS];
+  }
+  const idx = data.locations.findIndex((l) => l.id === id);
+  if (idx >= 0) {
+    data.locations.splice(idx, 1);
+    await writeData(data);
+    return true;
+  }
+  return false;
 }
 
 export function sanitizeOrder(o: Order): Order {
@@ -1025,5 +1121,34 @@ export async function saveActiveLineGroupId(groupId: string): Promise<void> {
     }
   }
 }
+
+export async function removeActiveLineGroupId(groupId: string): Promise<void> {
+  const cleanId = (groupId || "").trim();
+  if (!cleanId) return;
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const ref = doc(db, "system", "line_config");
+      const snap = await withTimeout(getDoc(ref), 2000);
+      const existing: string[] = snap.exists() ? (snap.data().groupIds || []) : [];
+      const updated = existing.filter((id) => id !== cleanId);
+      await withTimeout(
+        setDoc(
+          ref,
+          {
+            activeGroupId: updated[0] || "",
+            groupIds: updated,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        ),
+        2500
+      );
+    } catch (err) {
+      console.warn("Firestore removeActiveLineGroupId failed:", err);
+    }
+  }
+}
+
 
 

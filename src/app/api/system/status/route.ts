@@ -9,3 +9,12 @@ export async function GET() {
     return NextResponse.json({ success: true, status: getSystemStatus() });
   }
 }
+
+export async function POST() {
+  try {
+    const status = await checkFirestoreHealth();
+    return NextResponse.json({ success: true, status, message: "Live probe completed" });
+  } catch (error: any) {
+    return NextResponse.json({ success: true, status: getSystemStatus(), error: error?.message });
+  }
+}

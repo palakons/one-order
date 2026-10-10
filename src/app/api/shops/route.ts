@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getShops, saveShop } from "@/lib/store";
+import { getShops, saveShop, deleteShop, getShopById } from "@/lib/store";
 
 export async function GET() {
   try {
@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       description,
       phone,
       lineId,
+      gmapUrl,
       promptpayNumber,
       promptpayAccountName,
       promptpayQrUrl,
@@ -41,15 +42,16 @@ export async function POST(request: Request) {
       id: `shop-${Date.now()}`,
       name,
       nameEn,
-      cuisine: cuisine || "Street Food",
+      cuisine: cuisine || "อาหารจานด่วน",
       description: description || "",
       phone,
       lineId: lineId || "",
+      gmapUrl: gmapUrl || `https://maps.google.com/?q=${encodeURIComponent(name + " ระยอง")}`,
       promptpayNumber,
       promptpayAccountName,
       promptpayQrUrl:
         promptpayQrUrl ||
-        `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${promptpayNumber}`,
+        `https://promptpay.io/${promptpayNumber}.png`,
       menuImageUrl: menuImageUrl || "",
       minDeliveryAmount: Number(minDeliveryAmount) || 200,
       defaultCutoffTime: defaultCutoffTime || "11:15",
@@ -61,5 +63,52 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to save shop:", error);
     return NextResponse.json({ success: false, error: "Failed to save shop" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Shop ID is required" }, { status: 400 });
+    }
+
+    const existingShop = await getShopById(id);
+    const updatedShop = {
+      ...(existingShop || {}),
+      ...body,
+      id,
+      minDeliveryAmount: Number(body.minDeliveryAmount) || existingShop?.minDeliveryAmount || 200,
+      menuItems: body.menuItems || existingShop?.menuItems || [],
+    };
+
+    if (body.promptpayNumber && !body.promptpayQrUrl) {
+      updatedShop.promptpayQrUrl = `https://promptpay.io/${body.promptpayNumber}.png`;
+    }
+
+    const saved = await saveShop(updatedShop);
+    return NextResponse.json({ success: true, shop: saved });
+  } catch (error) {
+    console.error("Failed to update shop:", error);
+    return NextResponse.json({ success: false, error: "Failed to update shop" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Shop ID is required" }, { status: 400 });
+    }
+
+    const deleted = await deleteShop(id);
+    return NextResponse.json({ success: true, deleted });
+  } catch (error) {
+    console.error("Failed to delete shop:", error);
+    return NextResponse.json({ success: false, error: "Failed to delete shop" }, { status: 500 });
   }
 }
