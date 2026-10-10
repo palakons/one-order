@@ -263,6 +263,24 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
     }
   };
 
+  const handleUpdateBatchStatus = async (batchId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/batches/${batchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        refreshData();
+      } else {
+        alert(data.error || "ไม่สามารถเปลี่ยนสถานะได้");
+      }
+    } catch (e) {
+      alert("เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
+    }
+  };
+
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedShopId) {
@@ -790,6 +808,25 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                      {b.status === "COMPLETED" || b.status === "CANCELLED" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateBatchStatus(b.id, "OPEN")}
+                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                          title="เปิดรับออเดอร์ใหม่บนกระดานสด"
+                        >
+                          เปิดรับใหม่ (Live)
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateBatchStatus(b.id, "COMPLETED")}
+                          className="rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs"
+                          title="เปลี่ยนสถานะเป็นส่งเสร็จแล้ว และย้ายเข้ากระดานเก่า"
+                        >
+                          ปิดรอบ/ส่งแล้ว (Archive)
+                        </button>
+                      )}
                       {b.status === "COMPLETED" && (
                         <Link
                           href={`/delivery/${b.id}`}

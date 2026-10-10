@@ -30,6 +30,7 @@ import {
   Send,
   Plus,
   ShoppingBag,
+  Phone,
 } from "lucide-react";
 
 interface Props {
@@ -51,6 +52,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
   // Whiteboard Fast Order Input Form
   const [customerLineId, setCustomerLineId] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [dishName, setDishName] = useState("");
   const [dishPrice, setDishPrice] = useState("");
   const [dishNote, setDishNote] = useState("");
@@ -82,11 +84,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     return () => clearInterval(interval);
   }, [batchId]);
 
-  // 2. Load cached Line ID & Host state
+  // 2. Load cached Line ID, Phone & Host state
   useEffect(() => {
     try {
       const savedLine = localStorage.getItem("veatec_user_line");
       if (savedLine) setCustomerLineId(savedLine);
+      const savedPhone = localStorage.getItem("veatec_user_phone");
+      if (savedPhone) setCustomerPhone(savedPhone);
       const hostBatch = localStorage.getItem(`veatec_host_${batchId}`);
       if (hostBatch === "true") setIsHost(true);
     } catch (e) {}
@@ -140,11 +144,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     setSubmitError(null);
 
     const cleanLine = customerLineId.trim();
+    const cleanPhone = customerPhone.trim();
+    const phoneDigits = cleanPhone.replace(/\D/g, "");
     const cleanDish = dishName.trim();
     const priceNum = parseFloat(dishPrice);
 
     if (!cleanLine) {
       setSubmitError("กรุณากรอก LINE ID หรือชื่อแสดงผล");
+      return;
+    }
+    if (!cleanPhone || phoneDigits.length < 9) {
+      setSubmitError("กรุณากรอกเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก) เพื่อให้ร้านค้าโทรติดต่อกรณีมีปัญหาในออเดอร์");
       return;
     }
     if (!cleanDish) {
@@ -169,7 +179,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           batchId,
           customerName: cleanLine,
           customerLineId: cleanLine,
-          customerPhone: "",
+          customerPhone: cleanPhone,
           locationId: "loc-m4",
           items: [
             {
@@ -193,9 +203,10 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         throw new Error(data.error || "เกิดข้อผิดพลาดในการลงชื่อ");
       }
 
-      // Save LINE ID
+      // Save LINE ID & Phone
       try {
         localStorage.setItem("veatec_user_line", cleanLine);
+        localStorage.setItem("veatec_user_phone", cleanPhone);
         // If first order in this batch, designate as Host
         if (!batch?.orders || batch.orders.length === 0) {
           localStorage.setItem(`veatec_host_${batchId}`, "true");
@@ -252,9 +263,10 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
-      const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
+      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId}` : o.customerName;
+      const phoneTag = o.customerPhone ? ` • โทร: ${o.customerPhone}` : "";
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
-      txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
+      txt += `#${o.orderNumber} ${lineTag}${phoneTag} — ${itemsStr} (฿${o.totalAmount})\n`;
     });
     txt += `------------------------------------\n`;
     txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
@@ -534,8 +546,18 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                         #{ord.orderNumber}
                       </span>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-bold text-sm text-gray-900">{lineName}</span>
+                          {ord.customerPhone && (
+                            <a
+                              href={`tel:${ord.customerPhone}`}
+                              className="text-xs text-gray-500 hover:text-purple-900 font-mono flex items-center gap-1"
+                              title="โทรหาลูกค้า"
+                            >
+                              <Phone className="h-3 w-3 text-gray-400" />
+                              <span>{ord.customerPhone}</span>
+                            </a>
+                          )}
                           {hasSlip ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
                               <CheckCircle2 className="h-3 w-3" />
@@ -626,19 +648,36 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             )}
 
             <form onSubmit={handleAddToWhiteboard} className="space-y-4">
-              {/* Row 1: LINE ID / Name */}
-              <div>
-                <label className="text-xs font-bold text-gray-700">
-                  LINE ID หรือชื่อของคุณ <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="เช่น Golf หรือ @golf_123"
-                  value={customerLineId}
-                  onChange={(e) => setCustomerLineId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
-                />
+              {/* Row 1: LINE ID & Phone Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700">
+                    LINE ID หรือชื่อของคุณ <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="เช่น Golf หรือ @golf_123"
+                    value={customerLineId}
+                    onChange={(e) => setCustomerLineId(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 flex items-center justify-between">
+                    <span>เบอร์โทรศัพท์ (ร้านโทรหาเมื่อมีปัญหา) <span className="text-rose-500">*</span></span>
+                    <span className="text-[10px] text-gray-400 font-normal">กรณีของหมด</span>
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    required
+                    placeholder="เช่น 0812345678"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600 font-mono"
+                  />
+                </div>
               </div>
 
               {/* Row 2: Dish Name & Quick Popular Chips */}

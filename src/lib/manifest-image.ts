@@ -246,12 +246,13 @@ export async function generateOneLongManifestImage(
       ctx.font = "bold 16px sans-serif";
       ctx.fillText(`${dishTitle}${extraCount}`.slice(0, 42), padding + 78, rowY + 19);
 
-      // Line 2: Note / Customer LINE
+      // Line 2: Note / Customer LINE & Phone
       ctx.fillStyle = "#64748b";
       ctx.font = "13px sans-serif";
       const lineIdStr = ord.customerLineId ? `👤 LINE: @${ord.customerLineId}` : `👤 ${ord.customerName}`;
+      const phoneStr = ord.customerPhone ? ` • 📞 ${ord.customerPhone}` : "";
       const noteStr = mainItem.customNote ? ` • หมายเหตุ: ${mainItem.customNote}` : "";
-      ctx.fillText(`${lineIdStr}${noteStr}`.slice(0, 52), padding + 78, rowY + 39);
+      ctx.fillText(`${lineIdStr}${phoneStr}${noteStr}`.slice(0, 68), padding + 78, rowY + 39);
 
       // Right-aligned Price Badge
       ctx.textAlign = "right";
@@ -295,6 +296,7 @@ export async function generateOneLongManifestImage(
     ctx.textBaseline = "middle";
 
     const lineIdStr = order.customerLineId ? `@${order.customerLineId}` : order.customerName;
+    const phoneInfo = order.customerPhone ? ` • โทร: ${order.customerPhone}` : "";
 
     if (img) {
       const cardHeight = 48 + drawHeight + 16;
@@ -316,7 +318,7 @@ export async function generateOneLongManifestImage(
       ctx.fillStyle = "#0f172a";
       ctx.font = "bold 15px sans-serif";
       ctx.fillText(
-        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ผู้สั่ง: ${lineIdStr} • ยอด ฿${order.totalAmount}`,
+        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ${lineIdStr}${phoneInfo} • ยอด ฿${order.totalAmount}`,
         padding + 22,
         currentY + 25
       );
@@ -356,7 +358,7 @@ export async function generateOneLongManifestImage(
       ctx.fillStyle = "#065f46"; // emerald-800
       ctx.font = "bold 15px sans-serif";
       ctx.fillText(
-        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ผู้สั่ง: ${lineIdStr} • ยอด ฿${order.totalAmount}`,
+        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ${lineIdStr}${phoneInfo} • ยอด ฿${order.totalAmount}`,
         padding + 22,
         currentY + 25
       );

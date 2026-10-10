@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order } from "@/lib/types";
@@ -30,6 +30,9 @@ import {
   Info,
   ShieldCheck,
   Zap,
+  Phone,
+  Archive,
+  ArrowLeft,
 } from "lucide-react";
 
 interface Props {
@@ -38,12 +41,38 @@ interface Props {
 
 export default function HomeClient({ initialBatches }: Props) {
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
-  const [activeBatchId, setActiveBatchId] = useState<string>(
-    initialBatches[0]?.id || ""
-  );
 
-  // Active batch object
-  const activeBatch = batches.find((b) => b.id === activeBatchId) || batches[0] || null;
+  // Split batches into Live Boards vs Archived/Past Boards
+  const isLiveBatch = (b: BatchWithDetails) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (b.status === "COMPLETED" || b.status === "CANCELLED") return false;
+    if (b.date < today) return false;
+    return true;
+  };
+
+  const liveBatches = useMemo(() => batches.filter(isLiveBatch), [batches]);
+  const archivedBatches = useMemo(() => batches.filter((b) => !isLiveBatch(b)), [batches]);
+
+  const [activeBatchId, setActiveBatchId] = useState<string>(
+    initialBatches.find(isLiveBatch)?.id || initialBatches[0]?.id || ""
+  );
+  const [viewingArchivedBatch, setViewingArchivedBatch] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+
+  // Active batch object: if in archive view, allow selecting from all batches, else prioritize live batches
+  const activeBatch = viewingArchivedBatch
+    ? batches.find((b) => b.id === activeBatchId) || batches[0] || null
+    : liveBatches.find((b) => b.id === activeBatchId) || liveBatches[0] || batches[0] || null;
+
+  // Auto-switch to first live batch if active batch is missing from liveBatches
+  useEffect(() => {
+    if (!viewingArchivedBatch && liveBatches.length > 0) {
+      const existsInLive = liveBatches.some((b) => b.id === activeBatchId);
+      if (!existsInLive) {
+        setActiveBatchId(liveBatches[0].id);
+      }
+    }
+  }, [liveBatches, activeBatchId, viewingArchivedBatch]);
 
   // Modals state
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
@@ -55,6 +84,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
   // Whiteboard Form Inputs
   const [customerLineId, setCustomerLineId] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [dishName, setDishName] = useState("");
   const [dishPrice, setDishPrice] = useState("");
   const [dishNote, setDishNote] = useState("");
@@ -80,11 +110,13 @@ export default function HomeClient({ initialBatches }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Load cached LINE ID & Host status
+  // 2. Load cached LINE ID, Phone Number & Host status
   useEffect(() => {
     try {
       const savedLine = localStorage.getItem("veatec_user_line");
       if (savedLine) setCustomerLineId(savedLine);
+      const savedPhone = localStorage.getItem("veatec_user_phone");
+      if (savedPhone) setCustomerPhone(savedPhone);
       if (activeBatchId) {
         const hostBatch = localStorage.getItem(`veatec_host_${activeBatchId}`);
         setIsHost(hostBatch === "true");
@@ -138,11 +170,17 @@ export default function HomeClient({ initialBatches }: Props) {
 
     setSubmitError(null);
     const cleanLine = customerLineId.trim();
+    const cleanPhone = customerPhone.trim();
+    const phoneDigits = cleanPhone.replace(/\D/g, "");
     const cleanDish = dishName.trim();
     const priceNum = parseFloat(dishPrice);
 
     if (!cleanLine) {
       setSubmitError("กรุณากรอก LINE ID หรือชื่อแสดงผล");
+      return;
+    }
+    if (!cleanPhone || phoneDigits.length < 9) {
+      setSubmitError("กรุณากรอกเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก) เพื่อให้ร้านค้าโทรติดต่อกรณีมีปัญหาในออเดอร์");
       return;
     }
     if (!cleanDish) {
@@ -167,7 +205,7 @@ export default function HomeClient({ initialBatches }: Props) {
           batchId: activeBatch.id,
           customerName: cleanLine,
           customerLineId: cleanLine,
-          customerPhone: "",
+          customerPhone: cleanPhone,
           locationId: "loc-m4",
           items: [
             {
@@ -193,6 +231,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
       try {
         localStorage.setItem("veatec_user_line", cleanLine);
+        localStorage.setItem("veatec_user_phone", cleanPhone);
         if (!activeBatch.orders || activeBatch.orders.length === 0) {
           localStorage.setItem(`veatec_host_${activeBatch.id}`, "true");
           setIsHost(true);
@@ -247,9 +286,10 @@ export default function HomeClient({ initialBatches }: Props) {
     txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
-      const lineTag = o.customerLineId ? `LINE: ${o.customerLineId}` : o.customerName;
+      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId}` : o.customerName;
+      const phoneTag = o.customerPhone ? ` • โทร: ${o.customerPhone}` : "";
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
-      txt += `#${o.orderNumber} ${lineTag} — ${itemsStr} (฿${o.totalAmount})\n`;
+      txt += `#${o.orderNumber} ${lineTag}${phoneTag} — ${itemsStr} (฿${o.totalAmount})\n`;
     });
     txt += `------------------------------------\n`;
     txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
@@ -352,6 +392,17 @@ export default function HomeClient({ initialBatches }: Props) {
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>LIVE SYSTEM</span>
             </span>
+            {archivedBatches.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowArchiveModal(true)}
+                className="text-slate-500 hover:text-purple-900 border border-slate-200 bg-slate-50 px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors"
+                title="คลังกระดานที่ปิดรอบแล้ว (Archived Boards)"
+              >
+                <Archive className="h-3.5 w-3.5 text-slate-400" />
+                <span>Archive ({archivedBatches.length})</span>
+              </button>
+            )}
             <Link
               href="/admin"
               className="text-slate-500 hover:text-purple-900 border border-slate-200 bg-slate-50 px-2.5 py-1 rounded-md"
@@ -363,17 +414,20 @@ export default function HomeClient({ initialBatches }: Props) {
       </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
-        {/* 1. Shop Tabs Bar (5 Shops with Live Totals) */}
+        {/* 1. Live Shop Tabs Bar & Obscured Archive Button */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
-          {batches.map((b, idx) => {
-            const isActive = b.id === activeBatchId;
+          {liveBatches.map((b, idx) => {
+            const isActive = !viewingArchivedBatch && b.id === activeBatchId;
             const isMet = b.currentTotalAmount >= b.targetMinAmount;
 
             return (
               <button
                 key={b.id}
                 type="button"
-                onClick={() => setActiveBatchId(b.id)}
+                onClick={() => {
+                  setViewingArchivedBatch(false);
+                  setActiveBatchId(b.id);
+                }}
                 className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl px-3.5 py-2 text-xs font-bold transition-all border-t border-x ${
                   isActive
                     ? "bg-white border-slate-300 text-slate-950 shadow-xs -mb-px z-10 font-black border-b-2 border-b-white"
@@ -395,9 +449,74 @@ export default function HomeClient({ initialBatches }: Props) {
               </button>
             );
           })}
+
+          {/* Obscured Archive Button on Tabs Bar */}
+          {archivedBatches.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchiveModal(true)}
+              className="ml-auto flex items-center gap-1.5 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+              title="ดูกระดานที่ปิดรอบแล้ว (Archived Boards)"
+            >
+              <Archive className="h-3.5 w-3.5 text-slate-400" />
+              <span>กระดานเก่า ({archivedBatches.length})</span>
+            </button>
+          )}
         </div>
 
-        {activeBatch ? (
+        {/* When viewing an archived board, show top notification banner */}
+        {viewingArchivedBatch && activeBatch && (
+          <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 px-4 py-2.5 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <Archive className="h-4 w-4 text-amber-400 shrink-0" />
+              <span>
+                <strong>กำลังดูกระดานเก่า:</strong> {activeBatch.shop.name} ({activeBatch.date}) • ปิดรับออเดอร์แล้ว (Read-Only)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setViewingArchivedBatch(false);
+                if (liveBatches[0]) setActiveBatchId(liveBatches[0].id);
+              }}
+              className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              <span>กลับกระดานสด</span>
+            </button>
+          </div>
+        )}
+
+        {/* Empty state if no live batches exist right now */}
+        {liveBatches.length === 0 && !viewingArchivedBatch ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center space-y-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <Clock className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">ไม่มีกระดานเปิดรับออเดอร์ในขณะนี้</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              กระดานของวันนี้อาจยังไม่ได้เปิด หรือรอบสั่งทั้งหมดเสร็จสิ้นแล้ว
+            </p>
+            <div className="flex justify-center gap-2 pt-1">
+              {archivedBatches.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+                >
+                  <Archive className="h-4 w-4 text-slate-500" />
+                  <span>ดูกระดานเก่าในคลัง ({archivedBatches.length})</span>
+                </button>
+              )}
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs"
+              >
+                <span>เปิดกระดานใหม่ (Admin)</span>
+              </Link>
+            </div>
+          </div>
+        ) : activeBatch ? (
           <div className="space-y-4">
             {/* 2. Active Whiteboard Header Box */}
             <div className="rounded-2xl border border-slate-300 bg-white p-4 sm:p-5 shadow-xs space-y-3">
@@ -544,7 +663,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
                         <th className="py-2.5 px-3 w-12 font-mono">#</th>
-                        <th className="py-2.5 px-3 w-36">ผู้สั่ง (LINE)</th>
+                        <th className="py-2.5 px-3 w-40">ผู้สั่ง / เบอร์ติดต่อ</th>
                         <th className="py-2.5 px-3">รายการอาหาร</th>
                         <th className="py-2.5 px-3 w-20 text-right">ราคา</th>
                         <th className="py-2.5 px-3 w-28 text-center">สลิป</th>
@@ -561,8 +680,18 @@ export default function HomeClient({ initialBatches }: Props) {
                             <td className="py-3 px-3 font-mono font-bold text-slate-900">
                               #{ord.orderNumber}
                             </td>
-                            <td className="py-3 px-3 font-bold text-slate-900">
-                              {lineName}
+                            <td className="py-3 px-3 text-slate-900">
+                              <span className="font-bold text-xs block">{lineName}</span>
+                              {ord.customerPhone && (
+                                <a
+                                  href={`tel:${ord.customerPhone}`}
+                                  className="text-[10px] text-slate-500 hover:text-purple-900 font-mono flex items-center gap-1 mt-0.5"
+                                  title="แตะเพื่อโทรหาลูกค้า"
+                                >
+                                  <Phone className="h-2.5 w-2.5 text-slate-400" />
+                                  <span>{ord.customerPhone}</span>
+                                </a>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-slate-800 font-medium">
                               {ord.items.map((it, idx) => (
@@ -619,7 +748,7 @@ export default function HomeClient({ initialBatches }: Props) {
             </div>
 
             {/* 5. Fast 1-Screen Order Input Form (Force Transfer) */}
-            {!isBatchClosed ? (
+            {!isBatchClosed && !viewingArchivedBatch ? (
               <div className="rounded-2xl border-2 border-purple-900 bg-white p-4 sm:p-5 shadow-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
@@ -647,7 +776,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 )}
 
                 <form onSubmit={handleAddToWhiteboard} className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Field 1: LINE ID */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-700">
@@ -663,20 +792,37 @@ export default function HomeClient({ initialBatches }: Props) {
                       />
                     </div>
 
-                    {/* Field 2: Dish Name */}
-                    <div className="sm:col-span-2">
-                      <label className="text-[11px] font-bold text-slate-700">
-                        เมนูที่ต้องการสั่ง (พิมพ์อิสระ) <span className="text-rose-500">*</span>
+                    {/* Field 2: Phone Number (for shop to call) */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                        <span>เบอร์โทรศัพท์ (ร้านโทรหาเมื่อมีปัญหา) <span className="text-rose-500">*</span></span>
+                        <span className="text-[10px] text-slate-400 font-normal">กรณีของหมด</span>
                       </label>
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="tel"
                         required
-                        placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
-                        value={dishName}
-                        onChange={(e) => setDishName(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                        placeholder="เช่น 0812345678"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900 font-mono"
                       />
                     </div>
+                  </div>
+
+                  {/* Field 3: Dish Name */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700">
+                      เมนูที่ต้องการสั่ง (พิมพ์อิสระ) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
+                      value={dishName}
+                      onChange={(e) => setDishName(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                    />
                   </div>
 
                   {/* Quick Popular Dish Chips */}
@@ -796,8 +942,24 @@ export default function HomeClient({ initialBatches }: Props) {
                 </form>
               </div>
             ) : (
-              <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-center text-xs font-bold text-rose-800">
-                🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center space-y-1 text-slate-600">
+                <p className="text-xs font-bold">
+                  {viewingArchivedBatch
+                    ? "📦 กระดานนี้เป็นคลังประวัติ (ปิดรอบแล้ว - อ่านอย่างเดียว)"
+                    : "🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)"}
+                </p>
+                {viewingArchivedBatch && liveBatches.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewingArchivedBatch(false);
+                      setActiveBatchId(liveBatches[0].id);
+                    }}
+                    className="text-xs font-bold text-purple-900 underline hover:text-purple-700 pt-1 inline-block"
+                  >
+                    สลับไปสั่งอาหารบนกระดานสดวันนี้ ↗
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -965,6 +1127,110 @@ export default function HomeClient({ initialBatches }: Props) {
                 </a>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Archived Boards Modal */}
+      {showArchiveModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-700">
+                  <Archive className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-950">คลังกระดานเก่า (Archived Boards)</h3>
+                  <p className="text-xs text-slate-500">กระดานที่ปิดรับออเดอร์แล้ว หรือรอบวันก่อนหน้า</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowArchiveModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-3 divide-y divide-slate-100">
+              {archivedBatches.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 space-y-1">
+                  <Archive className="h-8 w-8 mx-auto text-slate-300" />
+                  <p className="text-sm font-bold text-slate-600">ยังไม่มีกระดานเก่าในคลัง</p>
+                  <p className="text-xs text-slate-400">ทุกกระดานในปัจจุบันยังเปิดเป็น Live Board</p>
+                </div>
+              ) : (
+                archivedBatches.map((b) => (
+                  <div key={b.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-sm font-bold text-slate-900">{b.shop.name}</strong>
+                        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                          b.status === "COMPLETED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : b.status === "CANCELLED"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-slate-100 text-slate-700"
+                        }`}>
+                          {b.status === "COMPLETED" ? "ส่งแล้ว ✅" : b.status === "CANCELLED" ? "ยกเลิกแล้ว" : "ปิดรอบแล้ว"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-3">
+                        <span>รอบวันที่: <strong>{b.date}</strong></span>
+                        <span>Cutoff: <strong>{b.cutoffTime} น.</strong></span>
+                        <span>ยอด: <strong className="text-orange-600">฿{b.currentTotalAmount}</strong> ({b.orders?.filter((o) => !o.deletedAt).length || 0} กล่อง)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveBatchId(b.id);
+                          setViewingArchivedBatch(true);
+                          setShowArchiveModal(false);
+                        }}
+                        className="rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 px-3 py-1.5 text-xs font-bold transition-colors shadow-2xs"
+                      >
+                        เปิดดูกระดาน
+                      </button>
+                      {b.status === "COMPLETED" && (
+                        <Link
+                          href={`/delivery/${b.id}`}
+                          className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1.5 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
+                        >
+                          <Camera className="h-3 w-3" />
+                          <span>ดูรูปส่ง M4</span>
+                        </Link>
+                      )}
+                      <Link
+                        href={`/shop/${b.id}`}
+                        target="_blank"
+                        className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1.5 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
+                      >
+                        <span>Kitchen Sheet</span>
+                        <ExternalLink className="h-3 w-3 text-slate-400" />
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowArchiveModal(false)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
           </div>
         </div>
       )}
