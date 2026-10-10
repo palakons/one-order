@@ -309,6 +309,70 @@ async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
   }
 }
 
+// -------------------------------------------------------------
+// System & Firebase Health Diagnostics
+// -------------------------------------------------------------
+export type FirebaseSeverity = "normal" | "warning" | "interrupted";
+
+export interface SystemStatus {
+  firebaseConfigured: boolean;
+  severity: FirebaseSeverity;
+  quotaExhausted: boolean;
+  fallbackMode: boolean;
+  lastError?: string;
+  resetTimeInfo: string;
+}
+
+let lastSystemSeverity: FirebaseSeverity = "interrupted"; // initial state reflects currently exceeded daily quota
+let lastQuotaExhausted = true;
+let lastErrorMessage: string | null = "RESOURCE_EXHAUSTED: Quota exceeded (Daily free tier write limit reached)";
+
+export function recordFirestoreError(err: any) {
+  const errMsg = String(err?.message || err || "");
+  if (
+    errMsg.includes("resource-exhausted") ||
+    errMsg.includes("RESOURCE_EXHAUSTED") ||
+    errMsg.includes("Quota exceeded")
+  ) {
+    lastSystemSeverity = "interrupted";
+    lastQuotaExhausted = true;
+  } else if (errMsg.includes("timed out") || errMsg.includes("timeout")) {
+    lastSystemSeverity = "warning";
+  }
+  lastErrorMessage = errMsg;
+}
+
+export function getSystemStatus(): SystemStatus {
+  return {
+    firebaseConfigured: isFirebaseConfigured,
+    severity: isFirebaseConfigured ? lastSystemSeverity : "normal",
+    quotaExhausted: lastQuotaExhausted,
+    fallbackMode: lastQuotaExhausted || !isFirebaseConfigured,
+    lastError: lastErrorMessage || undefined,
+    resetTimeInfo: "15:00 น. ICT (00:00 PST)",
+  };
+}
+
+export async function checkFirestoreHealth(): Promise<SystemStatus> {
+  if (!isFirebaseConfigured || !db) {
+    return {
+      firebaseConfigured: false,
+      severity: "normal",
+      quotaExhausted: false,
+      fallbackMode: true,
+      resetTimeInfo: "15:00 น. ICT (00:00 PST)",
+    };
+  }
+
+  try {
+    await withTimeout(getDocs(collection(db, "shops")), 1500);
+    return getSystemStatus();
+  } catch (err: any) {
+    recordFirestoreError(err);
+    return getSystemStatus();
+  }
+}
+
 let hasAttemptedSeed = false;
 export async function ensureFirestoreSeeded(): Promise<void> {
   if (!isFirebaseConfigured || !db || hasAttemptedSeed) return;
