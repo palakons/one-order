@@ -113,12 +113,52 @@ export default function HomeClient({ initialBatches }: Props) {
   const [enteredPin, setEnteredPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
 
-  // Whiteboard Form Inputs
+  interface OrderItemInput {
+    id: string;
+    name: string;
+    price: string;
+    quantity: number;
+    customNote: string;
+  }
+
+  // Whiteboard Form Inputs (Multi-item support)
   const [customerLineId, setCustomerLineId] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [dishName, setDishName] = useState("");
-  const [dishPrice, setDishPrice] = useState("");
-  const [dishNote, setDishNote] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItemInput[]>([
+    { id: "item-1", name: "", price: "", quantity: 1, customNote: "" },
+  ]);
+
+  const calculatedTotal = useMemo(() => {
+    return orderItems.reduce((sum, it) => {
+      const p = parseFloat(it.price) || 0;
+      const q = it.quantity || 1;
+      return sum + p * q;
+    }, 0);
+  }, [orderItems]);
+
+  const totalItemBoxes = useMemo(() => {
+    return orderItems.reduce((sum, it) => sum + (it.quantity || 1), 0);
+  }, [orderItems]);
+
+  const handleUpdateOrderItem = (id: string, field: keyof OrderItemInput, value: any) => {
+    setOrderItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleAddOrderItem = () => {
+    setOrderItems((prev) => [
+      ...prev,
+      { id: `item-${Date.now()}-${prev.length}`, name: "", price: "", quantity: 1, customNote: "" },
+    ]);
+  };
+
+  const handleRemoveOrderItem = (id: string) => {
+    setOrderItems((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((item) => item.id !== id);
+    });
+  };
 
   // Open Board Modal State (Anyone can open a board for Building / Shop)
   const [showOpenBoardModal, setShowOpenBoardModal] = useState(false);
@@ -388,27 +428,74 @@ export default function HomeClient({ initialBatches }: Props) {
     const cleanLine = customerLineId.trim();
     const cleanPhone = customerPhone.trim();
     const phoneDigits = cleanPhone.replace(/\D/g, "");
-    const cleanDish = dishName.trim();
-    const priceNum = parseFloat(dishPrice);
 
     if (!cleanLine) {
-      setSubmitError("กรุณากรอก LINE ID หรือชื่อแสดงผล");
+      setSubmitError(
+        lang === "en"
+          ? "Please enter LINE ID or Name"
+          : lang === "cn"
+          ? "请填写 LINE ID 或姓名"
+          : "กรุณากรอก LINE ID หรือชื่อแสดงผล"
+      );
       return;
     }
     if (!cleanPhone || phoneDigits.length < 9) {
-      setSubmitError("กรุณากรอกเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก) เพื่อให้ร้านค้าโทรติดต่อกรณีมีปัญหาในออเดอร์");
+      setSubmitError(
+        lang === "en"
+          ? "Please enter a valid phone number (9-10 digits) for the shop to reach you"
+          : lang === "cn"
+          ? "请填写有效手机号码 (9-10位)，以便商家联络"
+          : "กรุณากรอกเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก) เพื่อให้ร้านค้าโทรติดต่อกรณีมีปัญหาในออเดอร์"
+      );
       return;
     }
-    if (!cleanDish) {
-      setSubmitError("กรุณากรอกเมนูอาหารที่ต้องการสั่ง");
+
+    const emptyName = orderItems.find((it) => !it.name.trim());
+    if (emptyName) {
+      setSubmitError(
+        lang === "en"
+          ? "Please enter dish name for all items"
+          : lang === "cn"
+          ? "请填写所有菜品名称"
+          : "กรุณากรอกชื่อเมนูอาหารให้ครบทุกรายการ"
+      );
       return;
     }
-    if (isNaN(priceNum) || priceNum <= 0) {
-      setSubmitError("กรุณาระบุราคาอาหารเป็นตัวเลขที่ถูกต้อง");
+
+    const invalidPrice = orderItems.find((it) => {
+      const p = parseFloat(it.price);
+      return isNaN(p) || p <= 0;
+    });
+    if (invalidPrice) {
+      setSubmitError(
+        lang === "en"
+          ? "Please specify a valid price (> 0) for each dish"
+          : lang === "cn"
+          ? "请为每道菜填写有效单价 (> 0)"
+          : "กรุณาระบุราคาอาหารเป็นตัวเลขที่ถูกต้อง (> 0) ในทุกรายการ"
+      );
       return;
     }
+
+    if (calculatedTotal <= 0) {
+      setSubmitError(
+        lang === "en"
+          ? "Total price must be greater than 0"
+          : lang === "cn"
+          ? "总金额必须大于 0"
+          : "ยอดรวมต้องมากกว่า 0 บาท"
+      );
+      return;
+    }
+
     if (!slipPreview) {
-      setSubmitError("กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)");
+      setSubmitError(
+        lang === "en"
+          ? "Please attach bank transfer slip (Force Transfer)"
+          : lang === "cn"
+          ? "请上传转账凭证截图 (Force Transfer)"
+          : "กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)"
+      );
       return;
     }
 
@@ -423,15 +510,14 @@ export default function HomeClient({ initialBatches }: Props) {
           customerLineId: cleanLine,
           customerPhone: cleanPhone,
           locationId: "loc-m4",
-          items: [
-            {
-              name: cleanDish,
-              price: priceNum,
-              quantity: 1,
-              customNote: dishNote.trim() || undefined,
-            },
-          ],
-          totalAmount: priceNum,
+          items: orderItems.map((it, idx) => ({
+            id: `item-${Date.now()}-${idx}`,
+            name: it.name.trim(),
+            price: parseFloat(it.price) || 0,
+            quantity: it.quantity || 1,
+            customNote: it.customNote.trim() || undefined,
+          })),
+          totalAmount: calculatedTotal,
           slipImageUrl: slipPreview,
           slipTransRef: slipVerification?.transRef,
           slipBankCode: slipVerification?.bankCode,
@@ -455,9 +541,7 @@ export default function HomeClient({ initialBatches }: Props) {
       } catch (e) {}
 
       // Reset form
-      setDishName("");
-      setDishPrice("");
-      setDishNote("");
+      setOrderItems([{ id: `item-${Date.now()}`, name: "", price: "", quantity: 1, customNote: "" }]);
       setSlipFile(null);
       setSlipPreview(null);
       setSlipVerification(null);
@@ -496,6 +580,12 @@ export default function HomeClient({ initialBatches }: Props) {
 
   // Active orders & Leader info
   const activeOrders = activeBatch ? (activeBatch.orders || []).filter((o) => !o.deletedAt) : [];
+  const totalBoxesInBatch = useMemo(() => {
+    return activeOrders.reduce(
+      (sum, o) => sum + (o.items && o.items.length > 0 ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1),
+      0
+    );
+  }, [activeOrders]);
   const leaderLine = activeBatch?.hostLineId || (activeOrders[0]?.customerLineId ? `@${activeOrders[0].customerLineId}` : activeOrders[0]?.customerName);
   const leaderPhone = activeBatch?.hostPhone || activeOrders[0]?.customerPhone;
 
@@ -512,7 +602,7 @@ export default function HomeClient({ initialBatches }: Props) {
     if (leaderPhone || leaderLine) {
       txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
     }
-    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${totalBoxesInBatch} กล่อง • ${activeOrders.length} ออเดอร์) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
       const lineTag = o.customerLineId ? `LINE: @${o.customerLineId}` : o.customerName;
@@ -847,7 +937,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-800">
                     {t.currentTotal}: <strong className="text-sm font-black text-purple-950">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
-                    <span className="text-slate-400 font-normal ml-1">({activeOrders.length} {t.boxesCount})</span>
+                    <span className="text-slate-400 font-normal ml-1">({totalBoxesInBatch} {t.boxesCount})</span>
                   </span>
                   <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
                     {activeBatch.isMinMet
@@ -888,7 +978,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     {t.boardTitle} {activeShopInfo?.name || activeBatch.shop.name}
                   </h3>
                   <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
-                    {activeOrders.length} {t.boxesCount}
+                    {totalBoxesInBatch} {t.boxesCount}
                   </span>
                   {isSelfPickup && (
                     <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
@@ -933,13 +1023,25 @@ export default function HomeClient({ initialBatches }: Props) {
                               <span className="font-bold text-xs block">{lineName}</span>
                             </td>
                             <td className="py-3 px-3 text-slate-800 font-medium">
-                              {ord.items.map((it, idx) => (
-                                <span key={idx}>
-                                  {it.quantity > 1 ? `${it.quantity}x ` : ""}
-                                  <strong>{it.name}</strong>
-                                  {it.customNote && <span className="text-amber-800 italic"> ({it.customNote})</span>}
-                                </span>
-                              ))}
+                              <div className="space-y-1">
+                                {ord.items.map((it, idx) => (
+                                  <div key={idx} className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className="font-bold text-slate-900">
+                                      {it.quantity > 1 ? `${it.quantity}x ` : ""}{it.name}
+                                    </span>
+                                    {it.price && it.quantity > 1 ? (
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        (฿{it.price} × {it.quantity} = ฿{it.price * it.quantity})
+                                      </span>
+                                    ) : null}
+                                    {it.customNote && (
+                                      <span className="text-[11px] text-amber-800 italic">
+                                        ({it.customNote})
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </td>
                             <td className="py-3 px-3 font-mono font-black text-orange-600 text-right">
                               ฿{ord.totalAmount}
@@ -1049,74 +1151,166 @@ export default function HomeClient({ initialBatches }: Props) {
                     </div>
                   </div>
 
-                  {/* Field 3: Dish Name */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700">
-                      {t.dishNameLabel} <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={t.dishNamePlaceholder}
-                      value={dishName}
-                      onChange={(e) => setDishName(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
-                    />
-                  </div>
+                  {/* Field 3: Multiple Menu Items List */}
+                  <div className="space-y-2.5 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-800">
+                        {t.orderItemsTitle} <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {totalItemBoxes} {t.boxesCount}
+                      </span>
+                    </div>
 
-                  {/* Quick Popular Dish Chips */}
-                  {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400">{t.popularDishes}</span>
-                      {activeBatch.shop.menuItems.slice(0, 5).map((m) => {
-                        const localizedItemName = getMenuItemLocalizedName(m, lang);
+                    <div className="space-y-2.5">
+                      {orderItems.map((item, index) => {
+                        const itemSubtotal = (parseFloat(item.price) || 0) * (item.quantity || 1);
+
                         return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              setDishName(localizedItemName);
-                              setDishPrice(String(m.price));
-                            }}
-                            className="rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-800 transition-colors"
+                          <div
+                            key={item.id}
+                            className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2.5 transition-all focus-within:border-purple-300 focus-within:bg-white"
                           >
-                            {localizedItemName} (฿{m.price})
-                          </button>
+                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                              <span className="flex items-center gap-1.5">
+                                <span className="flex h-4.5 w-4.5 items-center justify-center rounded bg-purple-900 text-white font-mono text-[10px]">
+                                  {index + 1}
+                                </span>
+                                <span>{t.itemNumber} {index + 1}</span>
+                              </span>
+                              {orderItems.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOrderItem(item.id)}
+                                  className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold flex items-center gap-1 hover:underline"
+                                  title={t.removeItemButton}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>{t.removeItemButton}</span>
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Dish Name */}
+                            <div>
+                              <input
+                                type="text"
+                                required
+                                placeholder={t.dishNamePlaceholder}
+                                value={item.name}
+                                onChange={(e) => handleUpdateOrderItem(item.id, "name", e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                              />
+                            </div>
+
+                            {/* Quantity, Price per unit, and Subtotal */}
+                            <div className="grid grid-cols-12 gap-2 items-center">
+                              {/* Quantity */}
+                              <div className="col-span-5 sm:col-span-4 space-y-0.5">
+                                <label className="text-[10px] font-bold text-slate-600 block">
+                                  {t.quantityLabel}
+                                </label>
+                                <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateOrderItem(item.id, "quantity", Math.max(1, item.quantity - 1))}
+                                    className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      handleUpdateOrderItem(item.id, "quantity", isNaN(val) || val < 1 ? 1 : val);
+                                    }}
+                                    className="w-full text-center text-xs font-mono font-bold text-slate-900 focus:outline-none py-1"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateOrderItem(item.id, "quantity", item.quantity + 1)}
+                                    className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Price per unit */}
+                              <div className="col-span-4 sm:col-span-4 space-y-0.5">
+                                <label className="text-[10px] font-bold text-slate-600 block">
+                                  {t.pricePerUnitLabel}
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="1"
+                                  placeholder={t.dishPricePlaceholder}
+                                  value={item.price}
+                                  onChange={(e) => handleUpdateOrderItem(item.id, "price", e.target.value)}
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-orange-600 focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                                />
+                              </div>
+
+                              {/* Subtotal Display */}
+                              <div className="col-span-3 sm:col-span-4 text-right pt-3">
+                                <span className="text-[10px] text-slate-500 font-medium mr-1">{t.itemSubtotal}:</span>
+                                <span className="text-xs font-mono font-black text-slate-900">
+                                  ฿{itemSubtotal}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Kitchen Note */}
+                            <div>
+                              <input
+                                type="text"
+                                placeholder={t.dishNotePlaceholder}
+                                value={item.customNote}
+                                onChange={(e) => handleUpdateOrderItem(item.id, "customNote", e.target.value)}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                              />
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {/* Field 3: Price */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700">
-                        {t.dishPriceLabel} <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder={t.dishPricePlaceholder}
-                        value={dishPrice}
-                        onChange={(e) => setDishPrice(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-mono font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
-                      />
-                    </div>
+                    {/* Add Item Button */}
+                    <button
+                      type="button"
+                      onClick={handleAddOrderItem}
+                      className="w-full rounded-xl border border-dashed border-purple-300 bg-purple-50/60 hover:bg-purple-100/80 py-2 text-xs font-bold text-purple-900 transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>{t.addItemButton}</span>
+                    </button>
+                  </div>
 
-                    {/* Field 4: Note */}
+                  {/* Order Total & Single QR Payment Reminder */}
+                  <div className="rounded-xl bg-purple-950 text-white p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700">
-                        {t.dishNoteLabel}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={t.dishNotePlaceholder}
-                        value={dishNote}
-                        onChange={(e) => setDishNote(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
-                      />
+                      <div className="text-[11px] text-purple-200 font-medium">
+                        {t.totalTransferAmount}
+                      </div>
+                      <div className="text-xl sm:text-2xl font-mono font-black text-amber-300">
+                        ฿{calculatedTotal}
+                        <span className="text-xs font-normal text-purple-200 ml-2">
+                          ({totalItemBoxes} {t.boxesCount})
+                        </span>
+                      </div>
                     </div>
+                    <div className="text-[11px] text-purple-200 bg-white/10 rounded-lg px-2.5 py-1.5 max-w-xs leading-relaxed">
+                      <span>{t.oneQrNotice}</span>
+                    </div>
+                  </div>
+
+                  {/* Subtle Guideline Disclosure Banner */}
+                  <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 p-2.5 text-[11px] text-amber-900 flex items-start gap-2 leading-relaxed">
+                    <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>{t.qrGuidelineNotice}</span>
                   </div>
 
                   {/* Field 5: Slip Upload with BOT QR Verification */}
@@ -1253,6 +1447,12 @@ export default function HomeClient({ initialBatches }: Props) {
               <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
                 {activeBatch.shop.promptpayNumber}
               </p>
+            </div>
+
+            {/* Subtle Guideline Disclosure */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2.5 text-[11px] text-amber-900 text-left flex items-start gap-2 leading-relaxed">
+              <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>{t.qrModalGuideline}</span>
             </div>
 
             <button

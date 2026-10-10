@@ -210,9 +210,18 @@ export async function generateOneLongManifestImage(
   ctx.font = "bold 20px sans-serif";
   ctx.fillText("📝 รายการอาหารที่ต้องทำ (Cooking Checklist):", padding + 20, checklistCardY + 36);
 
+  const totalBoxesCount = orders.reduce(
+    (sum, o) => sum + (o.items && o.items.length > 0 ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1),
+    0
+  );
+
   ctx.fillStyle = "#64748b";
   ctx.font = "13px sans-serif";
-  ctx.fillText(`รวมทั้งหมด ${orders.length} กล่อง • โปรดจัดเตรียมและแปะหมายเลขกล่องตามรายการนี้:`, padding + 20, checklistCardY + 62);
+  ctx.fillText(
+    `รวมทั้งหมด ${totalBoxesCount} กล่อง (${orders.length} ออเดอร์) • โปรดจัดเตรียมและแปะหมายเลขกล่องตามรายการนี้:`,
+    padding + 20,
+    checklistCardY + 62
+  );
 
   let rowY = checklistCardY + 86;
 
@@ -247,22 +256,20 @@ export async function generateOneLongManifestImage(
         ? ord.items
         : [{ name: ord.boxLabel || "อาหาร", price: ord.totalAmount, quantity: 1, customNote: "" }];
 
-      const mainItem = items[0];
-      const qtyText = (mainItem.quantity || 1) > 1 ? `${mainItem.quantity}x ` : "";
-      const dishTitle = `${qtyText}${mainItem.name}`;
-      const extraCount = items.length > 1 ? ` (+อีก ${items.length - 1} อย่าง)` : "";
+      const itemsSummaryText = items
+        .map((it) => `${(it.quantity || 1) > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`)
+        .join(" + ");
 
       ctx.fillStyle = "#0f172a";
       ctx.font = "bold 16px sans-serif";
-      ctx.fillText(`${dishTitle}${extraCount}`.slice(0, 42), padding + 78, rowY + 19);
+      ctx.fillText(itemsSummaryText.slice(0, 48), padding + 78, rowY + 19);
 
-      // Line 2: Note / Customer LINE & Phone
+      // Line 2: Customer LINE & Phone
       ctx.fillStyle = "#64748b";
       ctx.font = "13px sans-serif";
       const lineIdStr = ord.customerLineId ? `👤 LINE: @${ord.customerLineId}` : `👤 ${ord.customerName}`;
       const phoneStr = ord.customerPhone ? ` • 📞 ${ord.customerPhone}` : "";
-      const noteStr = mainItem.customNote ? ` • หมายเหตุ: ${mainItem.customNote}` : "";
-      ctx.fillText(`${lineIdStr}${phoneStr}${noteStr}`.slice(0, 68), padding + 78, rowY + 39);
+      ctx.fillText(`${lineIdStr}${phoneStr}`.slice(0, 68), padding + 78, rowY + 39);
 
       // Right-aligned Price Badge
       ctx.textAlign = "right";
