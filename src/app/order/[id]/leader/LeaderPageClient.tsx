@@ -73,6 +73,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string } | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sendingLineReminder, setSendingLineReminder] = useState(false);
 
   // 1. Initial Auto-Auth check from localStorage
   useEffect(() => {
@@ -422,6 +423,29 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
+  // Trigger LINE Push Reminder with Manifest and Order Text
+  const handleSendLineReminder = async () => {
+    if (!batch) return;
+    setSendingLineReminder(true);
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remind" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || "ไม่สามารถส่งข้อความเข้า LINE ได้");
+      }
+      alert(data.message || "ส่งสรุปออเดอร์เข้า LINE เรียบร้อยแล้ว 🎉");
+      await fetchBatch(true);
+    } catch (err: any) {
+      alert(err.message || "เกิดข้อผิดพลาดในการส่งแจ้งเตือนเข้า LINE");
+    } finally {
+      setSendingLineReminder(false);
+    }
+  };
+
   // Share Manifest to LINE
   const handleShareToLine = async () => {
     if (!manifestData || !batch) return;
@@ -726,6 +750,62 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <span>เปิดรับออเดอร์ต่อ</span>
                 </button>
               ) : null}
+            </div>
+          </div>
+        </div>
+
+        {/* LINE Bot Integration Card for Leader */}
+        <div className="rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#06C755]/15 text-[#06C755] font-black text-xl shadow-inner">
+                💬
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-900">
+                    การเชื่อมต่อ LINE Bot (@473ekpei)
+                  </h4>
+                  {batch.hostLineUserId ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-black">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      เชื่อมต่อแล้ว
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold">
+                      ยังไม่ได้เชื่อมต่อ
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600">
+                  {batch.hostLineUserId
+                    ? `บอทจะส่งข้อความสรุปออเดอร์พร้อมภาพใบสั่งอาหาร (Long Manifest) ให้คุณทาง LINE ส่วนตัวเมื่อถึงเวลาตัดรอบ (${batch.cutoffTime} น.)`
+                    : `เชื่อมต่อเพื่อให้บอทส่งข้อความสรุปยอด + ใบเสร็จสั่งอาหาร (Long Manifest) ให้คุณทาง LINE ส่วนตัวอัตโนมัติเมื่อหมดเวลา`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+              {!batch.hostLineUserId && (
+                <a
+                  href={`https://line.me/R/oaMessage/@473ekpei/?text=${encodeURIComponent("เชื่อมต่อกระดาน: " + batch.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white px-3.5 py-2 text-xs font-black shadow-xs transition-all active:scale-95"
+                >
+                  <span>📲 เชื่อมต่อ LINE Bot 1 คลิก</span>
+                </a>
+              )}
+              <button
+                type="button"
+                disabled={sendingLineReminder}
+                onClick={handleSendLineReminder}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-3.5 py-2 text-xs font-bold shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+                title="ส่งสรุปออเดอร์พร้อมรูปภาพ One Long Manifest ไปยัง LINE ทันที"
+              >
+                <Send className="h-3.5 w-3.5 text-purple-700" />
+                <span>{sendingLineReminder ? "กำลังส่ง..." : "🔔 ส่งสรุปเข้า LINE เดี๋ยวนี้"}</span>
+              </button>
             </div>
           </div>
         </div>

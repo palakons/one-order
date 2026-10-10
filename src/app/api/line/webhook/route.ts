@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getBatches, saveActiveLineGroupId } from "@/lib/store";
+import { getBatches, saveActiveLineGroupId, getBatchById, updateBatch } from "@/lib/store";
+import { formatBatchOrderSummaryText } from "@/lib/line";
 
 export async function POST(request: Request) {
   try {
@@ -90,6 +91,116 @@ export async function POST(request: Request) {
       // 3. Process text messages
       if (event.type === "message" && event.message?.type === "text" && replyToken && token) {
         const rawText = event.message.text.trim();
+        // 3.0 Leader Board Link / Connect Query: "เชื่อมต่อกระดาน <batchId>"
+        const linkMatch =
+          rawText.match(/(?:เชื่อมต่อกระดาน|เชื่อมต่อ|ตี้|กระดาน|connect|link)\s*[:=\s]?\s*(batch-[\w-]+)/i) ||
+          rawText.match(/^(batch-[\w-]+)$/i);
+
+        if (linkMatch) {
+          const targetBatchId = linkMatch[1];
+          const targetBatch = await getBatchById(targetBatchId, false, true);
+          const userId = source.userId;
+
+          if (!targetBatch) {
+            await replyMessage(token, replyToken, [
+              {
+                type: "text",
+                text: `🔍 ไม่พบกระดานรหัส "${targetBatchId}" ในระบบครับ\n\nกรุณาตรวจสอบลิงก์หรือรหัสกระดานอีกครั้งจากหน้าเว็บ`,
+              },
+            ]);
+            continue;
+          }
+
+          if (userId) {
+            await updateBatch(targetBatchId, { hostLineUserId: userId });
+          }
+
+          await replyMessage(token, replyToken, [
+            {
+              type: "text",
+              text:
+                `✅ เชื่อมต่อกระดานสำเร็จแล้วครับ คุณหัวหน้าตี้! 🎉\n\n` +
+                `🍱 ร้าน: ${targetBatch.shop.name}\n` +
+                `⏰ เวลาตัดรอบ: ${targetBatch.cutoffTime} น.\n` +
+                `📍 จุดส่งอาหาร: ${targetBatch.buildingName || "ตึก M4"} ชั้น 1\n` +
+                `💰 ยอดปัจจุบัน: ฿${targetBatch.currentTotalAmount} (${targetBatch.orders.length} กล่อง)\n\n` +
+                `🔔 เมื่อถึงเวลาตัดรอบ (${targetBatch.cutoffTime} น.) บอทจะส่งข้อความสรุปยอดทั้งหมด พร้อมรูปใบสรุปสั่งอาหาร (One Long Manifest) ให้คุณทาง LINE ส่วนตัวนี้ทันทีครับ ✨\n\n` +
+                `💡 คุณสามารถพิมพ์ "สรุป" เพื่อดูออเดอร์ล่าสุดได้ตลอดเวลาครับ`,
+              quickReply: {
+                items: [
+                  {
+                    type: "action",
+                    action: {
+                      type: "message",
+                      label: "📋 ขอสรุปตอนนี้",
+                      text: `สรุปตี้ ${targetBatch.id}`,
+                    },
+                  },
+                  {
+                    type: "action",
+                    action: {
+                      type: "uri",
+                      label: "👑 หน้าจัดการตี้",
+                      uri: `${appUrl}/order/${targetBatch.id}/leader`,
+                    },
+                  },
+                  {
+                    type: "action",
+                    action: {
+                      type: "uri",
+                      label: "🍱 สั่งอาหาร",
+                      uri: appUrl,
+                    },
+                  },
+                ],
+              },
+            },
+          ]);
+          continue;
+        }
+
+        // 3.01 Leader summary query: "สรุป", "สรุปออเดอร์", "สรุปตี้ <batchId>"
+        const isLeaderSummaryRequest =
+          rawText.startsWith("สรุปตี้") ||
+          rawText === "สรุป" ||
+          rawText === "สรุปออเดอร์" ||
+          rawText === "ส่งสรุป";
+
+        if (isLeaderSummaryRequest) {
+          let matchedBatch = null;
+          const specificBatchMatch = rawText.match(/สรุปตี้\s*[:=\s]?\s*(batch-[\w-]+)/i);
+          if (specificBatchMatch) {
+            matchedBatch = await getBatchById(specificBatchMatch[1], false, true);
+          } else if (source.userId) {
+            const allBatches = await getBatches(false, true);
+            matchedBatch =
+              allBatches.find(
+                (b) =>
+                  b.hostLineUserId === source.userId &&
+                  b.status !== "COMPLETED" &&
+                  b.status !== "CANCELLED"
+              ) || null;
+          }
+
+          if (matchedBatch) {
+            const summaryText = formatBatchOrderSummaryText(matchedBatch, appUrl);
+            const manifestPhotoUrl = `${appUrl}/api/batches/${matchedBatch.id}/photo?type=manifest`;
+
+            await replyMessage(token, replyToken, [
+              {
+                type: "text",
+                text: summaryText,
+              },
+              {
+                type: "image",
+                originalContentUrl: manifestPhotoUrl,
+                previewImageUrl: manifestPhotoUrl,
+              },
+            ]);
+            continue;
+          }
+        }
+
         const text = rawText.toLowerCase();
 
         // 3.1 Group ID query

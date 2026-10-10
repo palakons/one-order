@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getBatchById, updateBatchStatus } from "@/lib/store";
 import { getDropOffMapUrl } from "@/lib/locations";
 import { BatchStatus } from "@/lib/types";
-import { pushLineMessage } from "@/lib/line";
+import { pushLineMessage, sendBatchReminderToLine, checkAndDispatchCutoffReminders } from "@/lib/line";
 
 export async function GET(
   request: Request,
@@ -23,6 +23,12 @@ export async function GET(
     if (!batch) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 400 });
     }
+
+    // Trigger non-blocking cutoff reminder check in the background
+    const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
+    const protocol = request.headers.get("x-forwarded-proto") || "https";
+    checkAndDispatchCutoffReminders(`${protocol}://${hostHeader}`).catch(() => {});
+
     return NextResponse.json({ success: true, batch });
   } catch (error) {
     console.error("Failed to fetch batch:", error);
@@ -104,5 +110,34 @@ export async function PATCH(
   } catch (error) {
     console.error("Failed to update batch:", error);
     return NextResponse.json({ success: false, error: "Failed to update batch" }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const action = body.action || "remind";
+
+    const hostHeader =
+      request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
+    const protocol = request.headers.get("x-forwarded-proto") || "https";
+    const appUrl = `${protocol}://${hostHeader}`;
+
+    if (action === "remind" || action === "push_summary") {
+      const result = await sendBatchReminderToLine(id, appUrl);
+      return NextResponse.json(result, { status: result.success ? 200 : 400 });
+    }
+
+    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
+  } catch (error: any) {
+    console.error("Batch action error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to execute action" },
+      { status: 500 }
+    );
   }
 }
