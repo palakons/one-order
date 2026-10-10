@@ -1,6 +1,7 @@
 "use client";
 
-import { CAMPUS_LOCATIONS, getLocalizedLocation } from "@/lib/locations";
+import { useState, useEffect } from "react";
+import { CAMPUS_LOCATIONS, DeliveryLocation, getLocalizedLocation, getRuntimeLocations, setRuntimeLocations } from "@/lib/locations";
 import { X, Building2, CheckCircle2, Info } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
@@ -12,6 +13,19 @@ interface Props {
 
 export default function CampusDesksModal({ onClose, selectedId, onSelect }: Props) {
   const { t, lang } = useLanguage();
+  const [locations, setLocations] = useState<DeliveryLocation[]>(() => getRuntimeLocations());
+
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.locations) && data.locations.length > 0) {
+          setLocations(data.locations);
+          setRuntimeLocations(data.locations);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
@@ -47,7 +61,7 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
 
         {/* Desks Grid */}
         <div className="overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {CAMPUS_LOCATIONS.map((loc) => {
+          {locations.map((loc) => {
             const isSelected = selectedId === loc.id;
             const locInfo = getLocalizedLocation(loc, lang);
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBatches, createBatch } from "@/lib/store";
+import { getBangkokDate } from "@/lib/utils";
 
 export async function GET(request: Request) {
   try {
@@ -33,7 +34,9 @@ export async function POST(request: Request) {
       buildingName,
     } = body;
 
-    if (!shopId || !date || !cutoffTime || !targetMinAmount) {
+    const finalDate = (date || "").trim() || getBangkokDate();
+
+    if (!shopId || !cutoffTime || !targetMinAmount) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
 
     const batch = await createBatch({
       shopId,
-      date,
+      date: finalDate,
       cutoffTime,
       targetMinAmount: Number(targetMinAmount),
       notes,

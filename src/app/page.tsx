@@ -1,16 +1,19 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { getBatches } from "@/lib/store";
+import { getBatches, getDeliveryLocations } from "@/lib/store";
 import HomeClient from "./HomeClient";
 
 async function HomeDataLoader() {
   await connection();
   try {
-    const batches = await getBatches(false);
-    return <HomeClient initialBatches={batches} />;
+    const [batches, locations] = await Promise.all([
+      getBatches(false),
+      getDeliveryLocations(),
+    ]);
+    return <HomeClient initialBatches={batches} initialLocations={locations} />;
   } catch (err) {
     console.error("HomeDataLoader failed, loading fallback:", err);
-    return <HomeClient initialBatches={[]} />;
+    return <HomeClient initialBatches={[]} initialLocations={[]} />;
   }
 }
 

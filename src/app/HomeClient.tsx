@@ -4,7 +4,14 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order, Shop } from "@/lib/types";
-import { CAMPUS_LOCATIONS, getLocalizedLocation, getDropOffMapUrl } from "@/lib/locations";
+import {
+  CAMPUS_LOCATIONS,
+  DeliveryLocation,
+  getLocalizedLocation,
+  getDropOffMapUrl,
+  getLocationForBatch,
+  setRuntimeLocations,
+} from "@/lib/locations";
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
@@ -47,11 +54,17 @@ export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
 
 interface Props {
   initialBatches: BatchWithDetails[];
+  initialLocations?: DeliveryLocation[];
 }
 
-export default function HomeClient({ initialBatches }: Props) {
+export default function HomeClient({ initialBatches, initialLocations }: Props) {
   const { t, lang } = useLanguage();
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
+  const [locations, setLocations] = useState<DeliveryLocation[]>(() => {
+    const locs = initialLocations && initialLocations.length > 0 ? initialLocations : CAMPUS_LOCATIONS;
+    setRuntimeLocations(locs);
+    return locs;
+  });
 
   // Helper: compute sensible default cutoff time (current time + 40m rounded to 5m)
   const getDefaultCutoff = () => {
@@ -234,7 +247,7 @@ export default function HomeClient({ initialBatches }: Props) {
   const [showOpenBoardModal, setShowOpenBoardModal] = useState(false);
   const [availableShops, setAvailableShops] = useState<Shop[]>([]);
   const [openShopId, setOpenShopId] = useState("");
-  const [openBuildingId, setOpenBuildingId] = useState("loc-m4");
+  const [openBuildingId, setOpenBuildingId] = useState<string>(() => initialLocations?.[0]?.id || "loc-m4");
   const [openLeaderName, setOpenLeaderName] = useState("");
   const [openLeaderPhone, setOpenLeaderPhone] = useState("");
   const [openCutoffTime, setOpenCutoffTime] = useState(getDefaultCutoff());
@@ -261,9 +274,23 @@ export default function HomeClient({ initialBatches }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
 
+  const fetchLocations = async () => {
+    try {
+      const res = await fetch("/api/locations");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.locations) && data.locations.length > 0) {
+        setLocations(data.locations);
+        setRuntimeLocations(data.locations);
+      }
+    } catch (err) {
+      console.warn("Fetch locations error:", err);
+    }
+  };
+
   // 1. Initial load on mount
   useEffect(() => {
     fetchBatches(false);
+    fetchLocations();
     const now = new Date();
     setLastRefreshedAt(
       now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
@@ -292,14 +319,26 @@ export default function HomeClient({ initialBatches }: Props) {
       if (fresh) setIsRefreshing(true);
       // role=shop returns unsanitized batches for manifest generation; fresh=true bypasses server cache
       const url = fresh ? "/api/batches?role=shop&fresh=true" : "/api/batches?role=shop";
-      const res = await fetch(url);
-      const data = await res.json();
+      const [resBatches, resLocs] = await Promise.all([
+        fetch(url),
+        fetch("/api/locations").catch(() => null),
+      ]);
+      const data = await resBatches.json();
       if (data.success && Array.isArray(data.batches)) {
         setBatches(data.batches);
         const now = new Date();
         setLastRefreshedAt(
           now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
         );
+      }
+      if (resLocs) {
+        try {
+          const locsData = await resLocs.json();
+          if (locsData.success && Array.isArray(locsData.locations) && locsData.locations.length > 0) {
+            setLocations(locsData.locations);
+            setRuntimeLocations(locsData.locations);
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Fetch batches error:", err);
@@ -335,6 +374,7 @@ export default function HomeClient({ initialBatches }: Props) {
     setOpenHostPin(cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "");
     setOpenCutoffTime(getDefaultCutoff());
     fetchShops();
+    fetchLocations();
     setShowOpenBoardModal(true);
   };
 
@@ -362,13 +402,13 @@ export default function HomeClient({ initialBatches }: Props) {
 
     setCreatingBoard(true);
     try {
-      const selectedBuilding = CAMPUS_LOCATIONS.find((l) => l.id === openBuildingId) || CAMPUS_LOCATIONS[0];
+      const selectedBuilding = locations.find((l) => l.id === openBuildingId) || locations[0] || CAMPUS_LOCATIONS[0];
       const res = await fetch("/api/batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shopId: openShopId,
-          date: new Date().toISOString().split("T")[0],
+          date: getBangkokDate(),
           cutoffTime: openCutoffTime,
           targetMinAmount: Number(openTargetMin) || 200,
           notes: openNotes.trim() || undefined,
@@ -397,9 +437,10 @@ export default function HomeClient({ initialBatches }: Props) {
       } catch (e) {}
 
       setShowOpenBoardModal(false);
-      setActiveBatchId(data.batch.id);
+      setBatches((prev) => [data.batch, ...prev.filter((b) => b.id !== data.batch.id)]);
       setActiveGroup("OPENING");
-      await fetchBatches();
+      setActiveBatchId(data.batch.id);
+      await fetchBatches(true);
       confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
     } catch (err: any) {
       setOpenBoardError(err.message || "เกิดข้อผิดพลาดในการเปิดกระดาน");
@@ -678,7 +719,7 @@ export default function HomeClient({ initialBatches }: Props) {
   // Compile Brief Text for LINE
   const getCompiledOrderText = () => {
     if (!activeBatch) return "";
-    const mapUrl = isSelfPickup ? activeBatch.shop.gmapUrl : getDropOffMapUrl(activeBatch);
+    const mapUrl = isSelfPickup ? activeBatch.shop.gmapUrl : getDropOffMapUrl(activeBatch, locations);
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}`;
     if (isSelfPickup) {
       txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
@@ -808,8 +849,8 @@ export default function HomeClient({ initialBatches }: Props) {
   const activeShopInfo = activeBatch ? getShopLocalizedInfo(activeBatch.shop, lang) : null;
   const activeBuildingName = activeBatch ? getLocalizedBuildingName(activeBatch.buildingName || "ตึก M4", lang) : "";
   const activeLocation = activeBatch
-    ? CAMPUS_LOCATIONS.find((l) => l.id === activeBatch.buildingId) || CAMPUS_LOCATIONS[0]
-    : CAMPUS_LOCATIONS[0];
+    ? getLocationForBatch(activeBatch, locations)
+    : locations[0] || CAMPUS_LOCATIONS[0];
   const activeLocalizedLocation = getLocalizedLocation(activeLocation, lang);
   const activeShopMapUrl = activeBatch
     ? activeBatch.shop.gmapUrl ||
@@ -2279,7 +2320,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   required
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 >
-                  {CAMPUS_LOCATIONS.map((loc) => {
+                  {locations.map((loc) => {
                     const locInfo = getLocalizedLocation(loc, lang);
                     return (
                       <option key={loc.id} value={loc.id}>

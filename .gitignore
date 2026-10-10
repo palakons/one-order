@@ -44,4 +44,5 @@ next-env.d.ts
 node-v*
 nodesource_setup.sh
 /data/
+/src/data/
 /public/uploads/

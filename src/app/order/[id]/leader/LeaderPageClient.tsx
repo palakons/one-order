@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order } from "@/lib/types";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
-import { getDropOffMapUrl } from "@/lib/locations";
+import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
 import { getTimeRemaining } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import {
@@ -110,14 +110,25 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     try {
       if (fresh) setIsRefreshing(true);
       const url = fresh ? `/api/batches/${batchId}?role=leader&fresh=true` : `/api/batches/${batchId}?role=leader`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const [resBatch, resLocs] = await Promise.all([
+        fetch(url),
+        fetch("/api/locations").catch(() => null),
+      ]);
+      const data = await resBatch.json();
       if (data.success && data.batch) {
         setBatch(data.batch);
         const now = new Date();
         setLastRefreshedAt(
           now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
         );
+      }
+      if (resLocs) {
+        try {
+          const locsData = await resLocs.json();
+          if (locsData.success && Array.isArray(locsData.locations)) {
+            setRuntimeLocations(locsData.locations);
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Fetch batch error:", err);

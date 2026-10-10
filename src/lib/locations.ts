@@ -130,15 +130,28 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
   },
 ];
 
-export function getLocationById(id: string): DeliveryLocation | undefined {
-  return CAMPUS_LOCATIONS.find((loc) => loc.id === id) || CAMPUS_LOCATIONS[0];
+let runtimeLocations: DeliveryLocation[] = [...CAMPUS_LOCATIONS];
+
+export function setRuntimeLocations(locs: DeliveryLocation[]) {
+  if (Array.isArray(locs) && locs.length > 0) {
+    runtimeLocations = locs;
+  }
+}
+
+export function getRuntimeLocations(): DeliveryLocation[] {
+  return runtimeLocations;
+}
+
+export function getLocationById(id: string, customLocations?: DeliveryLocation[]): DeliveryLocation | undefined {
+  const locList = customLocations && customLocations.length > 0 ? customLocations : runtimeLocations;
+  return locList.find((loc) => loc.id === id) || locList[0];
 }
 
 export function getLocationForBatch(
   batch?: { buildingId?: string; buildingName?: string },
   customLocations?: DeliveryLocation[]
 ): DeliveryLocation {
-  const locList = customLocations && customLocations.length > 0 ? customLocations : CAMPUS_LOCATIONS;
+  const locList = customLocations && customLocations.length > 0 ? customLocations : runtimeLocations;
   if (!batch) return locList[0] || CAMPUS_LOCATIONS[0];
 
   if (batch.buildingId) {
