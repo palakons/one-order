@@ -689,50 +689,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
-        {/* Dedicated Box: Google Maps Restaurant Menu & Food Photos */}
-        <div className="rounded-2xl sm:rounded-3xl border border-rose-200 bg-gradient-to-r from-rose-50/90 via-orange-50/60 to-amber-50/50 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-xs shrink-0">
-              <MapPin className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h3 className="font-black text-sm sm:text-base text-slate-900 leading-tight">
-                  เปิดดูเมนูอาหาร & รูปภาพร้านบน Google Maps
-                </h3>
-                <span className="rounded bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
-                  เมนู & รูปอาหาร
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
-                คลิกดูรูปเมนู ราคาอาหารจริง และรีวิวของร้าน {batch.shop.name} บน Google Maps ก่อนสั่งได้ที่นี่
-              </p>
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-mono text-rose-800/80 max-w-full truncate">
-                <span className="shrink-0 text-slate-400 font-sans font-medium">Link:</span>
-                <a
-                  href={batchShopMapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate underline hover:text-rose-900"
-                  title={batchShopMapUrl}
-                >
-                  {batchShopMapUrl}
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <a
-            href={batchShopMapUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 text-xs sm:text-sm font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-          >
-            <ExternalLink className="h-4 w-4" />
-            <span>เปิดแผนที่ดูเมนูอาหาร ↗</span>
-          </a>
-        </div>
-
         {/* 2. The Digital Whiteboard List */}
         <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">

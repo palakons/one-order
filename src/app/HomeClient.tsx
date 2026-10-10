@@ -1352,55 +1352,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             ) : (
               <>
-                {/* Prominent Box: Google Maps Restaurant Menu & Food Photos */}
-                <div className="rounded-xl sm:rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50/90 via-orange-50/60 to-amber-50/50 p-3 sm:p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-xs shrink-0">
-                      <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <h4 className="font-black text-xs sm:text-sm text-slate-900 leading-tight">
-                          {t.viewMenuBoxTitle}
-                        </h4>
-                        <span className="rounded bg-rose-100 text-rose-800 px-1.5 py-0.2 text-[10px] font-bold">
-                          {lang === "en" ? "Menu & Photos" : lang === "cn" ? "菜单与实拍" : "เมนู & รูปอาหาร"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-snug">
-                        {lang === "en"
-                          ? `Inspect dish photos, prices, and reviews for ${activeShopInfo?.name || activeBatch.shop.name} directly on Google Maps before ordering.`
-                          : lang === "cn"
-                          ? `下单前可直接在地图上查看 ${activeShopInfo?.name || activeBatch.shop.name} 的菜品、价格与顾客评价。`
-                          : `คลิกดูรูปเมนู ราคาอาหารจริง และรีวิวของร้าน ${activeShopInfo?.name || activeBatch.shop.name} บน Google Maps ได้ทันที`}
-                      </p>
-                      {/* Display link to look at menu */}
-                      <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono text-rose-800/80 max-w-full truncate">
-                        <span className="shrink-0 text-slate-400 font-sans font-medium">Link:</span>
-                        <a
-                          href={activeShopMapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate underline hover:text-rose-900"
-                          title={activeShopMapUrl}
-                        >
-                          {activeShopMapUrl}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <a
-                    href={activeShopMapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    <span>{t.viewMenuBoxBtn}</span>
-                  </a>
-                </div>
-
                 {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
                 <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3.5 shadow-2xs space-y-2 sm:space-y-2.5">
                   {/* Bar 1: Price / Order Starter Filling Bar */}
