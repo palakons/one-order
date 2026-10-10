@@ -1105,12 +1105,15 @@ export default function HomeClient({ initialBatches }: Props) {
                     <span className="truncate">{t.shop}</span>
                   </span>
 
-                  <span className="inline-flex items-center gap-0.5 text-purple-700 text-[9px] sm:text-[10px] font-bold shrink-0">
-                    <span className="hidden xs:inline sm:inline">
-                      {isShopExpanded ? (lang === "en" ? "Hide" : lang === "cn" ? "收起" : "ซ่อน") : (lang === "en" ? "Menu" : lang === "cn" ? "菜单" : "เมนู")}
-                    </span>
-                    <ChevronDown className={`h-2.5 w-2.5 transition-transform duration-200 ${isShopExpanded ? "rotate-180" : ""}`} />
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptPayModal(true)}
+                    className="inline-flex items-center gap-0.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-1 py-0.2 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs cursor-pointer shrink-0"
+                    title={t.viewShopPromptPay}
+                  >
+                    <CreditCard className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                    <span>{lang === "en" ? "QR" : lang === "cn" ? "收款码" : "QR ร้าน"}</span>
+                  </button>
                 </div>
 
                 <div className="my-0.5">
@@ -1122,34 +1125,29 @@ export default function HomeClient({ initialBatches }: Props) {
                   </h3>
                 </div>
 
-                {/* When NOT expanded: tap menu hint */}
-                {!isShopExpanded ? (
-                  <div className="text-[9px] sm:text-[10px] text-purple-700 font-medium truncate">
-                    {lang === "en" ? "▾ Tap for menu" : lang === "cn" ? "▾ 查看菜单" : "▾ แตะดูเมนู"}
-                  </div>
-                ) : (
-                  /* When expanded: Retain "Open map to see menu" directly under shop card */
-                  <div className="pt-1.5 mt-1 border-t border-purple-100 flex flex-col gap-1 animate-fadeIn">
-                    {activeBatch.shop.gmapUrl && (
-                      <a
-                        href={activeBatch.shop.gmapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 px-1.5 py-1 text-[9px] sm:text-[10px] font-bold text-slate-700 transition-colors shadow-2xs"
-                        title={t.viewMenuMaps}
-                      >
-                        <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-rose-500 shrink-0" />
-                        <span className="truncate">{t.viewMenuMaps}</span>
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowPromptPayModal(true)}
-                      className="inline-flex items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 px-1.5 py-1 text-[9px] sm:text-[10px] font-bold text-purple-900 transition-colors shadow-2xs cursor-pointer"
-                    >
-                      <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
-                      <span className="truncate">{t.viewShopPromptPay.replace("💳 ", "")}</span>
-                    </button>
+                {/* Open Map to see menu - ALWAYS prominently visible on the shop card! */}
+                <div>
+                  <a
+                    href={
+                      activeBatch.shop.gmapUrl ||
+                      `https://maps.google.com/?q=${encodeURIComponent(
+                        (activeShopInfo?.name || activeBatch.shop.name) + " ระยอง"
+                      )}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 w-full rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs truncate"
+                    title={t.viewMenuMaps}
+                  >
+                    <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-rose-500 shrink-0" />
+                    <span className="truncate">{t.viewMenuMaps}</span>
+                  </a>
+                </div>
+
+                {/* When expanded: show shop details */}
+                {isShopExpanded && (activeShopInfo?.description || activeBatch.shop.description) && (
+                  <div className="pt-1.5 mt-1 border-t border-purple-100 text-[9px] sm:text-[10px] text-slate-500 animate-fadeIn">
+                    <p className="line-clamp-2">{activeShopInfo?.description || activeBatch.shop.description}</p>
                   </div>
                 )}
               </div>
