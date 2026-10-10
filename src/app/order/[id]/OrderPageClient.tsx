@@ -32,6 +32,7 @@ import {
   ShoppingBag,
   Phone,
   Key,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface Props {
@@ -586,12 +587,34 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
             {/* Leader Contact Card */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50/80 border border-purple-200 px-3.5 py-2 text-xs">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-base">👑</span>
                 <span className="font-bold text-purple-950">
-                  หัวหน้าตี้ (Leader): <span className="font-extrabold text-purple-900">{leaderLine}</span>
+                  หัวหน้าตี้: <span className="font-extrabold text-purple-900">{leaderLine}</span>
                 </span>
+
+                {/* Subtle Board Managing Button */}
+                <Link
+                  href={`/order/${batchId}/leader`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
+                  title="แผงจัดการกระดาน (สำหรับหัวหน้าตี้)"
+                >
+                  <SlidersHorizontal className="h-3 w-3 text-purple-700" />
+                  <span>จัดการกระดาน ↗</span>
+                </Link>
+
+                {batch.status === "ORDERED" && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                    🚀 ส่งร้านแล้ว
+                  </span>
+                )}
+                {batch.isSelfPickup && batch.status !== "ORDERED" && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                    🚶 รับเอง
+                  </span>
+                )}
               </div>
+
               {leaderPhone ? (
                 <a
                   href={`tel:${leaderPhone}`}
@@ -608,40 +631,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
-        {/* 2. Leader Portal Banner */}
-        <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-950 via-purple-900 to-indigo-950 p-4 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-purple-950 font-black text-xl shrink-0 shadow-xs">
-              👑
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm">แผงควบคุมหัวหน้าตี้ (Leader Portal)</h3>
-                {batch.status === "ORDERED" ? (
-                  <span className="text-[10px] font-bold bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full">
-                    🚀 ส่งร้านแล้ว
-                  </span>
-                ) : batch.isSelfPickup ? (
-                  <span className="text-[10px] font-bold bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
-                    🚶 รับเองหน้าร้าน
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-xs text-purple-200 mt-0.5">
-                สำหรับหัวหน้าตี้: รวมส่งร้านค้า, ปรับเป็นรับเองหน้าร้าน หรือปิดรับออเดอร์
-              </p>
-            </div>
-          </div>
-
-          <Link
-            href={`/order/${batchId}/leader`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 font-black px-4 py-2.5 text-xs shadow-md transition-all active:scale-95 shrink-0"
-          >
-            <span>เข้าแผงควบคุมหัวหน้าตี้ ↗</span>
-          </Link>
-        </div>
-
-        {/* 3. The Digital Whiteboard List */}
+        {/* 2. The Digital Whiteboard List */}
         <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div>
