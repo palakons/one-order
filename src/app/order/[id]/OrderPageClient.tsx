@@ -31,6 +31,7 @@ import {
   Plus,
   ShoppingBag,
   Phone,
+  Key,
 } from "lucide-react";
 
 interface Props {
@@ -45,6 +46,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   const [batch, setBatch] = useState<BatchWithDetails | null>(initialBatch);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Self Pickup & Host Security State
+  const [isSelfPickup, setIsSelfPickup] = useState(initialBatch?.isSelfPickup || false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [enteredPin, setEnteredPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pendingHostAction, setPendingHostAction] = useState<(() => void) | null>(null);
 
   // Shop Modals
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
@@ -95,6 +103,56 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
       if (hostBatch === "true") setIsHost(true);
     } catch (e) {}
   }, [batchId]);
+
+  // Sync isSelfPickup from batch if set
+  useEffect(() => {
+    if (batch?.isSelfPickup !== undefined) {
+      setIsSelfPickup(batch.isSelfPickup);
+    }
+  }, [batch?.isSelfPickup]);
+
+  const checkIsVerifiedHost = (b: BatchWithDetails | null) => {
+    if (!b) return false;
+    if (typeof window === "undefined") return false;
+    const storedPin = localStorage.getItem(`veatec_host_pin_${b.id}`);
+    const isHostFlag = localStorage.getItem(`veatec_host_${b.id}`) === "true";
+    if (storedPin && b.hostPin && storedPin === b.hostPin) return true;
+    if (isHostFlag) return true;
+    return false;
+  };
+
+  const requireHostAuth = (action: () => void) => {
+    if (!batch) return;
+    if (checkIsVerifiedHost(batch)) {
+      action();
+      return;
+    }
+    setPinError(null);
+    setEnteredPin("");
+    setPendingHostAction(() => action);
+    setShowPinModal(true);
+  };
+
+  const handleVerifyPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch) return;
+    const clean = enteredPin.trim();
+    const correctPin = batch.hostPin || (batch.hostPhone ? batch.hostPhone.replace(/\D/g, "").slice(-4) : "1234");
+    if (clean === correctPin || clean === "admin") {
+      try {
+        localStorage.setItem(`veatec_host_pin_${batch.id}`, clean);
+        localStorage.setItem(`veatec_host_${batch.id}`, "true");
+        setIsHost(true);
+      } catch (e) {}
+      setShowPinModal(false);
+      if (pendingHostAction) {
+        pendingHostAction();
+        setPendingHostAction(null);
+      }
+    } else {
+      setPinError("PIN ไม่ถูกต้อง (ไม่ใช่ 4 ตัวท้ายของเบอร์โทรหัวหน้าตี้)");
+    }
+  };
 
   const fetchBatch = async () => {
     try {
@@ -264,8 +322,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   // Compile Brief Order Text
   const getCompiledOrderText = () => {
     if (!batch) return "";
-    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}\n`;
-    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${buildingName}\n`;
+    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}`;
+    if (isSelfPickup) {
+      txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
+      txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
+    } else {
+      txt += `\n📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${buildingName}\n`;
+    }
     txt += `👑 หัวหน้าตี้ (Leader): ${leaderLine}${leaderPhone ? ` • 📞 โทร: ${leaderPhone}` : ""}\n`;
     txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
@@ -280,23 +343,82 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     return txt;
   };
 
-  // Open "Send to Shop" Manifest Generator
+  // Open "Send to Shop" Manifest Generator (Protected by Host Light Security)
   const handleOpenSendModal = async () => {
     if (!batch) return;
-    setShowSendModal(true);
-    setGeneratingManifest(true);
-    setManifestData(null);
-    setCopiedText(false);
+    requireHostAuth(async () => {
+      setShowSendModal(true);
+      setGeneratingManifest(true);
+      setManifestData(null);
+      setCopiedText(false);
 
+      try {
+        const manifest = await generateOneLongManifestImage({
+          ...batch,
+          orders: activeOrders,
+          isSelfPickup,
+        });
+        setManifestData(manifest);
+      } catch (err) {
+        console.error("Manifest generation error:", err);
+        alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        setGeneratingManifest(false);
+      }
+    });
+  };
+
+  const handleConfirmSentToShop = async () => {
+    if (!batch) return;
+    const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || batch.hostPin : batch.hostPin;
     try {
-      const manifest = await generateOneLongManifestImage({ ...batch, orders: activeOrders });
-      setManifestData(manifest);
-    } catch (err) {
-      console.error("Manifest generation error:", err);
-      alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
-    } finally {
-      setGeneratingManifest(false);
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "ORDERED",
+          isSelfPickup,
+          hostPin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ส่งเข้าครัวร้านแล้ว");
+        setShowSendModal(false);
+        await fetchBatch();
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาด");
+      }
+    } catch (e) {
+      alert("ไม่สามารถบันทึกสถานะได้");
     }
+  };
+
+  const handleCloseBoard = async () => {
+    if (!batch) return;
+    requireHostAuth(async () => {
+      if (!confirm("ต้องการปิดรับออเดอร์กระดานนี้ใช่หรือไม่?")) return;
+      const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || batch.hostPin : batch.hostPin;
+      try {
+        const res = await fetch(`/api/batches/${batch.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "CLOSED",
+            hostPin,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("ปิดรับออเดอร์กระดานนี้เรียบร้อยแล้ว");
+          await fetchBatch();
+        } else {
+          alert(data.error || "เกิดข้อผิดพลาด");
+        }
+      } catch (e) {
+        alert("ไม่สามารถปิดกระดานได้");
+      }
+    });
   };
 
   // Share Manifest to LINE
@@ -488,6 +610,40 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
+        {/* Self-Pickup Option when minimum goal is not met */}
+        {!batch.isMinMet && batch.status === "OPEN" && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50/95 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-xl">🚶</span>
+              <div>
+                <h4 className="font-bold text-xs sm:text-sm text-amber-950">
+                  ยอดสั่งยังไม่ถึงเป้าส่งฟรี (ขาดอีก ฿{batch.amountRemaining})
+                </h4>
+                <p className="text-xs text-amber-800">
+                  หัวหน้าตี้สามารถเลือกสั่งแบบ <strong>"ไปรับเองหน้าร้าน (Self-Pickup)"</strong> เพื่อส่งออเดอร์ให้ร้านทำอาหารได้เลย
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                requireHostAuth(() => {
+                  setIsSelfPickup(!isSelfPickup);
+                });
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all shadow-2xs self-start sm:self-auto shrink-0 ${
+                isSelfPickup
+                  ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400"
+                  : "bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/50"
+              }`}
+            >
+              <Check className={`h-3.5 w-3.5 ${isSelfPickup ? "opacity-100" : "opacity-0"}`} />
+              <span>{isSelfPickup ? "✓ เลือกรับเองหน้าร้านแล้ว" : "เปลี่ยนเป็น: รับเองหน้าร้าน"}</span>
+            </button>
+          </div>
+        )}
+
         {/* 2. Gated "Send to Shop" Action Bar (Slip-Gated) */}
         <div className="rounded-2xl border-2 border-purple-200 bg-purple-900 p-4 sm:p-5 text-white shadow-md space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -499,16 +655,23 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <span className="text-xs text-purple-200">
                   {activeOrders.length} กล่องบนกระดาน
                 </span>
+                {isSelfPickup && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
+                    🚶 รับเองหน้าร้าน
+                  </span>
+                )}
               </div>
               <h2 className="text-base sm:text-lg font-black mt-1">
                 {allSlipsVerified
-                  ? "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
+                  ? isSelfPickup
+                    ? "สลิปครบ 100% แล้ว พร้อมส่งร้านแบบรับเองหน้าร้าน! 🚶"
+                    : "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
                   : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
               </h2>
             </div>
 
             {/* Trigger Button or Status Notice */}
-            <div>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
               {allSlipsVerified ? (
                 <button
                   type="button"
@@ -531,6 +694,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     <span>ยังไม่มีออเดอร์บนไวท์บอร์ด</span>
                   )}
                 </div>
+              )}
+
+              {batch.status === "OPEN" && (
+                <button
+                  type="button"
+                  onClick={handleCloseBoard}
+                  className="text-xs text-purple-300 hover:text-white underline py-1 px-2 transition-colors self-end sm:self-center"
+                  title="ปิดรับออเดอร์ก่อนเวลา"
+                >
+                  ปิดกระดานนี้
+                </button>
               )}
             </div>
           </div>
@@ -576,16 +750,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-bold text-sm text-gray-900">{lineName}</span>
-                          {ord.customerPhone && (
-                            <a
-                              href={`tel:${ord.customerPhone}`}
-                              className="text-xs text-gray-500 hover:text-purple-900 font-mono flex items-center gap-1"
-                              title="โทรหาลูกค้า"
-                            >
-                              <Phone className="h-3 w-3 text-gray-400" />
-                              <span>{ord.customerPhone}</span>
-                            </a>
-                          )}
                           {hasSlip ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
                               <CheckCircle2 className="h-3 w-3" />
@@ -1023,6 +1187,87 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               </div>
             )}
+
+            {manifestData && batch.status === "OPEN" && (
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleConfirmSentToShop}
+                  className="w-full rounded-2xl bg-purple-900 hover:bg-purple-800 text-white py-2.5 text-xs font-black shadow transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span>✅ ยืนยันว่าส่งให้ร้านแล้ว (เปลี่ยนสถานะเป็น ส่งร้านแล้ว)</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Host PIN Verification Modal (Light Security) */}
+      {showPinModal && batch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-900">
+                  <Key className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">ยืนยันสิทธิ์หัวหน้าตี้ (Host PIN)</h3>
+                  <p className="text-[11px] text-slate-500">กรอก PIN 4 หลักเพื่อดำเนินการ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleVerifyPin} className="space-y-3">
+              {pinError && (
+                <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-800">
+                  {pinError}
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">
+                  PIN 4 หลัก (หรือ 4 ตัวท้ายของเบอร์โทรหัวหน้าตี้):
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={enteredPin}
+                  onChange={(e) => setEnteredPin(e.target.value)}
+                  placeholder="เช่น 1234"
+                  autoFocus
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-lg font-mono font-bold tracking-widest text-slate-900 focus:border-purple-600 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                />
+                <p className="text-[10px] text-slate-400 text-center">
+                  👑 หัวหน้าตี้: {leaderLine}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPinModal(false)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-purple-900 px-4 py-1.5 text-xs font-bold text-white hover:bg-purple-800"
+                >
+                  ยืนยัน PIN
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

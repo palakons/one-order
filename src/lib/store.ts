@@ -587,6 +587,8 @@ export async function createBatch(batchData: {
   hostLineId?: string;
   hostPhone?: string;
   hostName?: string;
+  hostPin?: string;
+  isSelfPickup?: boolean;
   buildingId?: string;
   buildingName?: string;
 }): Promise<BatchWithDetails> {
@@ -603,6 +605,8 @@ export async function createBatch(batchData: {
     hostLineId: batchData.hostLineId || undefined,
     hostPhone: batchData.hostPhone || undefined,
     hostName: batchData.hostName || undefined,
+    hostPin: batchData.hostPin || undefined,
+    isSelfPickup: Boolean(batchData.isSelfPickup),
     buildingId: batchData.buildingId || "loc-m4",
     buildingName: batchData.buildingName || "ตึก M4",
   };
@@ -626,9 +630,18 @@ export async function createBatch(batchData: {
 export async function updateBatchStatus(
   batchId: string,
   status: BatchStatus,
-  deliveryPhotoUrl?: string
+  deliveryPhotoUrl?: string,
+  extra?: { isSelfPickup?: boolean; sentToShopAt?: string }
 ): Promise<BatchWithDetails | undefined> {
   const updatePayload: Record<string, any> = { status };
+  if (extra?.isSelfPickup !== undefined) {
+    updatePayload.isSelfPickup = extra.isSelfPickup;
+  }
+  if (extra?.sentToShopAt) {
+    updatePayload.sentToShopAt = extra.sentToShopAt;
+  } else if (status === "ORDERED") {
+    updatePayload.sentToShopAt = new Date().toISOString();
+  }
   if (deliveryPhotoUrl) {
     updatePayload.deliveryPhotoUrl = deliveryPhotoUrl;
     updatePayload.deliveredAt = new Date().toISOString();
@@ -649,6 +662,14 @@ export async function updateBatchStatus(
   const batch = data.batches.find((b) => b.id === batchId);
   if (!batch) return undefined;
   batch.status = status;
+  if (extra?.isSelfPickup !== undefined) {
+    batch.isSelfPickup = extra.isSelfPickup;
+  }
+  if (extra?.sentToShopAt) {
+    batch.sentToShopAt = extra.sentToShopAt;
+  } else if (status === "ORDERED") {
+    batch.sentToShopAt = new Date().toISOString();
+  }
   if (deliveryPhotoUrl) {
     batch.deliveryPhotoUrl = deliveryPhotoUrl;
     batch.deliveredAt = new Date().toISOString();

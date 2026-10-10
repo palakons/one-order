@@ -162,10 +162,15 @@ export async function generateOneLongManifestImage(
   drawRoundRect(ctx, padding, 98, contentWidth, 54, 12);
   ctx.fill();
 
+  const isSelfPickup = Boolean(batch.isSelfPickup);
   const bldg = batch.buildingName || "ตึก M4";
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = isSelfPickup ? "#fde047" : "#ffffff";
   ctx.font = "bold 20px sans-serif";
-  ctx.fillText(`📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${bldg}`, padding + 16, 133);
+  if (isSelfPickup) {
+    ctx.fillText(`🚶 รูปแบบ: รับเองหน้าร้าน (Self-Pickup) • ลูกค้าไปรับเองที่ร้าน`, padding + 16, 133);
+  } else {
+    ctx.fillText(`📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${bldg}`, padding + 16, 133);
+  }
 
   // Sub metadata
   const leaderLine = batch.hostLineId || (orders[0]?.customerLineId ? `@${orders[0].customerLineId}` : orders[0]?.customerName);

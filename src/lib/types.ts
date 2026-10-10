@@ -54,7 +54,7 @@ export interface Order {
   deletedReason?: string; // Reason if cancelled by host
 }
 
-export type BatchStatus = "OPEN" | "LOCKED" | "DELIVERING" | "COMPLETED" | "CANCELLED";
+export type BatchStatus = "OPEN" | "LOCKED" | "CLOSED" | "ORDERED" | "DELIVERING" | "COMPLETED" | "CANCELLED";
 
 export interface Batch {
   id: string;
@@ -67,6 +67,8 @@ export interface Batch {
   hostLineId?: string; // Host / Open party initiator LINE ID
   hostPhone?: string; // Host / Leader phone number (for issues)
   hostName?: string; // Host / Leader display name
+  hostPin?: string; // 4-digit PIN for host authorization (close/submit)
+  isSelfPickup?: boolean; // True if party leader opted to pick up at shop directly
   buildingId?: string; // Specific building ID (e.g. "loc-m4")
   buildingName?: string; // Specific building name (e.g. "ตึก M4")
   sentToShopAt?: string; // ISO string when Host clicked "Send to Shop"

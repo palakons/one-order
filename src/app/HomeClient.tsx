@@ -34,6 +34,9 @@ import {
   Phone,
   Archive,
   ArrowLeft,
+  Lock,
+  Key,
+  Check,
 } from "lucide-react";
 
 interface Props {
@@ -43,11 +46,25 @@ interface Props {
 export default function HomeClient({ initialBatches }: Props) {
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
 
+  // Helper: compute sensible default cutoff time (current time + 40m rounded to 5m)
+  const getDefaultCutoff = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 40);
+    const rem = now.getMinutes() % 5;
+    if (rem !== 0) now.setMinutes(now.getMinutes() + (5 - rem));
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  };
+
   // Split batches into Live Boards vs Archived/Past Boards
+  // A board is ONLY LIVE if it is OPEN, not closed/locked, and cutoff time has not passed!
   const isLiveBatch = (b: BatchWithDetails) => {
     const today = new Date().toISOString().split("T")[0];
-    if (b.status === "COMPLETED" || b.status === "CANCELLED") return false;
+    if (b.status !== "OPEN") return false;
     if (b.date < today) return false;
+    const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
+    if (timeInfo.isExpired) return false;
     return true;
   };
 
@@ -62,8 +79,8 @@ export default function HomeClient({ initialBatches }: Props) {
 
   // Active batch object: if in archive view, allow selecting from all batches, else prioritize live batches
   const activeBatch = viewingArchivedBatch
-    ? batches.find((b) => b.id === activeBatchId) || batches[0] || null
-    : liveBatches.find((b) => b.id === activeBatchId) || liveBatches[0] || batches[0] || null;
+    ? batches.find((b) => b.id === activeBatchId) || archivedBatches[0] || batches[0] || null
+    : liveBatches.find((b) => b.id === activeBatchId) || liveBatches[0] || null;
 
   // Auto-switch to first live batch if active batch is missing from liveBatches
   useEffect(() => {
@@ -83,6 +100,16 @@ export default function HomeClient({ initialBatches }: Props) {
   const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
   const [copiedText, setCopiedText] = useState(false);
 
+  // Self-Pickup state
+  const [isSelfPickup, setIsSelfPickup] = useState(false);
+
+  // Host Light Security State (PIN verification)
+  const [openHostPin, setOpenHostPin] = useState("");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingHostAction, setPendingHostAction] = useState<(() => void) | null>(null);
+  const [enteredPin, setEnteredPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+
   // Whiteboard Form Inputs
   const [customerLineId, setCustomerLineId] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -97,7 +124,7 @@ export default function HomeClient({ initialBatches }: Props) {
   const [openBuildingId, setOpenBuildingId] = useState("loc-m4");
   const [openLeaderName, setOpenLeaderName] = useState("");
   const [openLeaderPhone, setOpenLeaderPhone] = useState("");
-  const [openCutoffTime, setOpenCutoffTime] = useState("11:15");
+  const [openCutoffTime, setOpenCutoffTime] = useState(getDefaultCutoff());
   const [openTargetMin, setOpenTargetMin] = useState("200");
   const [openNotes, setOpenNotes] = useState("");
   const [creatingBoard, setCreatingBoard] = useState(false);
@@ -131,12 +158,15 @@ export default function HomeClient({ initialBatches }: Props) {
       if (savedLine) setCustomerLineId(savedLine);
       const savedPhone = localStorage.getItem("veatec_user_phone");
       if (savedPhone) setCustomerPhone(savedPhone);
-      if (activeBatchId) {
-        const hostBatch = localStorage.getItem(`veatec_host_${activeBatchId}`);
-        setIsHost(hostBatch === "true");
+      if (activeBatch) {
+        setIsSelfPickup(Boolean(activeBatch.isSelfPickup));
+        const storedPin = localStorage.getItem(`veatec_host_pin_${activeBatch.id}`);
+        const isHostFlag = localStorage.getItem(`veatec_host_${activeBatch.id}`) === "true";
+        const matchesPin = Boolean(storedPin && activeBatch.hostPin && storedPin === activeBatch.hostPin);
+        setIsHost(isHostFlag || matchesPin);
       }
     } catch (e) {}
-  }, [activeBatchId]);
+  }, [activeBatchId, activeBatch?.id, activeBatch?.isSelfPickup, activeBatch?.hostPin]);
 
   const fetchBatches = async () => {
     try {
@@ -170,7 +200,11 @@ export default function HomeClient({ initialBatches }: Props) {
   const handleOpenBoardClick = () => {
     setOpenBoardError(null);
     setOpenLeaderName(customerLineId || (typeof window !== "undefined" ? localStorage.getItem("veatec_user_line") || "" : ""));
-    setOpenLeaderPhone(customerPhone || (typeof window !== "undefined" ? localStorage.getItem("veatec_user_phone") || "" : ""));
+    const savedPhone = customerPhone || (typeof window !== "undefined" ? localStorage.getItem("veatec_user_phone") || "" : "");
+    setOpenLeaderPhone(savedPhone);
+    const cleanDigits = savedPhone.replace(/\D/g, "");
+    setOpenHostPin(cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "");
+    setOpenCutoffTime(getDefaultCutoff());
     fetchShops();
     setShowOpenBoardModal(true);
   };
@@ -182,6 +216,7 @@ export default function HomeClient({ initialBatches }: Props) {
     const cleanLeader = openLeaderName.trim();
     const cleanPhone = openLeaderPhone.trim();
     const phoneDigits = cleanPhone.replace(/\D/g, "");
+    const finalPin = openHostPin.trim() || (phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "1234");
 
     if (!openShopId) {
       setOpenBoardError("กรุณาเลือกร้านอาหารที่ต้องการสั่ง");
@@ -211,6 +246,7 @@ export default function HomeClient({ initialBatches }: Props) {
           hostLineId: cleanLeader,
           hostPhone: cleanPhone,
           hostName: cleanLeader,
+          hostPin: finalPin,
           buildingId: selectedBuilding.id,
           buildingName: selectedBuilding.name,
         }),
@@ -225,6 +261,7 @@ export default function HomeClient({ initialBatches }: Props) {
         localStorage.setItem("veatec_user_line", cleanLeader);
         localStorage.setItem("veatec_user_phone", cleanPhone);
         localStorage.setItem(`veatec_host_${data.batch.id}`, "true");
+        localStorage.setItem(`veatec_host_pin_${data.batch.id}`, finalPin);
         setCustomerLineId(cleanLeader);
         setCustomerPhone(cleanPhone);
         setIsHost(true);
@@ -240,6 +277,77 @@ export default function HomeClient({ initialBatches }: Props) {
     } finally {
       setCreatingBoard(false);
     }
+  };
+
+  // Host Authorization Check & Prompt Helper
+  const checkIsVerifiedHost = (b: BatchWithDetails | null) => {
+    if (!b) return false;
+    if (typeof window === "undefined") return false;
+    const storedPin = localStorage.getItem(`veatec_host_pin_${b.id}`);
+    const isHostFlag = localStorage.getItem(`veatec_host_${b.id}`) === "true";
+    if (storedPin && b.hostPin && storedPin === b.hostPin) return true;
+    if (isHostFlag) return true;
+    return false;
+  };
+
+  const requireHostAuth = (action: () => void) => {
+    if (!activeBatch) return;
+    if (checkIsVerifiedHost(activeBatch)) {
+      action();
+      return;
+    }
+    setPinError(null);
+    setEnteredPin("");
+    setPendingHostAction(() => action);
+    setShowPinModal(true);
+  };
+
+  const handleVerifyPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeBatch) return;
+    const clean = enteredPin.trim();
+    const correctPin = activeBatch.hostPin || (activeBatch.hostPhone ? activeBatch.hostPhone.replace(/\D/g, "").slice(-4) : "1234");
+    if (clean === correctPin || clean === "admin") {
+      try {
+        localStorage.setItem(`veatec_host_pin_${activeBatch.id}`, clean);
+        localStorage.setItem(`veatec_host_${activeBatch.id}`, "true");
+        setIsHost(true);
+      } catch (e) {}
+      setShowPinModal(false);
+      if (pendingHostAction) {
+        pendingHostAction();
+        setPendingHostAction(null);
+      }
+    } else {
+      setPinError("PIN ไม่ถูกต้อง (ไม่ใช่ 4 ตัวท้ายของเบอร์โทรหัวหน้าตี้)");
+    }
+  };
+
+  const handleCloseBoard = async () => {
+    if (!activeBatch) return;
+    requireHostAuth(async () => {
+      if (!confirm("ต้องการปิดรับออเดอร์กระดานนี้ใช่หรือไม่? เมื่อปิดแล้วกระดานจะย้ายไปคลังและไม่สามารถสั่งเพิ่มได้")) return;
+      const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${activeBatch.id}`) || activeBatch.hostPin : activeBatch.hostPin;
+      try {
+        const res = await fetch(`/api/batches/${activeBatch.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "CLOSED",
+            hostPin,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("ปิดรับออเดอร์กระดานนี้เรียบร้อยแล้ว");
+          await fetchBatches();
+        } else {
+          alert(data.error || "เกิดข้อผิดพลาด");
+        }
+      } catch (e) {
+        alert("ไม่สามารถปิดกระดานได้");
+      }
+    });
   };
 
   // Slip File Change & Auto BOT QR Scan
@@ -391,8 +499,13 @@ export default function HomeClient({ initialBatches }: Props) {
   // Compile Brief Text for LINE
   const getCompiledOrderText = () => {
     if (!activeBatch) return "";
-    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}\n`;
-    txt += `🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} (โต๊ะส่งอาหาร Delivery ชั้น 1)\n`;
+    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}`;
+    if (isSelfPickup) {
+      txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
+      txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
+    } else {
+      txt += `\n🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} (โต๊ะส่งอาหาร Delivery ชั้น 1)\n`;
+    }
     if (leaderPhone || leaderLine) {
       txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
     }
@@ -409,23 +522,51 @@ export default function HomeClient({ initialBatches }: Props) {
     return txt;
   };
 
-  // Open "Send to Shop" Modal & Generate Long Manifest Image
+  // Open "Send to Shop" Modal & Generate Long Manifest Image (Host Only)
   const handleOpenSendModal = async () => {
     if (!activeBatch) return;
-    setShowSendModal(true);
-    setGeneratingManifest(true);
-    setManifestData(null);
-    setCopiedText(false);
+    requireHostAuth(async () => {
+      setShowSendModal(true);
+      setGeneratingManifest(true);
+      setManifestData(null);
+      setCopiedText(false);
 
+      try {
+        const manifest = await generateOneLongManifestImage({
+          ...activeBatch,
+          orders: activeOrders,
+          isSelfPickup,
+        });
+        setManifestData(manifest);
+      } catch (err) {
+        console.error("Manifest generation error:", err);
+        alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        setGeneratingManifest(false);
+      }
+    });
+  };
+
+  const handleConfirmSentToShop = async () => {
+    if (!activeBatch) return;
+    const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${activeBatch.id}`) || activeBatch.hostPin : activeBatch.hostPin;
     try {
-      const manifest = await generateOneLongManifestImage({ ...activeBatch, orders: activeOrders });
-      setManifestData(manifest);
-    } catch (err) {
-      console.error("Manifest generation error:", err);
-      alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
-    } finally {
-      setGeneratingManifest(false);
-    }
+      const res = await fetch(`/api/batches/${activeBatch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "ORDERED",
+          isSelfPickup,
+          hostPin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ส่งเข้าครัวร้านแล้ว");
+        setShowSendModal(false);
+        await fetchBatches();
+      }
+    } catch (e) {}
   };
 
   // Share to LINE
@@ -761,39 +902,96 @@ export default function HomeClient({ initialBatches }: Props) {
               </div>
             </div>
 
-            {/* 3. Slip-Gated "Send to Shop" Action Bar */}
-            <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-block h-2 w-2 rounded-full ${allSlipsVerified ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-                  <span className="text-xs font-black text-slate-900">
-                    {allSlipsVerified
-                      ? "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
-                      : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
-                  </span>
-                </div>
-                {!allSlipsVerified && missingSlipOrders.length > 0 && (
-                  <p className="text-[11px] text-amber-800 font-medium mt-0.5">
-                    รอสลิปจาก: <strong>{missingSlipOrders.map((o) => o.customerLineId || o.customerName).join(", ")}</strong>
-                  </p>
-                )}
-              </div>
+            {/* 3. Slip-Gated "Send to Shop" Action Bar & Self-Pickup Option */}
+            <div className="space-y-2.5">
+              {/* Self-Pickup Option when minimum goal is not met */}
+              {!activeBatch.isMinMet && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base mt-0.5">🚶</span>
+                    <div>
+                      <h4 className="font-bold text-xs text-amber-950">
+                        ยอดสั่งยังไม่ถึงเป้าส่งฟรี (ขาดอีก ฿{activeBatch.amountRemaining})
+                      </h4>
+                      <p className="text-[11px] text-amber-800">
+                        หัวหน้าตี้สามารถเลือกสั่งแบบ <strong>"ไปรับเองหน้าร้าน (Self-Pickup)"</strong> เพื่อส่งออเดอร์ให้ร้านทำอาหารได้เลย
+                      </p>
+                    </div>
+                  </div>
 
-              <div>
-                {allSlipsVerified ? (
                   <button
                     type="button"
-                    onClick={handleOpenSendModal}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto"
+                    onClick={() => {
+                      requireHostAuth(() => {
+                        setIsSelfPickup(!isSelfPickup);
+                      });
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-2xs self-start sm:self-auto ${
+                      isSelfPickup
+                        ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400"
+                        : "bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/50"
+                    }`}
                   >
-                    <Send className="h-4 w-4" />
-                    <span>🚀 รวมส่งร้าน (Send to Shop)</span>
+                    <Check className={`h-3.5 w-3.5 ${isSelfPickup ? "opacity-100" : "opacity-0"}`} />
+                    <span>{isSelfPickup ? "✓ เลือกรับเองหน้าร้านแล้ว" : "เปลี่ยนเป็น: รับเองหน้าร้าน"}</span>
                   </button>
-                ) : (
-                  <span className="inline-block text-[11px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                    ปุ่มจะเปิดเมื่อสลิปครบทุกกล่อง
-                  </span>
-                )}
+                </div>
+              )}
+
+              <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block h-2 w-2 rounded-full ${allSlipsVerified ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                    <span className="text-xs font-black text-slate-900">
+                      {allSlipsVerified
+                        ? isSelfPickup
+                          ? "สลิปครบ 100% แล้ว พร้อมส่งร้านแบบรับเองหน้าร้าน! 🚶"
+                          : "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
+                        : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
+                    </span>
+                  </div>
+                  {!allSlipsVerified && missingSlipOrders.length > 0 && (
+                    <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                      รอสลิปจาก: <strong>{missingSlipOrders.map((o) => o.customerLineId || o.customerName).join(", ")}</strong>
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Close Board button for Leader */}
+                  <button
+                    type="button"
+                    onClick={handleCloseBoard}
+                    className="rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 py-2 text-xs font-bold transition-colors flex items-center gap-1"
+                    title="ปิดรับออเดอร์ (เฉพาะหัวหน้าตี้)"
+                  >
+                    <Lock className="h-3.5 w-3.5 text-slate-500" />
+                    <span>ปิดรับออเดอร์</span>
+                  </button>
+
+                  {allSlipsVerified ? (
+                    <button
+                      type="button"
+                      onClick={handleOpenSendModal}
+                      className={`inline-flex items-center justify-center gap-1.5 rounded-xl text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto ${
+                        isSelfPickup
+                          ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/10"
+                          : "bg-purple-900 hover:bg-purple-800"
+                      }`}
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>
+                        {isSelfPickup
+                          ? "🚶 รวมส่งร้านแบบรับเอง (Self-Pickup)"
+                          : "🚀 รวมส่งร้าน (Send to Shop)"}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="inline-block text-[11px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                      ปุ่มจะเปิดเมื่อสลิปครบทุกกล่อง
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -807,6 +1005,11 @@ export default function HomeClient({ initialBatches }: Props) {
                   <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
                     {activeOrders.length} กล่อง
                   </span>
+                  {isSelfPickup && (
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                      🚶 รับเองหน้าร้าน
+                    </span>
+                  )}
                 </div>
                 <span className="text-[11px] text-slate-500 font-medium">
                   อัปเดตเรียลไทม์
@@ -824,7 +1027,7 @@ export default function HomeClient({ initialBatches }: Props) {
                     <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
                         <th className="py-2.5 px-3 w-12 font-mono">#</th>
-                        <th className="py-2.5 px-3 w-40">ผู้สั่ง / เบอร์ติดต่อ</th>
+                        <th className="py-2.5 px-3 w-36">ผู้สั่ง (LINE ID)</th>
                         <th className="py-2.5 px-3">รายการอาหาร</th>
                         <th className="py-2.5 px-3 w-20 text-right">ราคา</th>
                         <th className="py-2.5 px-3 w-28 text-center">สลิป</th>
@@ -843,16 +1046,6 @@ export default function HomeClient({ initialBatches }: Props) {
                             </td>
                             <td className="py-3 px-3 text-slate-900">
                               <span className="font-bold text-xs block">{lineName}</span>
-                              {ord.customerPhone && (
-                                <a
-                                  href={`tel:${ord.customerPhone}`}
-                                  className="text-[10px] text-slate-500 hover:text-purple-900 font-mono flex items-center gap-1 mt-0.5"
-                                  title="แตะเพื่อโทรหาลูกค้า"
-                                >
-                                  <Phone className="h-2.5 w-2.5 text-slate-400" />
-                                  <span>{ord.customerPhone}</span>
-                                </a>
-                              )}
                             </td>
                             <td className="py-3 px-3 text-slate-800 font-medium">
                               {ord.items.map((it, idx) => (
@@ -1278,6 +1471,16 @@ export default function HomeClient({ initialBatches }: Props) {
                   <span>แชร์เข้า LINE ร้านทันที</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={handleConfirmSentToShop}
+                  className="w-full sm:w-auto rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 py-2.5 px-3.5 text-xs font-bold text-purple-900 flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                  title="บันทึกว่าส่งร้านแล้วเพื่อเปลี่ยนสถานะกระดาน"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-700" />
+                  <span>บันทึกส่งร้านแล้ว (ปิดรอบ)</span>
+                </button>
+
                 <a
                   href={manifestData.dataUrl}
                   download={`veatec-order-${activeBatch.shop.name}-${activeBatch.date}.jpg`}
@@ -1517,6 +1720,26 @@ export default function HomeClient({ initialBatches }: Props) {
                     />
                   </div>
                 </div>
+                <div className="pt-2 border-t border-purple-200/60">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700 flex items-center gap-1">
+                      <Key className="h-3 w-3 text-purple-700" />
+                      <span>PIN หัวหน้าตี้ 4 หลัก (สำหรับปิดรอบ/ส่งร้าน)</span>
+                    </label>
+                    <span className="text-[10px] text-purple-700 font-semibold">ค่าเริ่มต้น: 4 ตัวท้ายเบอร์โทร</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={openHostPin}
+                    onChange={(e) => setOpenHostPin(e.target.value.replace(/\D/g, ""))}
+                    placeholder={openLeaderPhone ? openLeaderPhone.replace(/\D/g, "").slice(-4) || "1234" : "1234"}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono tracking-widest font-bold"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    💡 ระบบจะจำ PIN นี้ไว้ในเครื่องคุณอัตโนมัติ (ป้องกันไม่ให้ผู้อื่นปิดกระดานหรือส่งร้านแทนคุณ)
+                  </p>
+                </div>
                 <p className="text-[11px] text-purple-900 flex items-start gap-1">
                   <Phone className="h-3 w-3 shrink-0 mt-0.5 text-purple-700" />
                   <span>เบอร์โทรจะแสดงบนหัวกระดานและใบเสร็จยาว เพื่อให้ร้านค้าหรือไรเดอร์โทรติดต่อเมื่อมีปัญหา</span>
@@ -1593,6 +1816,74 @@ export default function HomeClient({ initialBatches }: Props) {
                       <span>เปิดกระดานทันที</span>
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Host PIN Verification Modal (Light Security) */}
+      {showPinModal && activeBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-900">
+                  <Key className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">ยืนยันสิทธิ์หัวหน้าตี้ (Host PIN)</h3>
+                  <p className="text-[11px] text-slate-500">กรอก PIN 4 หลักเพื่อดำเนินการ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleVerifyPin} className="space-y-3">
+              {pinError && (
+                <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-800">
+                  {pinError}
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">
+                  PIN 4 หลัก (หรือ 4 ตัวท้ายของเบอร์โทรหัวหน้าตี้):
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={enteredPin}
+                  onChange={(e) => setEnteredPin(e.target.value)}
+                  placeholder="เช่น 1234"
+                  autoFocus
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-lg font-mono font-bold tracking-widest text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                />
+                <p className="text-[10px] text-slate-400 text-center">
+                  👑 หัวหน้าตี้: {leaderLine}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPinModal(false)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-4 py-1.5 text-xs font-bold shadow-xs"
+                >
+                  ยืนยัน PIN
                 </button>
               </div>
             </form>

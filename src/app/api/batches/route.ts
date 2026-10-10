@@ -26,6 +26,8 @@ export async function POST(request: Request) {
       hostLineId,
       hostPhone,
       hostName,
+      hostPin,
+      isSelfPickup,
       buildingId,
       buildingName,
     } = body;
@@ -33,6 +35,10 @@ export async function POST(request: Request) {
     if (!shopId || !date || !cutoffTime || !targetMinAmount) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
+
+    // Default hostPin to provided PIN or last 4 digits of phone
+    const cleanPhone = (hostPhone || "").replace(/\D/g, "");
+    const derivedPin = (hostPin || "").trim() || (cleanPhone.length >= 4 ? cleanPhone.slice(-4) : "1234");
 
     const batch = await createBatch({
       shopId,
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
       hostLineId: (hostLineId || "").trim() || undefined,
       hostPhone: (hostPhone || "").trim() || undefined,
       hostName: (hostName || "").trim() || undefined,
+      hostPin: derivedPin,
+      isSelfPickup: Boolean(isSelfPickup),
       buildingId: (buildingId || "").trim() || "loc-m4",
       buildingName: (buildingName || "").trim() || "ตึก M4",
     });
