@@ -9,12 +9,52 @@ export async function GET() {
     const envUserId = process.env.LINE_USER_ID || null;
     const activeGroupIds = await getActiveLineGroupIds();
 
+    const token =
+      process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+      "tDuAIqGSY0EjLJ6JX5+xeNtfEWtlOtXdMggAuhMTDSYxB+d8LJI45ksz7qUlSIJUE7wVfOTM/BGYtHEfYLuP2FKrBCzZOa7pnWZCwJWb6m4Fjy98UQDZKFY9w2RcxBOF/4NZTJotAskvnDHAz0pxLAdB04t89/1O/w1cDnyilFU=";
+
+    let quota = {
+      limit: 300,
+      totalUsage: 0,
+      remaining: 300,
+      type: "limited",
+    };
+
+    if (token) {
+      try {
+        const [quotaRes, usageRes] = await Promise.all([
+          fetch("https://api.line.me/v2/bot/message/quota", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("https://api.line.me/v2/bot/message/quota/consumption", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (quotaRes.ok && usageRes.ok) {
+          const quotaData = await quotaRes.json();
+          const usageData = await usageRes.json();
+          const limit = typeof quotaData.value === "number" ? quotaData.value : 300;
+          const totalUsage = typeof usageData.totalUsage === "number" ? usageData.totalUsage : 0;
+          quota = {
+            limit,
+            totalUsage,
+            remaining: Math.max(0, limit - totalUsage),
+            type: quotaData.type || "limited",
+          };
+        }
+      } catch (err) {
+        console.warn("LINE quota fetch error:", err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       hasToken,
       envGroupId,
       envUserId,
       activeGroupIds,
+      quota,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

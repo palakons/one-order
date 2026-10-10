@@ -77,6 +77,9 @@ export interface Batch {
   deliveredAt?: string; // ISO string when food was placed at campus desks
   isDeleted?: boolean; // Purged after 7 days (privacy/retention)
   deletedAt?: string; // ISO timestamp when marked deleted
+  hostLineUserId?: string; // LINE User ID (U...) of leader for 1-to-1 bot push
+  cutoffReminderSent?: boolean; // True if cutoff time reminder was pushed
+  cutoffReminderSentAt?: string; // ISO timestamp when cutoff reminder was pushed
 }
 
 export interface BatchWithDetails extends Batch {

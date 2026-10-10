@@ -46,6 +46,7 @@ import {
   Download,
   Activity,
   Server,
+  ChevronDown,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -87,6 +88,12 @@ export default function AdminClient({
     envGroupId: string | null;
     envUserId: string | null;
     activeGroupIds: string[];
+    quota?: {
+      limit: number;
+      totalUsage: number;
+      remaining: number;
+      type: string;
+    };
   } | null>(null);
   const [loadingLine, setLoadingLine] = useState(false);
   const [testingLine, setTestingLine] = useState(false);
@@ -95,6 +102,9 @@ export default function AdminClient({
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
   const [manualGroupId, setManualGroupId] = useState("");
   const [addingGroupId, setAddingGroupId] = useState(false);
+
+  // Collapsible toggle for Firebase and Datastore Monitor Pane (Default: Collapsed)
+  const [isSystemPaneOpen, setIsSystemPaneOpen] = useState(false);
 
   // System, Firebase & Fallback Storage State
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(
@@ -856,16 +866,91 @@ export default function AdminClient({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {/* Firebase Health & Quota Diagnostics Card */}
-        <div
-          className={`rounded-2xl border p-4 sm:p-5 shadow-xs transition-all ${
-            systemStatus.severity === "interrupted"
-              ? "border-amber-300 bg-gradient-to-r from-amber-50/80 via-white to-amber-50/30"
-              : systemStatus.severity === "warning"
-              ? "border-amber-200 bg-amber-50/40"
-              : "border-emerald-200 bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/30"
-          }`}
-        >
+        {/* Collapsible Firebase & Fallback Datastore Monitor Card */}
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all">
+          {/* Header Bar / Collapsed Summary Bar */}
+          <div
+            onClick={() => setIsSystemPaneOpen((prev) => !prev)}
+            className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ${
+                  systemStatus.severity === "interrupted"
+                    ? "bg-amber-100 text-amber-800"
+                    : systemStatus.severity === "warning"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-emerald-100 text-emerald-800"
+                }`}
+              >
+                <Database className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                      systemStatus.severity === "interrupted"
+                        ? "bg-amber-100 text-amber-900 border border-amber-300"
+                        : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                    }`}
+                  >
+                    {systemStatus.severity === "interrupted" ? "Quota Limited" : "Cloud Healthy"}
+                  </span>
+                  <span
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold border flex items-center gap-1 ${
+                      systemStatus.activeStorageEngine === "firestore"
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                        : "bg-amber-50 text-amber-900 border-amber-200"
+                    }`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {systemStatus.activeStorageEngine === "firestore" ? "Firestore" : "Fallback Storage"}
+                  </span>
+                  <span className="text-xs font-black text-slate-900 ml-1">
+                    Firebase &amp; Datastore Architecture
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 mt-0.5">
+                  <span>Reads: <strong>{systemStatus.metrics?.readsToday ?? 0}</strong>/50k</span>
+                  <span>•</span>
+                  <span>Writes: <strong>{systemStatus.metrics?.writesToday ?? 0}</strong>/20k</span>
+                  <span>•</span>
+                  <span>
+                    Fallback: {systemStatus.fallbackState?.counts?.shops ?? 0} ร้าน / {systemStatus.fallbackState?.counts?.batches ?? 0} รอบ ({systemStatus.fallbackState?.fileSizeFormatted ?? "0 B"})
+                  </span>
+                  {lineStatus?.quota && (
+                    <>
+                      <span>•</span>
+                      <span className="text-purple-700 font-bold">
+                        LINE: {lineStatus.quota.remaining}/{lineStatus.quota.limit} ฟรีคงเหลือ
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <span className="text-xs font-bold text-purple-900 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-xl border border-purple-200 transition-colors flex items-center gap-1">
+                <span>{isSystemPaneOpen ? "ย่อเก็บ" : "ขยายดูรายละเอียด"}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isSystemPaneOpen ? "rotate-180" : ""}`} />
+              </span>
+            </div>
+          </div>
+
+          {/* Expanded Content */}
+          {isSystemPaneOpen && (
+            <div className="border-t border-slate-200 p-4 sm:p-5 space-y-5 bg-slate-50/40">
+              {/* Firebase Health & Quota Diagnostics Card */}
+              <div
+                className={`rounded-2xl border p-4 sm:p-5 shadow-xs transition-all ${
+                  systemStatus.severity === "interrupted"
+                    ? "border-amber-300 bg-gradient-to-r from-amber-50/80 via-white to-amber-50/30"
+                    : systemStatus.severity === "warning"
+                    ? "border-amber-200 bg-amber-50/40"
+                    : "border-emerald-200 bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/30"
+                }`}
+              >
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <div
@@ -1194,9 +1279,12 @@ export default function AdminClient({
             </div>
           </div>
         </div>
+      </div>
+    )}
+  </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
+  {/* Navigation Tabs */}
+  <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
           <button
             onClick={() => setActiveTab("shops")}
             className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
@@ -1782,7 +1870,7 @@ export default function AdminClient({
             {/* Connection Cards */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
               <h3 className="font-bold text-sm text-gray-900">1. สถานะการเชื่อมต่อ LINE Messaging API</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                   <div className="text-[11px] font-bold text-gray-500 uppercase">Channel Access Token</div>
                   <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
@@ -1822,6 +1910,34 @@ export default function AdminClient({
                       {lineStatus?.activeGroupIds?.length || 0} กลุ่มที่ตรวจพบ
                     </span>
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-purple-900 uppercase flex items-center justify-between">
+                      <span>โควตาข้อความฟรี / เดือน</span>
+                      <span className="font-mono text-[9px] bg-purple-200 text-purple-800 px-1 py-0.2 rounded font-bold">Free Plan</span>
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-1.5 font-bold text-xs">
+                      <span className="text-base font-black text-purple-950 font-mono">
+                        {lineStatus?.quota?.remaining ?? 300}
+                      </span>
+                      <span className="text-gray-500 text-[11px]">
+                        / {lineStatus?.quota?.limit ?? 300} คงเหลือ
+                      </span>
+                    </div>
+                    <div className="mt-1.5 w-full bg-purple-200/70 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-purple-700 h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, ((lineStatus?.quota?.remaining ?? 300) / (lineStatus?.quota?.limit ?? 300)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-purple-800 mt-2 font-medium">
+                    ส่งไปแล้วเดือนนี้: <strong>{lineStatus?.quota?.totalUsage ?? 0}</strong> ข้อความ
+                  </p>
                 </div>
               </div>
 

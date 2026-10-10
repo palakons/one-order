@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -8,6 +8,7 @@ import { BatchWithDetails, Order } from "@/lib/types";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
 import { getTimeRemaining } from "@/lib/utils";
+import { compressImage } from "@/lib/services";
 import confetti from "canvas-confetti";
 import {
   ArrowLeft,
@@ -31,6 +32,7 @@ import {
   Unlock,
   LogOut,
   RefreshCw,
+  Camera,
 } from "lucide-react";
 
 interface Props {
@@ -61,6 +63,16 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
   const [copiedText, setCopiedText] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Delivery Evidence Photo State
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryPhotoData, setDeliveryPhotoData] = useState<string | null>(null);
+  const [compressingDeliveryPhoto, setCompressingDeliveryPhoto] = useState(false);
+  const [uploadingDelivery, setUploadingDelivery] = useState(false);
+  const [deliveryPhotoError, setDeliveryPhotoError] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string } | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Initial Auto-Auth check from localStorage
   useEffect(() => {
@@ -349,6 +361,64 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       }
     } catch (e) {
       alert("ไม่สามารถบันทึกสถานะได้");
+    }
+  };
+
+  // Handle Delivery Photo Selection / Compression
+  const handleDeliveryPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        setDeliveryPhotoError(null);
+        setDeliveryPhotoData(null);
+        setCompressingDeliveryPhoto(true);
+        setShowDeliveryModal(true);
+        const compressed = await compressImage(file, 900, 0.7);
+        if (!compressed || !compressed.startsWith("data:image/")) {
+          throw new Error("รูปภาพไม่สมบูรณ์ กรุณาถ่ายภาพใหม่อีกครั้ง หรือเลือกจากอัลบั้ม");
+        }
+        setDeliveryPhotoData(compressed);
+      } catch (err: any) {
+        console.error("Compression error:", err);
+        setDeliveryPhotoError(err?.message || "ไม่สามารถประมวลผลรูปภาพได้");
+        setDeliveryPhotoData(null);
+      } finally {
+        setCompressingDeliveryPhoto(false);
+      }
+    }
+    e.target.value = "";
+  };
+
+  // Submit Delivery to Table (Marks status as COMPLETED and notifies LINE)
+  const handleDeliverySubmit = async (withPhoto = true) => {
+    if (!batch) return;
+    setUploadingDelivery(true);
+    const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || batch.hostPin : batch.hostPin;
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "COMPLETED",
+          deliveryPhotoUrl: withPhoto ? (deliveryPhotoData || undefined) : undefined,
+          hostPin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        alert("บันทึกส่งอาหารเรียบร้อยแล้ว! ระบบแจ้งเตือนทุกคนในกลุ่ม LINE สำเร็จ 🎉");
+        setShowDeliveryModal(false);
+        setDeliveryPhotoData(null);
+        setDeliveryPhotoError(null);
+        await fetchBatch();
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาดในการบันทึกสถานะ");
+      }
+    } catch (err: any) {
+      alert("ไม่สามารถบันทึกสถานะได้");
+    } finally {
+      setUploadingDelivery(false);
     }
   };
 
@@ -690,13 +760,31 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           </div>
         )}
 
-        {/* 3. Send to Shop Control Bar */}
-        <div className="rounded-3xl border-2 border-purple-200 bg-purple-900 p-5 sm:p-6 text-white shadow-md space-y-4">
+        {/* 3. Send to Shop & Delivery Control Bar */}
+        <div className={`rounded-3xl border-2 p-5 sm:p-6 text-white shadow-md space-y-4 transition-all ${
+          batch.status === "COMPLETED"
+            ? "border-emerald-300 bg-emerald-950"
+            : batch.status === "ORDERED"
+            ? "border-purple-300 bg-slate-900"
+            : "border-purple-200 bg-purple-900"
+        }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
-                  {allSlipsVerified ? "READY TO SEND" : "SLIPS PENDING"}
+                <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  batch.status === "COMPLETED"
+                    ? "bg-emerald-500 text-white"
+                    : batch.status === "ORDERED"
+                    ? "bg-purple-600 text-white"
+                    : "bg-white/20 text-white"
+                }`}>
+                  {batch.status === "COMPLETED"
+                    ? "DELIVERED 🎉"
+                    : batch.status === "ORDERED"
+                    ? "ORDERED (กำลังปรุง)"
+                    : allSlipsVerified
+                    ? "READY TO SEND"
+                    : "SLIPS PENDING"}
                 </span>
                 <span className="text-xs text-purple-200">
                   {activeOrders.length} กล่องบนกระดาน
@@ -708,13 +796,24 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 )}
               </div>
               <h2 className="text-lg sm:text-xl font-black mt-1">
-                {allSlipsVerified
+                {batch.status === "COMPLETED"
+                  ? "อาหารวางไว้ที่โต๊ะแล้ว! (COMPLETED) 🎉"
+                  : batch.status === "ORDERED"
+                  ? "ส่งเข้าครัวร้านแล้ว (ORDERED) 🍳"
+                  : allSlipsVerified
                   ? isSelfPickup
                     ? "สลิปครบ 100% แล้ว พร้อมส่งร้านแบบรับเองหน้าร้าน! 🚶"
                     : "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
                   : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
               </h2>
-              {!allSlipsVerified && missingSlipOrders.length > 0 && (
+              <p className="text-xs text-purple-200 mt-0.5">
+                {batch.status === "COMPLETED"
+                  ? "ส่งรูปถ่ายหลักฐานและแจ้งเตือนเข้ากลุ่ม LINE เรียบร้อยแล้ว สมาชิกสามารถมารับกล่องของตนเองได้เลย"
+                  : batch.status === "ORDERED"
+                  ? "ร้านกำลังทำอาหาร เมื่ออาหารมาส่งถึงจุดรับของ ให้กดปุ่มถ่ายรูปโต๊ะวางอาหารเพื่อแจ้งทุกคนในกลุ่ม LINE"
+                  : "รวบรวมสลิปให้ครบ แล้วกดรวมส่งร้านเพื่อสร้างรูปใบสรุปและส่งเข้าไลน์ร้าน"}
+              </p>
+              {!allSlipsVerified && missingSlipOrders.length > 0 && batch.status === "OPEN" && (
                 <div className="mt-2 text-xs text-amber-200 bg-white/10 p-2.5 rounded-xl border border-white/15">
                   <span>ยังขาดสลิปจาก: </span>
                   <strong>
@@ -726,16 +825,68 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               )}
             </div>
 
-            <div className="shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenSendModal}
-                disabled={activeOrders.length === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-6 py-3.5 text-base shadow-lg active:scale-95 transition-all w-full sm:w-auto"
-              >
-                <Send className="h-5 w-5" />
-                <span>🚀 รวมส่งร้าน (Send to Shop)</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {/* Send to Shop Button: Active when OPEN, Greyed out when ORDERED or COMPLETED */}
+              {batch.status === "ORDERED" || batch.status === "COMPLETED" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 text-slate-400 font-bold px-4 py-3 text-sm cursor-not-allowed border border-slate-700"
+                  title="ส่งให้ร้านอาหารเรียบร้อยแล้ว"
+                >
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span>🚀 ส่งร้านแล้ว (Sent)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleOpenSendModal}
+                  disabled={activeOrders.length === 0}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-6 py-3.5 text-base shadow-lg active:scale-95 transition-all w-full sm:w-auto"
+                >
+                  <Send className="h-5 w-5" />
+                  <span>🚀 รวมส่งร้าน (Send to Shop)</span>
+                </button>
+              )}
+
+              {/* Delivered Button: Active after ordered */}
+              {batch.status === "ORDERED" && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 py-3.5 text-sm sm:text-base shadow-xl active:scale-95 transition-all w-full sm:w-auto ring-4 ring-emerald-400/30"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span>📸 อาหารมาส่งแล้ว — ถ่ายรูปวางโต๊ะ (Mark Delivered)</span>
+                </button>
+              )}
+
+              {/* View Photo Button if already delivered */}
+              {batch.status === "COMPLETED" && (
+                <div className="flex items-center gap-2">
+                  {batch.deliveryPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPhoto({
+                          url: batch.deliveryPhotoUrl!,
+                          title: `หลักฐานการวางอาหาร - ร้าน ${batch.shop.name}`,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-3 text-sm shadow-md transition-all"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span>ดูรูปถ่ายที่โต๊ะ</span>
+                    </button>
+                  )}
+                  <Link
+                    href={`/delivery/${batch.id}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold px-4 py-3 text-sm transition-all"
+                  >
+                    <span>หน้าสำหรับลูกตี้ ↗</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1033,6 +1184,178 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Inputs for Camera / Gallery */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleDeliveryPhotoChange}
+        className="hidden"
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleDeliveryPhotoChange}
+        className="hidden"
+      />
+
+      {/* Modal: Delivery Evidence Photo */}
+      {showDeliveryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">ถ่ายรูปจุดวางอาหาร (Delivery Evidence)</h3>
+                  <p className="text-xs text-emerald-200">โต๊ะวางอาหารชั้น 1 {batch?.buildingName || "ตึก M4"}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeliveryModal(false);
+                  setDeliveryPhotoData(null);
+                  setDeliveryPhotoError(null);
+                }}
+                className="rounded-lg p-1.5 text-emerald-200 hover:bg-white/20 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 text-xs text-emerald-950 flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                <span>
+                  ถ่ายรูปกล่องข้าวทั้งหมดที่วางบนโต๊ะรับของ ระบบจะแจ้งเตือนเข้า <strong>กลุ่ม LINE</strong> พร้อมส่งรูปหลักฐานให้ลูกตี้ทุกคนทราบทันที 🎉
+                </span>
+              </div>
+
+              {deliveryPhotoError && (
+                <div className="p-3 bg-rose-50 text-rose-800 text-xs rounded-xl border border-rose-200">
+                  {deliveryPhotoError}
+                </div>
+              )}
+
+              {/* Photo Preview or Select */}
+              {deliveryPhotoData ? (
+                <div className="space-y-3">
+                  <div className="relative h-64 w-full rounded-2xl overflow-hidden bg-black shadow-inner">
+                    <img
+                      src={deliveryPhotoData}
+                      alt="Delivery preview"
+                      className="h-full w-full object-contain"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="rounded-xl bg-black/60 hover:bg-black/80 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm transition-colors flex items-center gap-1"
+                      >
+                        <Camera className="h-3 w-3" />
+                        <span>ถ่ายใหม่</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-6 text-center hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2">
+                      <Camera className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">ถ่ายรูปด้วยกล้อง</span>
+                    <span className="text-[10px] text-emerald-700 mt-0.5">เปิดกล้องทันที</span>
+                  </div>
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center hover:border-gray-400 hover:bg-gray-100/70 cursor-pointer transition-colors"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-200 text-gray-600 mb-2">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">เลือกจากอัลบั้ม</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">รูปในเครื่อง</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={uploadingDelivery || compressingDeliveryPhoto || !deliveryPhotoData}
+                  onClick={() => handleDeliverySubmit(true)}
+                  className={`w-full py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 transition-all ${
+                    deliveryPhotoData && !compressingDeliveryPhoto && !uploadingDelivery
+                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 active:scale-98"
+                      : "bg-gray-300 cursor-not-allowed"
+                  }`}
+                >
+                  <Check className="h-5 w-5" />
+                  <span>
+                    {uploadingDelivery
+                      ? "กำลังบันทึกและแจ้งเตือนกลุ่ม LINE..."
+                      : compressingDeliveryPhoto
+                      ? "กำลังเตรียมรูปถ่าย..."
+                      : "✅ ยืนยันส่งอาหารทันที (แจ้งเตือนกลุ่ม LINE)"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={uploadingDelivery}
+                  onClick={() => handleDeliverySubmit(false)}
+                  className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                >
+                  ส่งอาหารแล้ว (ไม่แนบรูปถ่าย)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox for Selected Photo */}
+      {selectedPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm animate-in fade-in">
+          <div className="relative max-h-[92vh] max-w-xl w-full rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Camera className="h-4 w-4 text-emerald-600" />
+                <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                  {selectedPhoto.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedPhoto(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-2 overflow-y-auto max-h-[80vh] flex items-center justify-center bg-black">
+              <img
+                src={selectedPhoto.url}
+                alt={selectedPhoto.title}
+                className="max-h-[75vh] w-auto object-contain rounded"
+              />
+            </div>
           </div>
         </div>
       )}

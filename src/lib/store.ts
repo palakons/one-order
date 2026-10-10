@@ -1288,6 +1288,28 @@ export async function updateBatchStatus(
   return enrichBatch(batch, data);
 }
 
+export async function updateBatch(
+  batchId: string,
+  fields: Partial<Batch>
+): Promise<BatchWithDetails | undefined> {
+  invalidateStoreCache();
+  if (isFirebaseConfigured && db) {
+    try {
+      await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(fields), 2500);
+      return getBatchById(batchId);
+    } catch (err) {
+      console.warn("Firestore updateBatch failed, using local fallback:", err);
+    }
+  }
+
+  const data = await ensureDataFile();
+  const batch = data.batches.find((b) => b.id === batchId);
+  if (!batch) return undefined;
+  Object.assign(batch, fields);
+  await writeData(data);
+  return enrichBatch(batch, data);
+}
+
 export async function createOrder(input: {
   batchId: string;
   customerName: string;
