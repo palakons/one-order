@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { Shop, Batch, Order, BatchWithDetails, BatchStatus, Suggestion } from "./types";
 import { getLocationById } from "./locations";
+import { getBangkokDate, getDaysDifference } from "./utils";
 import { isFirebaseConfigured, db } from "./firebase";
 import {
   collection,
@@ -211,6 +212,45 @@ const SEED_DATA: DatabaseSchema = {
       status: "OPEN",
       createdAt: new Date(Date.now() - 1200000).toISOString(),
       notes: "รอบส่งเครื่องดื่มและกาแฟ ส่งถึงโต๊ะรับของตึก M4",
+    },
+    {
+      id: "batch-today-closed",
+      shopId: "shop-chao-rai",
+      date: new Date().toISOString().split("T")[0],
+      cutoffTime: "09:30",
+      targetMinAmount: 200,
+      status: "ORDERED",
+      createdAt: new Date(Date.now() - 4 * 3600000).toISOString(),
+      sentToShopAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      notes: "รอบเช้าพิเศษ ปิดรอบส่งร้านเรียบร้อย",
+      buildingId: "loc-m4",
+      buildingName: "ตึก M4",
+    },
+    {
+      id: "batch-archived-01",
+      shopId: "shop-krua-mangmee",
+      date: new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0],
+      cutoffTime: "11:25",
+      targetMinAmount: 200,
+      status: "COMPLETED",
+      createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+      deliveredAt: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString(),
+      notes: "จัดส่งเรียบร้อยแล้ว",
+      buildingId: "loc-m4",
+      buildingName: "ตึก M4",
+    },
+    {
+      id: "batch-deleted-01",
+      shopId: "shop-khun-som",
+      date: new Date(Date.now() - 10 * 86400000).toISOString().split("T")[0],
+      cutoffTime: "11:30",
+      targetMinAmount: 200,
+      status: "COMPLETED",
+      createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+      isDeleted: true,
+      deletedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+      buildingId: "loc-m4",
+      buildingName: "ตึก M4",
     },
   ],
   orders: [
@@ -490,6 +530,20 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
         const orders = ordersSnap.docs.map((d) => d.data() as Order);
         const shops = shopsSnap.docs.map((d) => d.data() as Shop);
 
+        // Retention maintenance: mark batches older than 7 days as deleted in Firestore
+        const todayStr = getBangkokDate();
+        for (const b of batches) {
+          const diff = getDaysDifference(b.date, todayStr);
+          if (diff > 7 && !b.isDeleted) {
+            b.isDeleted = true;
+            b.deletedAt = new Date().toISOString();
+            updateDoc(doc(db, "batches", b.id), {
+              isDeleted: true,
+              deletedAt: b.deletedAt,
+            }).catch((err) => console.warn("Failed to mark batch deleted in Firestore:", err));
+          }
+        }
+
         result = batches.map((b) =>
           enrichBatchFromData(b, shops, orders.filter((o) => o.batchId === b.id))
         );
@@ -501,6 +555,19 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
 
   if (result.length === 0) {
     const data = await ensureDataFile();
+    const todayStr = getBangkokDate();
+    let hasUpdates = false;
+    for (const b of data.batches) {
+      const diff = getDaysDifference(b.date, todayStr);
+      if (diff > 7 && !b.isDeleted) {
+        b.isDeleted = true;
+        b.deletedAt = new Date().toISOString();
+        hasUpdates = true;
+      }
+    }
+    if (hasUpdates) {
+      writeData(data).catch(() => {});
+    }
     result = data.batches.map((b) => enrichBatch(b, data));
   }
 
@@ -545,6 +612,26 @@ export async function getBatchById(id: string, sanitize = false): Promise<BatchW
 
 function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {
   const shop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
+  const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
+
+  if (isDeleted) {
+    return {
+      ...batch,
+      isDeleted: true,
+      deletedAt: batch.deletedAt || new Date().toISOString(),
+      shop,
+      orders: [],
+      currentTotalAmount: 0,
+      isMinMet: false,
+      amountRemaining: batch.targetMinAmount,
+      orderCount: 0,
+      hostPhone: undefined,
+      hostLineId: undefined,
+      hostPin: undefined,
+      notes: undefined,
+    };
+  }
+
   const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
   const isMinMet = currentTotalAmount >= batch.targetMinAmount;
   const amountRemaining = Math.max(0, batch.targetMinAmount - currentTotalAmount);
@@ -562,6 +649,26 @@ function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): Batc
 
 function enrichBatch(batch: Batch, data: DatabaseSchema): BatchWithDetails {
   const shop = data.shops.find((s) => s.id === batch.shopId) || data.shops[0];
+  const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
+
+  if (isDeleted) {
+    return {
+      ...batch,
+      isDeleted: true,
+      deletedAt: batch.deletedAt || new Date().toISOString(),
+      shop,
+      orders: [],
+      currentTotalAmount: 0,
+      isMinMet: false,
+      amountRemaining: batch.targetMinAmount,
+      orderCount: 0,
+      hostPhone: undefined,
+      hostLineId: undefined,
+      hostPin: undefined,
+      notes: undefined,
+    };
+  }
+
   const orders = data.orders.filter((o) => o.batchId === batch.id);
   const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
   const isMinMet = currentTotalAmount >= batch.targetMinAmount;

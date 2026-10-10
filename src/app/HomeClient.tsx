@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order, Shop } from "@/lib/types";
@@ -8,7 +8,7 @@ import { CAMPUS_LOCATIONS, getLocalizedLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
-import { getTimeRemaining } from "@/lib/utils";
+import { getTimeRemaining, getBangkokDate, getDaysDifference } from "@/lib/utils";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
 import confetti from "canvas-confetti";
 import {
@@ -42,6 +42,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
+
 interface Props {
   initialBatches: BatchWithDetails[];
 }
@@ -61,40 +63,105 @@ export default function HomeClient({ initialBatches }: Props) {
     return `${h}:${m}`;
   };
 
-  // Split batches into Live Boards vs Archived/Past Boards
-  // A board is ONLY LIVE if it is OPEN, not closed/locked, and cutoff time has not passed!
-  const isLiveBatch = (b: BatchWithDetails) => {
-    const today = new Date().toISOString().split("T")[0];
+  const todayStr = useMemo(() => getBangkokDate(), []);
+
+  // 1. Opening boards (Today/future, OPEN status, cutoff not expired, not deleted)
+  const isOpeningBatch = useCallback((b: BatchWithDetails) => {
+    if (b.isDeleted) return false;
+    const diff = getDaysDifference(b.date, todayStr);
+    if (diff > 0) return false;
     if (b.status !== "OPEN") return false;
-    if (b.date < today) return false;
     const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
     if (timeInfo.isExpired) return false;
     return true;
-  };
+  }, [todayStr]);
 
-  const liveBatches = useMemo(() => batches.filter(isLiveBatch), [batches]);
-  const archivedBatches = useMemo(() => batches.filter((b) => !isLiveBatch(b)), [batches]);
+  // 2. Closed boards for today (Today, cutoff expired or status not OPEN, not deleted)
+  const isClosedTodayBatch = useCallback((b: BatchWithDetails) => {
+    if (b.isDeleted) return false;
+    const diff = getDaysDifference(b.date, todayStr);
+    if (diff !== 0) return false;
+    if (b.status !== "OPEN") return true;
+    const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
+    return timeInfo.isExpired;
+  }, [todayStr]);
 
-  const [activeBatchId, setActiveBatchId] = useState<string>(
-    initialBatches.find(isLiveBatch)?.id || initialBatches[0]?.id || ""
-  );
-  const [viewingArchivedBatch, setViewingArchivedBatch] = useState(false);
+  // 3. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted)
+  const isArchivedBatch = useCallback((b: BatchWithDetails) => {
+    if (b.isDeleted) return false;
+    const diff = getDaysDifference(b.date, todayStr);
+    return diff >= 1 && diff <= 7;
+  }, [todayStr]);
+
+  // 4. Deleted boards (more than 7 days: diff > 7 or marked isDeleted)
+  const isDeletedBatch = useCallback((b: BatchWithDetails) => {
+    if (b.isDeleted) return true;
+    const diff = getDaysDifference(b.date, todayStr);
+    return diff > 7;
+  }, [todayStr]);
+
+  const openingBatches = useMemo(() => batches.filter(isOpeningBatch), [batches, isOpeningBatch]);
+  const closedTodayBatches = useMemo(() => batches.filter(isClosedTodayBatch), [batches, isClosedTodayBatch]);
+  const archivedBatches = useMemo(() => batches.filter(isArchivedBatch), [batches, isArchivedBatch]);
+  const deletedBatches = useMemo(() => batches.filter(isDeletedBatch), [batches, isDeletedBatch]);
+
+  const [activeGroup, setActiveGroup] = useState<BoardGroup>("OPENING");
+
+  const currentGroupBatches = useMemo(() => {
+    switch (activeGroup) {
+      case "OPENING":
+        return openingBatches;
+      case "CLOSED_TODAY":
+        return closedTodayBatches;
+      case "ARCHIVED":
+        return archivedBatches;
+      case "DELETED":
+        return deletedBatches;
+      default:
+        return openingBatches;
+    }
+  }, [activeGroup, openingBatches, closedTodayBatches, archivedBatches, deletedBatches]);
+
+  const [activeBatchId, setActiveBatchId] = useState<string>(() => {
+    return (
+      initialBatches.find((b) => {
+        if (b.isDeleted) return false;
+        const diff = getDaysDifference(b.date, getBangkokDate());
+        if (diff > 0 || b.status !== "OPEN") return false;
+        return !getTimeRemaining(b.cutoffTime, b.date).isExpired;
+      })?.id ||
+      initialBatches[0]?.id ||
+      ""
+    );
+  });
   const [showArchiveModal, setShowArchiveModal] = useState(false);
 
-  // Active batch object: if in archive view, allow selecting from all batches, else prioritize live batches
-  const activeBatch = viewingArchivedBatch
-    ? batches.find((b) => b.id === activeBatchId) || archivedBatches[0] || batches[0] || null
-    : liveBatches.find((b) => b.id === activeBatchId) || liveBatches[0] || null;
+  const activeBatch = useMemo(() => {
+    return batches.find((b) => b.id === activeBatchId) || currentGroupBatches[0] || batches[0] || null;
+  }, [batches, activeBatchId, currentGroupBatches]);
 
-  // Auto-switch to first live batch if active batch is missing from liveBatches
+  const handleSelectGroup = (group: BoardGroup) => {
+    setActiveGroup(group);
+    let targetBatches: BatchWithDetails[] = [];
+    if (group === "OPENING") targetBatches = openingBatches;
+    else if (group === "CLOSED_TODAY") targetBatches = closedTodayBatches;
+    else if (group === "ARCHIVED") targetBatches = archivedBatches;
+    else if (group === "DELETED") targetBatches = deletedBatches;
+
+    if (targetBatches.length > 0 && !targetBatches.some((b) => b.id === activeBatchId)) {
+      setActiveBatchId(targetBatches[0].id);
+    }
+  };
+
+  // Auto-switch to activeBatchId if missing from currentGroupBatches
   useEffect(() => {
-    if (!viewingArchivedBatch && liveBatches.length > 0) {
-      const existsInLive = liveBatches.some((b) => b.id === activeBatchId);
-      if (!existsInLive) {
-        setActiveBatchId(liveBatches[0].id);
+    if (currentGroupBatches.length > 0) {
+      const exists = currentGroupBatches.some((b) => b.id === activeBatchId);
+      if (!exists) {
+        setActiveBatchId(currentGroupBatches[0].id);
       }
     }
-  }, [liveBatches, activeBatchId, viewingArchivedBatch]);
+  }, [currentGroupBatches, activeBatchId]);
 
   // Modals state
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
@@ -314,7 +381,7 @@ export default function HomeClient({ initialBatches }: Props) {
 
       setShowOpenBoardModal(false);
       setActiveBatchId(data.batch.id);
-      setViewingArchivedBatch(false);
+      setActiveGroup("OPENING");
       await fetchBatches();
       confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
     } catch (err: any) {
@@ -750,124 +817,270 @@ export default function HomeClient({ initialBatches }: Props) {
       <Navbar />
 
       <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
-        {/* 1. Live Shop Tabs Bar, Open Board & Archive Button */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
-          {liveBatches.map((b, idx) => {
-            const isActive = !viewingArchivedBatch && b.id === activeBatchId;
-            const isMet = b.currentTotalAmount >= b.targetMinAmount;
-            const bldgCode = b.buildingName
-              ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
-              : "M4";
-            const localizedShop = getShopLocalizedInfo(b.shop, lang);
-
-            return (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => {
-                  setViewingArchivedBatch(false);
-                  setActiveBatchId(b.id);
-                }}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl px-3.5 py-2 text-xs font-bold transition-all border-t border-x ${
-                  isActive
-                    ? "bg-white border-slate-300 text-slate-950 shadow-xs -mb-px z-10 font-black border-b-2 border-b-white"
-                    : "bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
-                }`}
-              >
-                <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
-                <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
-                  {bldgCode}
-                </span>
-                <span
-                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono font-bold ${
-                    isMet
-                      ? "bg-emerald-600 text-white"
-                      : b.currentTotalAmount > 0
-                      ? "bg-amber-100 text-amber-900 border border-amber-300"
-                      : "bg-slate-200 text-slate-600"
-                  }`}
-                >
-                  ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
-                </span>
-              </button>
-            );
-          })}
-
-          {/* Anyone can open a board button */}
-          <button
-            type="button"
-            onClick={handleOpenBoardClick}
-            className="flex items-center gap-1 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs shrink-0"
-            title={t.openBoardTitle}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>{t.openNewBoard}</span>
-          </button>
-
-          {/* Obscured Archive Button on Tabs Bar */}
-          {archivedBatches.length > 0 && (
+        {/* 1. Shop Tabs Bar (3 Groups + Deleted + Open Board Button) */}
+        <div className="space-y-2">
+          {/* Level 1: Group Selector Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+            {/* Group 1: Opening */}
             <button
               type="button"
-              onClick={() => setShowArchiveModal(true)}
-              className="ml-auto flex items-center gap-1.5 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-              title={t.archiveModalTitle}
+              onClick={() => handleSelectGroup("OPENING")}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                activeGroup === "OPENING"
+                  ? "bg-purple-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
             >
-              <Archive className="h-3.5 w-3.5 text-slate-400" />
-              <span>{t.archivedBoards} ({archivedBatches.length})</span>
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{t.groupOpening}</span>
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                activeGroup === "OPENING" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {openingBatches.length}
+              </span>
             </button>
+
+            {/* Group 2: Closed Today */}
+            <button
+              type="button"
+              onClick={() => handleSelectGroup("CLOSED_TODAY")}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                activeGroup === "CLOSED_TODAY"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5 text-amber-400" />
+              <span>{t.groupClosedToday}</span>
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                activeGroup === "CLOSED_TODAY" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {closedTodayBatches.length}
+              </span>
+            </button>
+
+            {/* Group 3: Archived (1-7 Days) */}
+            <button
+              type="button"
+              onClick={() => handleSelectGroup("ARCHIVED")}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                activeGroup === "ARCHIVED"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <Archive className="h-3.5 w-3.5 text-amber-500" />
+              <span>{t.groupArchived}</span>
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                activeGroup === "ARCHIVED" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {archivedBatches.length}
+              </span>
+            </button>
+
+            {/* Group 4: Deleted (>7 Days) */}
+            <button
+              type="button"
+              onClick={() => handleSelectGroup("DELETED")}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                activeGroup === "DELETED"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+              <span>{t.groupDeleted}</span>
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                activeGroup === "DELETED" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {deletedBatches.length}
+              </span>
+            </button>
+
+            {/* Open New Board Button */}
+            <button
+              type="button"
+              onClick={handleOpenBoardClick}
+              className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-2xs shrink-0 cursor-pointer"
+              title={t.openBoardTitle}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>{t.openNewBoard}</span>
+            </button>
+          </div>
+
+          {/* Level 2: Board Tabs for the active group */}
+          {currentGroupBatches.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              {currentGroupBatches.map((b, idx) => {
+                const isActive = b.id === activeBatchId;
+                const isMet = b.currentTotalAmount >= b.targetMinAmount;
+                const bldgCode = b.buildingName
+                  ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
+                  : "M4";
+                const localizedShop = getShopLocalizedInfo(b.shop, lang);
+
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setActiveBatchId(b.id)}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                      isActive
+                        ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
+                    }`}
+                  >
+                    <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
+                    <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
+                      {bldgCode}
+                    </span>
+
+                    {/* Badge depending on group */}
+                    {b.isDeleted ? (
+                      <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
+                        {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
+                      </span>
+                    ) : activeGroup === "ARCHIVED" ? (
+                      <span className="rounded bg-slate-200 text-slate-700 px-1.5 py-0.2 text-[10px] font-bold font-mono">
+                        {b.date}
+                      </span>
+                    ) : (
+                      <span
+                        className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                          isMet
+                            ? "bg-emerald-600 text-white"
+                            : b.currentTotalAmount > 0
+                            ? "bg-amber-100 text-amber-900 border border-amber-300"
+                            : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
 
-        {/* When viewing an archived board, show top notification banner */}
-        {viewingArchivedBatch && activeBatch && (
+        {/* Top Banner when viewing non-opening groups */}
+        {activeBatch && activeGroup === "ARCHIVED" && (
           <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 px-4 py-2.5 text-xs shadow-xs">
             <div className="flex items-center gap-2">
               <Archive className="h-4 w-4 text-amber-400 shrink-0" />
               <span>
-                <strong>{t.viewingArchivedBanner}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({activeBatch.date}) • {t.readOnlyNotice}
+                <strong>{t.groupArchived}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({activeBatch.date}) • {t.readOnlyNotice}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setViewingArchivedBatch(false);
-                if (liveBatches[0]) setActiveBatchId(liveBatches[0].id);
-              }}
-              className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3 w-3" />
-              <span>{t.backToLive}</span>
-            </button>
+            {openingBatches.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectGroup("OPENING")}
+                className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>{t.backToLive}</span>
+              </button>
+            )}
           </div>
         )}
 
-        {/* Empty state if no live batches exist right now */}
-        {liveBatches.length === 0 && !viewingArchivedBatch ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center space-y-3">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-              <Clock className="h-6 w-6" />
+        {activeBatch && activeGroup === "CLOSED_TODAY" && (
+          <div className="flex items-center justify-between rounded-xl bg-amber-900/90 text-amber-100 px-4 py-2.5 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-300 shrink-0" />
+              <span>
+                <strong>{t.groupClosedToday}:</strong> {activeShopInfo?.name || activeBatch.shop.name} (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""}) • {lang === "en" ? "Closed for today" : lang === "cn" ? "今日已截止" : "ปิดรับออเดอร์สำหรับรอบนี้แล้ว"}
+              </span>
             </div>
-            <h3 className="text-base font-bold text-slate-900">{t.noLiveBoards}</h3>
+            {openingBatches.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectGroup("OPENING")}
+                className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>{t.backToLive}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {activeBatch && (activeGroup === "DELETED" || activeBatch.isDeleted) && (
+          <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 px-4 py-2.5 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-rose-400 shrink-0" />
+              <span>
+                <strong>{t.groupDeleted}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({activeBatch.date}) • {t.deletedBoardNotice}
+              </span>
+            </div>
+            {openingBatches.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectGroup("OPENING")}
+                className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-3 py-1 font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>{t.backToLive}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Empty state if the active group has no boards */}
+        {currentGroupBatches.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center space-y-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+              {activeGroup === "OPENING" ? (
+                <Clock className="h-6 w-6 text-amber-600" />
+              ) : activeGroup === "CLOSED_TODAY" ? (
+                <Clock className="h-6 w-6 text-slate-500" />
+              ) : activeGroup === "ARCHIVED" ? (
+                <Archive className="h-6 w-6 text-amber-600" />
+              ) : (
+                <Trash2 className="h-6 w-6 text-rose-500" />
+              )}
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              {activeGroup === "OPENING"
+                ? t.noOpeningBoards
+                : activeGroup === "CLOSED_TODAY"
+                ? t.noClosedTodayBoards
+                : activeGroup === "ARCHIVED"
+                ? t.noArchived7DaysBoards
+                : t.noDeletedBoards}
+            </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {t.noLiveBoardsSub}
+              {activeGroup === "OPENING" ? t.noLiveBoardsSub : ""}
             </p>
             <div className="flex justify-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleOpenBoardClick}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>{t.openNewBoard}</span>
               </button>
-              {archivedBatches.length > 0 && (
+              {activeGroup !== "OPENING" && openingBatches.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowArchiveModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+                  onClick={() => handleSelectGroup("OPENING")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
                 >
-                  <Archive className="h-4 w-4 text-slate-500" />
-                  <span>{t.viewArchivedInArchive} ({archivedBatches.length})</span>
+                  <span>{t.groupOpening} ({openingBatches.length})</span>
+                </button>
+              )}
+              {activeGroup === "OPENING" && closedTodayBatches.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectGroup("CLOSED_TODAY")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
+                >
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  <span>{t.groupClosedToday} ({closedTodayBatches.length})</span>
                 </button>
               )}
             </div>
@@ -964,7 +1177,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 </div>
               </div>
 
-              {/* Card 3: Leader */}
+              {/* Card 3: Leader or Retention Status */}
               <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[110px]">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
@@ -974,35 +1187,48 @@ export default function HomeClient({ initialBatches }: Props) {
                         <span>{t.leader}</span>
                       </span>
 
-                      {activeBatch.status === "ORDERED" && (
+                      {activeBatch.isDeleted && (
+                        <span className="rounded bg-rose-100 text-rose-800 px-1.5 py-0.5 text-[10px] font-bold">
+                          {lang === "en" ? "Purged" : lang === "cn" ? "已清除" : "ลบข้อมูลแล้ว"}
+                        </span>
+                      )}
+                      {activeBatch.status === "ORDERED" && !activeBatch.isDeleted && (
                         <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
                           {t.sentToShopBadge}
                         </span>
                       )}
-                      {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && (
+                      {activeBatch.isSelfPickup && activeBatch.status !== "ORDERED" && !activeBatch.isDeleted && (
                         <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
                           {t.selfPickupBadge}
                         </span>
                       )}
                     </div>
 
-                    <Link
-                      href={`/order/${activeBatch.id}/leader`}
-                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-bold transition-colors shadow-2xs"
-                      title={t.manageBoard}
-                    >
-                      <SlidersHorizontal className="h-3 w-3 text-purple-700 shrink-0" />
-                      <span>{t.manageBoard.replace(" ↗", "")}</span>
-                    </Link>
+                    {!activeBatch.isDeleted && (
+                      <Link
+                        href={`/order/${activeBatch.id}/leader`}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-bold transition-colors shadow-2xs"
+                        title={t.manageBoard}
+                      >
+                        <SlidersHorizontal className="h-3 w-3 text-purple-700 shrink-0" />
+                        <span>{t.manageBoard.replace(" ↗", "")}</span>
+                      </Link>
+                    )}
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1" title={leaderLine || t.noLeader}>
-                    {leaderLine || t.noLeader}
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 leading-snug line-clamp-1" title={activeBatch.isDeleted ? "PDPA Purged" : (leaderLine || t.noLeader)}>
+                    {activeBatch.isDeleted
+                      ? (lang === "en" ? "Data Purged (>7 Days)" : lang === "cn" ? "数据已清除 (>7天)" : "ข้อมูลถูกลบแล้ว (>7 วัน)")
+                      : (leaderLine || t.noLeader)}
                   </h3>
                 </div>
 
                 <div className="pt-1">
-                  {leaderPhone ? (
+                  {activeBatch.isDeleted ? (
+                    <p className="text-xs text-slate-400">
+                      {lang === "en" ? "Privacy retention" : lang === "cn" ? "隐私保护自动清理" : "ตามนโยบายความเป็นส่วนตัว"}
+                    </p>
+                  ) : leaderPhone ? (
                     <a
                       href={`tel:${leaderPhone}`}
                       className="inline-flex items-center gap-1 text-xs font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline"
@@ -1019,10 +1245,29 @@ export default function HomeClient({ initialBatches }: Props) {
               </div>
             </div>
 
-            {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3.5">
-              {/* Bar 1: Price / Order Starter Filling Bar */}
-              <div className="space-y-1.5">
+            {/* If deleted (> 7 days), show privacy retention message instead of filling bars, orders, and form */}
+            {activeBatch.isDeleted ? (
+              <div className="rounded-2xl border border-dashed border-rose-200 bg-rose-50/50 p-6 sm:p-8 text-center space-y-3">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {t.deletedBoardNotice}
+                </h3>
+                <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed">
+                  {lang === "en"
+                    ? "Orders, phone numbers, and payment slips have been permanently purged from the database in compliance with data privacy policies. Only the shop and building delivery records remain."
+                    : lang === "cn"
+                    ? "根据数据隐私保护政策，超过7天的订单明细、电话号码及转账凭证已从数据库中永久清除，仅保留商家与取餐大楼的历史记录。"
+                    : "ระบบได้ทำการลบข้อมูลรายการสั่งซื้อ เบอร์โทรศัพท์ และสลิปการโอนเงินออกจากฐานข้อมูลอย่างถาวรตามนโยบายความเป็นส่วนตัว (PDPA) โดยคงเหลือเฉพาะบันทึกประวัติชื่อร้านและตึกที่ส่งอาหารเท่านั้น"}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3.5">
+                  {/* Bar 1: Price / Order Starter Filling Bar */}
+                  <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-800 flex items-center gap-1.5">
                     <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
@@ -1222,7 +1467,7 @@ export default function HomeClient({ initialBatches }: Props) {
             </div>
 
             {/* 5. Fast 1-Screen Order Input Form (Force Transfer) */}
-            {!isBatchClosed && !viewingArchivedBatch ? (
+            {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted ? (
               <div className="rounded-2xl border-2 border-purple-900 bg-white p-4 sm:p-5 shadow-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
@@ -1526,26 +1771,25 @@ export default function HomeClient({ initialBatches }: Props) {
                   </button>
                 </form>
               </div>
-            ) : (
+            ) : !activeBatch.isDeleted ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center space-y-1 text-slate-600">
                 <p className="text-xs font-bold">
-                  {viewingArchivedBatch
+                  {activeGroup === "ARCHIVED"
                     ? t.boardArchiveNotice
                     : t.boardClosedNotice}
                 </p>
-                {viewingArchivedBatch && liveBatches.length > 0 && (
+                {openingBatches.length > 0 && activeGroup !== "OPENING" && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setViewingArchivedBatch(false);
-                      setActiveBatchId(liveBatches[0].id);
-                    }}
-                    className="text-xs font-bold text-purple-900 underline hover:text-purple-700 pt-1 inline-block"
+                    onClick={() => handleSelectGroup("OPENING")}
+                    className="text-xs font-bold text-purple-900 underline hover:text-purple-700 pt-1 inline-block cursor-pointer"
                   >
                     {t.switchToLiveToday}
                   </button>
                 )}
               </div>
+            ) : null}
+              </>
             )}
           </div>
         ) : null}
@@ -1791,7 +2035,7 @@ export default function HomeClient({ initialBatches }: Props) {
                         type="button"
                         onClick={() => {
                           setActiveBatchId(b.id);
-                          setViewingArchivedBatch(true);
+                          setActiveGroup("ARCHIVED");
                           setShowArchiveModal(false);
                         }}
                         className="rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 px-3 py-1.5 text-xs font-bold transition-colors shadow-2xs"

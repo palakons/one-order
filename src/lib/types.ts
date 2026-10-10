@@ -75,6 +75,8 @@ export interface Batch {
   notes?: string;
   deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk
   deliveredAt?: string; // ISO string when food was placed at campus desks
+  isDeleted?: boolean; // Purged after 7 days (privacy/retention)
+  deletedAt?: string; // ISO timestamp when marked deleted
 }
 
 export interface BatchWithDetails extends Batch {
