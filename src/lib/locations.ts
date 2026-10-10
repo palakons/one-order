@@ -12,6 +12,7 @@ export interface DeliveryLocation {
   deskDetailCn?: string;
   photoUrl: string;
   color: string;
+  mapUrl?: string; // Google Maps link for the drop-off location
 }
 
 export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
@@ -29,6 +30,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "一楼前台 - M4 栋外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#B4213A]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+M4+Rayong",
   },
   {
     id: "loc-mse",
@@ -44,6 +46,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "一楼大厅 - MSE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#0284c7]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+MSE+Rayong",
   },
   {
     id: "loc-ese",
@@ -59,6 +62,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "一楼大厅 - ESE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#059669]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+ESE+Rayong",
   },
   {
     id: "loc-ist",
@@ -74,6 +78,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "一楼大厅 - IST 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#7c3aed]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+IST+Rayong",
   },
   {
     id: "loc-bse",
@@ -89,6 +94,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "一楼大厅 - BSE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#ea580c]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+BSE+Rayong",
   },
   {
     id: "loc-dorm",
@@ -104,6 +110,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "宿舍大堂前台取餐桌",
     photoUrl: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#4f46e5]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+Student+Dormitory+Rayong",
   },
   {
     id: "loc-hub",
@@ -119,11 +126,55 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailCn: "Hub 楼正门外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#0d9488]",
+    mapUrl: "https://maps.google.com/?q=VISTEC+Administration+Hub+Rayong",
   },
 ];
 
 export function getLocationById(id: string): DeliveryLocation | undefined {
   return CAMPUS_LOCATIONS.find((loc) => loc.id === id) || CAMPUS_LOCATIONS[0];
+}
+
+export function getLocationForBatch(
+  batch?: { buildingId?: string; buildingName?: string },
+  customLocations?: DeliveryLocation[]
+): DeliveryLocation {
+  const locList = customLocations && customLocations.length > 0 ? customLocations : CAMPUS_LOCATIONS;
+  if (!batch) return locList[0] || CAMPUS_LOCATIONS[0];
+
+  if (batch.buildingId) {
+    const byId = locList.find((l) => l.id === batch.buildingId);
+    if (byId) return byId;
+  }
+
+  if (batch.buildingName) {
+    const raw = batch.buildingName.trim().toLowerCase();
+    const clean = raw.replace("ตึก", "").replace("อาคาร", "").replace("bldg", "").trim();
+    const byName = locList.find((l) => {
+      const lName = l.name.toLowerCase();
+      const lCode = l.shortCode.toLowerCase();
+      return (
+        lName === raw ||
+        lCode === raw ||
+        lCode === clean ||
+        lName.includes(clean) ||
+        raw.includes(lCode)
+      );
+    });
+    if (byName) return byName;
+  }
+
+  return locList[0] || CAMPUS_LOCATIONS[0];
+}
+
+export function getDropOffMapUrl(
+  batch?: { buildingId?: string; buildingName?: string },
+  customLocations?: DeliveryLocation[]
+): string {
+  const loc = getLocationForBatch(batch, customLocations);
+  if (loc.mapUrl && loc.mapUrl.trim()) {
+    return loc.mapUrl.trim();
+  }
+  return `https://maps.google.com/?q=${encodeURIComponent(loc.name + " VISTEC Rayong")}`;
 }
 
 export function getLocalizedLocation(loc: DeliveryLocation, lang: "th" | "en" | "cn" = "th") {

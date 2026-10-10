@@ -5,7 +5,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import LineShareButton from "@/components/LineShareButton";
 import { BatchWithDetails, BatchStatus } from "@/lib/types";
-import { getLocationById } from "@/lib/locations";
+import { getLocationById, getDropOffMapUrl } from "@/lib/locations";
 import { changeBatchStatus, compressImage } from "@/lib/services";
 import {
   ChefHat,
@@ -183,6 +183,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
   const handleCopyCookingSummary = () => {
     if (!batch) return;
+    const dropOffMap = batch.isSelfPickup ? batch.shop.gmapUrl : getDropOffMapUrl(batch);
     const lines = [
       `🍱 สรุปยอดทำอาหารร้าน ${batch.shop.name}`,
       `📅 วันที่: ${batch.date} (รวม ${batch.orders.length} กล่อง)`,
@@ -194,7 +195,9 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           }`
       ),
       `---------------------------------`,
-      `📍 จุดส่งอาหาร: ${buildingName} ชั้น 1`,
+      batch.isSelfPickup
+        ? `🚶 รูปแบบ: รับเองหน้าร้าน (Self-Pickup)${dropOffMap ? `\n🗺️ แผนที่ร้าน: ${dropOffMap}` : ""}`
+        : `📍 จุดส่งอาหาร: ${buildingName} ชั้น 1${dropOffMap ? `\n🗺️ แผนที่จุดส่งอาหาร (Google Maps): ${dropOffMap}` : ""}`,
       `👑 หัวหน้าตี้ / ผู้ประสานงาน: ${leaderLine}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}`,
     ];
     navigator.clipboard.writeText(lines.join("\n"));

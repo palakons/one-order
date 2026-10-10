@@ -176,6 +176,7 @@ export default function AdminClient({
   const [locDeskDetailEn, setLocDeskDetailEn] = useState("");
   const [locDeskDetailCn, setLocDeskDetailCn] = useState("");
   const [locPhotoUrl, setLocPhotoUrl] = useState("");
+  const [locMapUrl, setLocMapUrl] = useState("");
   const [locColor, setLocColor] = useState("bg-purple-900");
   const [savingLocation, setSavingLocation] = useState(false);
 
@@ -650,6 +651,7 @@ export default function AdminClient({
     setLocDeskDetailEn("");
     setLocDeskDetailCn("");
     setLocPhotoUrl("");
+    setLocMapUrl("");
     setLocColor("bg-purple-900");
     setShowLocationModal(true);
   };
@@ -664,6 +666,7 @@ export default function AdminClient({
     setLocDeskDetailEn(loc.deskDetailEn || "");
     setLocDeskDetailCn(loc.deskDetailCn || "");
     setLocPhotoUrl(loc.photoUrl);
+    setLocMapUrl(loc.mapUrl || "");
     setLocColor(loc.color || "bg-purple-900");
     setShowLocationModal(true);
   };
@@ -704,6 +707,7 @@ export default function AdminClient({
         deskDetailCn: locDeskDetailCn.trim() || locDeskDetail.trim(),
         photoUrl: locPhotoUrl.trim() || undefined,
         color: locColor || "bg-purple-900",
+        mapUrl: locMapUrl.trim() || undefined,
       };
 
       const res = await fetch("/api/locations", {
@@ -1447,8 +1451,13 @@ export default function AdminClient({
                     const guideText =
                       `📍 [VEATEC] จุดส่งอาหาร VISTEC:\n` +
                       locations
-                        .map((l) => `• [${l.shortCode}] ${l.name}: ${l.deskDetail}`)
-                        .join("\n") +
+                        .map(
+                          (l) =>
+                            `• [${l.shortCode}] ${l.name}: ${l.deskDetail}${
+                              l.mapUrl ? `\n  🗺️ แผนที่: ${l.mapUrl}` : ""
+                            }`
+                        )
+                        .join("\n\n") +
                       `\n\n⚠️ คำแนะนำไรเดอร์: นำกล่องอาหารวางที่โต๊ะประจำตึกตามป้าย และถ่ายรูปส่งเข้า LINE หลังส่งครบ`;
                     navigator.clipboard.writeText(guideText);
                     setCopiedDesk("ALL");
@@ -1500,13 +1509,34 @@ export default function AdminClient({
                     </div>
 
                     {/* Desk details */}
-                    <div className="rounded-xl bg-purple-50/60 border border-purple-100 p-2.5 space-y-1">
+                    <div className="rounded-xl bg-purple-50/60 border border-purple-100 p-2.5 space-y-1.5">
                       <div className="text-[10px] font-bold text-purple-900 uppercase tracking-wide">
                         ตำแหน่งโต๊ะวางอาหาร:
                       </div>
                       <p className="text-xs font-semibold text-gray-800 leading-relaxed">
                         {loc.deskDetail}
                       </p>
+                      {loc.mapUrl ? (
+                        <div className="pt-1 border-t border-purple-100/80 flex items-center justify-between">
+                          <a
+                            href={loc.mapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline"
+                          >
+                            <MapPin className="h-3 w-3 text-purple-600" />
+                            <span>พิกัด Google Maps</span>
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                            มีลิงก์ QR
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="pt-1 border-t border-purple-100/80 text-[11px] text-gray-400 italic">
+                          ยังไม่ได้ใส่ลิงก์แผนที่
+                        </div>
+                      )}
                     </div>
 
                     {/* Photo preview */}
@@ -2254,6 +2284,35 @@ export default function AdminClient({
                   onChange={(e) => setLocDeskDetail(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">
+                    ลิงก์ Google Maps จุดส่งอาหาร (Map Link)
+                  </label>
+                  {locMapUrl && (
+                    <a
+                      href={locMapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline inline-flex items-center gap-0.5"
+                    >
+                      <span>เปิดดูแผนที่</span>
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  )}
+                </div>
+                <input
+                  type="url"
+                  placeholder="เช่น https://maps.app.goo.gl/... หรือ https://maps.google.com/?q=..."
+                  value={locMapUrl}
+                  onChange={(e) => setLocMapUrl(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  ระบบจะนำลิงก์นี้ไปสร้างเป็น QR Code บนภาพใบสรุปยาว และใส่ในข้อความแชร์ออเดอร์เข้า LINE
+                </p>
               </div>
 
               {/* Photo Upload */}

@@ -961,6 +961,7 @@ export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
 }
 
 export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<DeliveryLocation> {
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       await trackedSetDoc(doc(db, "locations", loc.id), cleanForFirestore(loc), undefined, 2500);
@@ -984,6 +985,7 @@ export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<Deliv
 }
 
 export async function deleteDeliveryLocation(id: string): Promise<boolean> {
+  invalidateStoreCache();
   if (isFirebaseConfigured && db) {
     try {
       await trackedDeleteDoc(doc(db, "locations", id), 2500);

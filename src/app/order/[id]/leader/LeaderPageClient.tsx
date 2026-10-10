@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order } from "@/lib/types";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
+import { getDropOffMapUrl } from "@/lib/locations";
 import { getTimeRemaining } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import {
@@ -262,12 +263,19 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   // Compile Brief Order Text
   const getCompiledOrderText = () => {
     if (!batch) return "";
+    const mapUrl = isSelfPickup ? batch.shop.gmapUrl : getDropOffMapUrl(batch);
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}`;
     if (isSelfPickup) {
       txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
       txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
+      if (mapUrl) {
+        txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
+      }
     } else {
       txt += `\n📍 จุดส่ง: ${buildingName} ชั้น 1\n`;
+      if (mapUrl) {
+        txt += `🗺️ แผนที่จุดส่งอาหาร (Google Maps): ${mapUrl}\n`;
+      }
     }
     txt += `👑 หัวหน้าตี้ (Leader): ${leaderLine}${leaderPhone ? ` • 📞 โทร: ${leaderPhone}` : ""}\n`;
     txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order, Shop } from "@/lib/types";
-import { CAMPUS_LOCATIONS, getLocalizedLocation } from "@/lib/locations";
+import { CAMPUS_LOCATIONS, getLocalizedLocation, getDropOffMapUrl } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
@@ -678,12 +678,19 @@ export default function HomeClient({ initialBatches }: Props) {
   // Compile Brief Text for LINE
   const getCompiledOrderText = () => {
     if (!activeBatch) return "";
+    const mapUrl = isSelfPickup ? activeBatch.shop.gmapUrl : getDropOffMapUrl(activeBatch);
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}`;
     if (isSelfPickup) {
       txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
       txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
+      if (mapUrl) {
+        txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
+      }
     } else {
       txt += `\n🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} ชั้น 1\n`;
+      if (mapUrl) {
+        txt += `🗺️ แผนที่จุดส่งอาหาร (Google Maps): ${mapUrl}\n`;
+      }
     }
     if (leaderPhone || leaderLine) {
       txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;

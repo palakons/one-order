@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBatchById, updateBatchStatus } from "@/lib/store";
+import { getDropOffMapUrl } from "@/lib/locations";
 import { BatchStatus } from "@/lib/types";
 import { pushLineMessage } from "@/lib/line";
 
@@ -82,10 +83,12 @@ export async function PATCH(
         }
 
         const bldgName = updated.buildingName || "ตึก M4";
+        const dropOffMap = getDropOffMapUrl(updated);
         const broadcastText = `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨\n` +
           `ร้าน: ${updated.shop.name} (${updated.orders.length} กล่อง)\n` +
-          `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n\n` +
-          `📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
+          `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n` +
+          (dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : "") +
+          `\n📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
           `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
 
         // Push to LINE group if configured (non-blocking)

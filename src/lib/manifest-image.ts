@@ -1,4 +1,6 @@
+import QRCode from "qrcode";
 import { BatchWithDetails, Order } from "./types";
+import { getLocationForBatch, getDropOffMapUrl } from "./locations";
 
 /**
  * Cross-browser rounded rectangle helper for HTML5 Canvas
@@ -100,10 +102,36 @@ export async function generateOneLongManifestImage(
     slipEntries.push({ order: ord, img, drawHeight });
   }
 
-  // 2. Compute dynamic canvas height
+  // 2. Generate Google Maps QR Code for Drop-Off Point (or Shop if self-pickup)
+  const isSelfPickup = Boolean(batch.isSelfPickup);
+  const location = getLocationForBatch(batch);
+  const dropOffMapUrl = isSelfPickup ? (batch.shop.gmapUrl || "") : getDropOffMapUrl(batch);
+  let mapQrImage: HTMLImageElement | null = null;
+
+  if (dropOffMapUrl) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(dropOffMapUrl, {
+        width: 160,
+        margin: 1,
+        color: {
+          dark: "#2e1065", // deep purple 950 for high contrast scanning
+          light: "#ffffff",
+        },
+      });
+      mapQrImage = await loadSlipImage(qrDataUrl);
+    } catch (err) {
+      console.warn("Map QR code generation failed:", err);
+    }
+  }
+
+  // 3. Compute dynamic canvas height
+  const headerHeight = 145;
+  const destCardHeight = 155;
   let totalHeight = 0;
-  totalHeight += 240; // Top header banner & destination info
-  totalHeight += 30;  // Spacing
+  totalHeight += headerHeight;
+  totalHeight += 20; // Spacing
+  totalHeight += destCardHeight;
+  totalHeight += 25; // Spacing
 
   // Cooking Checklist height
   const checklistHeight = Math.max(orders.length * 64 + 90, 140);
@@ -136,12 +164,12 @@ export async function generateOneLongManifestImage(
   // -----------------------------------------------------------------
   // HEADER BANNER
   // -----------------------------------------------------------------
-  const headerGradient = ctx.createLinearGradient(0, 0, canvasWidth, 220);
+  const headerGradient = ctx.createLinearGradient(0, 0, canvasWidth, headerHeight);
   headerGradient.addColorStop(0, "#3b0764"); // deep purple 950
   headerGradient.addColorStop(0.6, "#581c87"); // purple 900
   headerGradient.addColorStop(1, "#831843"); // pink/rose 900
   ctx.fillStyle = headerGradient;
-  ctx.fillRect(0, 0, canvasWidth, 220);
+  ctx.fillRect(0, 0, canvasWidth, headerHeight);
 
   ctx.save();
   ctx.textAlign = "left";
@@ -149,28 +177,13 @@ export async function generateOneLongManifestImage(
 
   // Top App Title
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 26px sans-serif";
-  ctx.fillText("🍱 VEATEC @ VISTEC — ใบสรุปออเดอร์ร้านอาหาร", padding, 46);
+  ctx.font = "bold 24px sans-serif";
+  ctx.fillText("🍱 VEATEC @ VISTEC — ใบสรุปออเดอร์ร้านอาหาร", padding, 42);
 
   // Shop Name Accent
   ctx.fillStyle = "#fef08a"; // yellow-200 accent
   ctx.font = "bold 22px sans-serif";
-  ctx.fillText(`ร้าน: ${batch.shop.name}`, padding, 82);
-
-  // Destination Pill
-  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-  drawRoundRect(ctx, padding, 98, contentWidth, 54, 12);
-  ctx.fill();
-
-  const isSelfPickup = Boolean(batch.isSelfPickup);
-  const bldg = batch.buildingName || "ตึก M4";
-  ctx.fillStyle = isSelfPickup ? "#fde047" : "#ffffff";
-  ctx.font = "bold 20px sans-serif";
-  if (isSelfPickup) {
-    ctx.fillText(`🚶 รูปแบบ: รับเองหน้าร้าน (Self-Pickup) • ลูกค้าไปรับเองที่ร้าน`, padding + 16, 133);
-  } else {
-    ctx.fillText(`📍 จุดส่ง: ${bldg} ชั้น 1`, padding + 16, 133);
-  }
+  ctx.fillText(`ร้าน: ${batch.shop.name}`, padding, 78);
 
   // Sub metadata
   const leaderLine = batch.hostLineId || (orders[0]?.customerLineId ? `@${orders[0].customerLineId}` : orders[0]?.customerName);
@@ -178,15 +191,113 @@ export async function generateOneLongManifestImage(
   const leaderContact = leaderPhone ? `👑 หัวหน้าตี้: ${leaderLine || "Leader"} (โทร: ${leaderPhone})` : (leaderLine ? `👑 หัวหน้าตี้: ${leaderLine}` : "");
 
   ctx.fillStyle = "#f1f5f9";
-  ctx.font = "15px sans-serif";
+  ctx.font = "14px sans-serif";
   const dateStr = `รอบวันที่: ${batch.date} (Cutoff: ${batch.cutoffTime} น.) ${leaderContact ? `• ${leaderContact}` : ""}`;
-  const totalStr = `ยอดเงินรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% ✅`;
-  ctx.fillText(dateStr, padding, 180);
-  ctx.fillText(totalStr, padding, 204);
+  const totalStr = `ยอดเงินรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% แล้ว ✅`;
+  ctx.fillText(dateStr, padding, 110);
+  ctx.fillText(totalStr, padding, 130);
 
   ctx.restore();
 
-  currentY = 245;
+  currentY = headerHeight + 20;
+
+  // -----------------------------------------------------------------
+  // SECTION: DESTINATION & GOOGLE MAPS QR CARD
+  // -----------------------------------------------------------------
+  const destCardY = currentY;
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  // White Card with subtle accent border
+  ctx.fillStyle = "#ffffff";
+  drawRoundRect(ctx, padding, destCardY, contentWidth, destCardHeight, 16);
+  ctx.fill();
+  ctx.strokeStyle = isSelfPickup ? "#fde68a" : "#c084fc"; // amber or purple-300
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Badge Pill
+  const pillWidth = isSelfPickup ? 250 : 270;
+  ctx.fillStyle = isSelfPickup ? "#fef3c7" : "#f3e8ff"; // amber-100 or purple-100
+  drawRoundRect(ctx, padding + 16, destCardY + 12, pillWidth, 26, 6);
+  ctx.fill();
+  ctx.fillStyle = isSelfPickup ? "#92400e" : "#6b21a8";
+  ctx.font = "bold 12px sans-serif";
+  ctx.fillText(
+    isSelfPickup ? "🚶 รูปแบบ: รับเองหน้าร้าน (SELF-PICKUP)" : "📍 จุดส่งอาหาร (DELIVERY DROP-OFF)",
+    padding + 24,
+    destCardY + 29
+  );
+
+  // Big Destination Heading
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 21px sans-serif";
+  if (isSelfPickup) {
+    ctx.fillText(`ลูกค้ารับเองที่ร้าน ${batch.shop.name}`, padding + 16, destCardY + 66);
+  } else {
+    ctx.fillText(`โต๊ะรับอาหาร ${location.name} ชั้น 1`, padding + 16, destCardY + 66);
+  }
+
+  // Desk Detail
+  ctx.fillStyle = isSelfPickup ? "#64748b" : "#334155";
+  ctx.font = "bold 14px sans-serif";
+  if (isSelfPickup) {
+    ctx.fillText(`ลูกค้า/หัวหน้าตี้เดินทางไปรับเองที่ร้าน • ร้านไม่ต้องมาส่งที่ ม.`, padding + 16, destCardY + 91);
+  } else {
+    ctx.fillText(`📌 โต๊ะวาง: ${location.deskDetail}`, padding + 16, destCardY + 91);
+  }
+
+  // Leader Contact
+  ctx.fillStyle = "#6b21a8";
+  ctx.font = "14px sans-serif";
+  ctx.fillText(
+    `👑 ผู้ประสานงาน: ${leaderLine || "หัวหน้าตี้"}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}`,
+    padding + 16,
+    destCardY + 115
+  );
+
+  // Map Prompt Info
+  ctx.fillStyle = "#0284c7";
+  ctx.font = "bold 12px sans-serif";
+  ctx.fillText(
+    `🗺️ พิกัด Google Maps: สแกน QR Code ด้านขวาเพื่อนําทางไปยังจุดส่ง ➔`,
+    padding + 16,
+    destCardY + 138
+  );
+
+  // Right Side: High-Contrast QR Code Box
+  const qrBoxWidth = 118;
+  const qrBoxHeight = 132;
+  const qrBoxX = padding + contentWidth - qrBoxWidth - 14;
+  const qrBoxY = destCardY + 11;
+
+  ctx.fillStyle = "#f8fafc";
+  drawRoundRect(ctx, qrBoxX, qrBoxY, qrBoxWidth, qrBoxHeight, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  if (mapQrImage) {
+    // Draw 96x96 QR Code inside
+    ctx.drawImage(mapQrImage, qrBoxX + 11, qrBoxY + 10, 96, 96);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#581c87";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("สแกนแผนที่ 🗺️", qrBoxX + qrBoxWidth / 2, qrBoxY + 122);
+  } else {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("MAP LINK", qrBoxX + qrBoxWidth / 2, qrBoxY + 60);
+    ctx.font = "10px sans-serif";
+    ctx.fillText("(ไม่มี QR)", qrBoxX + qrBoxWidth / 2, qrBoxY + 78);
+  }
+
+  ctx.restore();
+
+  currentY = destCardY + destCardHeight + 25;
 
   // -----------------------------------------------------------------
   // SECTION 1: ITEMIZED ORDER LIST (COOKING CHECKLIST)

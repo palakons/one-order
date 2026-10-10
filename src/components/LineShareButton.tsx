@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MessageSquare, Copy, Check, ExternalLink, Share2 } from "lucide-react";
 import { BatchWithDetails } from "@/lib/types";
-import { getLocationById } from "@/lib/locations";
+import { getLocationById, getDropOffMapUrl } from "@/lib/locations";
 
 interface Props {
   batch: BatchWithDetails;
@@ -36,6 +36,7 @@ export default function LineShareButton({ batch }: Props) {
   const manifestUrl = `${currentHost}/shop/${batch.id}`;
 
   const isCompleted = batch.status === "COMPLETED";
+  const dropOffMap = batch.isSelfPickup ? batch.shop.gmapUrl : getDropOffMapUrl(batch);
 
   const messageText = isCompleted
     ? `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะแล้ว! ✨
@@ -44,7 +45,7 @@ export default function LineShareButton({ batch }: Props) {
 ${Object.entries(buildingCounts)
   .map(([bldg, count]) => `• ${bldg}: ${count} กล่อง`)
   .join("\n")}
-
+${dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : ""}
 📸 ดูรูปถ่ายจุดวางอาหาร & รายชื่อกล่องของคุณ:
 ${manifestUrl}
 
@@ -60,7 +61,7 @@ ${batch.isMinMet ? "🎉 ยอดถึงขั้นต่ำแล้ว พ
 ${Object.entries(buildingCounts)
   .map(([bldg, count]) => `• ${bldg}: ${count} กล่อง`)
   .join("\n")}
-
+${dropOffMap ? `🗺️ แผนที่นำทาง (Google Maps): ${dropOffMap}\n` : ""}
 📋 รายการอาหารที่ต้องทำ:
 ${Object.entries(itemCounts)
   .map(([item, count]) => `• ${item} x ${count}`)
