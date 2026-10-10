@@ -38,6 +38,7 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
   });
 
   const isDelivered = batch.status === "COMPLETED";
+  const buildingName = batch.buildingName || "ตึก M4";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-white to-gray-50 text-gray-900 pb-16">
@@ -71,7 +72,7 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
               </div>
               <div>
                 <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                  {isDelivered ? "✓ ส่งถึงโต๊ะตึก M4 แล้ว" : "กำลังนำส่ง"}
+                  {isDelivered ? `✓ ส่งถึงโต๊ะ${buildingName} แล้ว` : "กำลังนำส่ง"}
                 </div>
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 mt-1">
                   อาหารร้าน {batch.shop.name}
@@ -90,10 +91,10 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
                 <span>จุดรับอาหาร</span>
               </div>
               <div className="font-black text-sm text-emerald-950 mt-0.5">
-                โต๊ะส่งของ Delivery ชั้น 1 ตึก M4
+                โต๊ะส่งของ Delivery ชั้น 1 {buildingName}
               </div>
               <div className="text-[11px] text-emerald-700 mt-0.5">
-                เคาน์เตอร์ชั้น 1 ฝั่งซ้าย
+                เคาน์เตอร์ชั้น 1
               </div>
             </div>
           </div>
@@ -104,7 +105,7 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-800 flex items-center gap-1.5">
                   <Camera className="h-4 w-4 text-emerald-600" />
-                  <span>รูปถ่ายหลักฐานบนโต๊ะตึก M4:</span>
+                  <span>รูปถ่ายหลักฐานบนโต๊ะ{buildingName}:</span>
                 </span>
                 <span className="text-[11px] text-gray-500">ตรวจสอบตำแหน่งกล่องของคุณ</span>
               </div>
@@ -166,7 +167,7 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
                       #{String(ord.orderNumber).padStart(2, "0")}
                     </span>
                     <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      โต๊ะตึก M4
+                      โต๊ะ{buildingName}
                     </span>
                   </div>
 

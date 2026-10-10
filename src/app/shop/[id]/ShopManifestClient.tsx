@@ -160,6 +160,10 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
     });
   };
 
+  const buildingName = batch?.buildingName || "ตึก M4";
+  const leaderLine = batch?.hostLineId || batch?.hostName || batch?.orders?.[0]?.customerLineId || batch?.orders?.[0]?.customerName || "หัวหน้าตี้";
+  const leaderPhone = batch?.hostPhone || batch?.orders?.[0]?.customerPhone || "";
+
   const handleCopyCookingSummary = () => {
     if (!batch) return;
     const lines = [
@@ -173,7 +177,8 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           }`
       ),
       `---------------------------------`,
-      `📍 จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4`,
+      `📍 จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ${buildingName}`,
+      `👑 หัวหน้าตี้ / ผู้ประสานงาน: ${leaderLine}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}`,
     ];
     navigator.clipboard.writeText(lines.join("\n"));
     setCopiedSummary(true);
@@ -530,7 +535,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 {batch.isMinMet ? (
                   <>
-                    🎉 <strong>ยอดครบส่งฟรีแล้ว! (฿{batch.currentTotalAmount} / ฿{batch.targetMinAmount})</strong> ทำอาหารตามรายการด้านล่าง แล้วนำส่งที่โต๊ะส่งอาหาร ชั้น 1 ตึก M4 ได้เลยครับ/ค่ะ
+                    🎉 <strong>ยอดครบส่งฟรีแล้ว! (฿{batch.currentTotalAmount} / ฿{batch.targetMinAmount})</strong> ทำอาหารตามรายการด้านล่าง แล้วนำส่งที่โต๊ะส่งอาหาร ชั้น 1 {buildingName} ได้เลยครับ/ค่ะ
                   </>
                 ) : (
                   <>
@@ -554,18 +559,29 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             </div>
           </div>
 
-          {/* Delivery Drop-off Desk Summary */}
-          {batch.isMinMet && (
-            <div className="mt-6 pt-4 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-emerald-950">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-                <span>จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4 (เคาน์เตอร์ฝั่งซ้าย)</span>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 self-start sm:self-auto">
+          {/* Delivery Drop-off Desk & Leader Contact Summary */}
+          <div className="mt-6 pt-4 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-emerald-950">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
+              <span>จุดส่งอาหาร: โต๊ะส่งอาหาร Delivery ชั้น 1 {buildingName}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span>👑 หัวหน้าตี้: <strong>{leaderLine}</strong></span>
+              {leaderPhone && (
+                <a
+                  href={`tel:${leaderPhone}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-emerald-900 border border-emerald-300 shadow-2xs hover:bg-emerald-50 transition-colors"
+                  title="โทรหาหัวหน้าตี้"
+                >
+                  <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>โทร: {leaderPhone}</span>
+                </a>
+              )}
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
                 รวม {batch.orders.length} กล่อง
               </span>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Section 1: Kitchen Cooking Sheet */}

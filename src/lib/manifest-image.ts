@@ -162,14 +162,19 @@ export async function generateOneLongManifestImage(
   drawRoundRect(ctx, padding, 98, contentWidth, 54, 12);
   ctx.fill();
 
+  const bldg = batch.buildingName || "ตึก M4";
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 20px sans-serif";
-  ctx.fillText("📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4", padding + 16, 133);
+  ctx.fillText(`📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${bldg}`, padding + 16, 133);
 
   // Sub metadata
+  const leaderLine = batch.hostLineId || (orders[0]?.customerLineId ? `@${orders[0].customerLineId}` : orders[0]?.customerName);
+  const leaderPhone = batch.hostPhone || orders[0]?.customerPhone;
+  const leaderContact = leaderPhone ? `👑 หัวหน้าตี้: ${leaderLine || "Leader"} (โทร: ${leaderPhone})` : (leaderLine ? `👑 หัวหน้าตี้: ${leaderLine}` : "");
+
   ctx.fillStyle = "#f1f5f9";
   ctx.font = "15px sans-serif";
-  const dateStr = `รอบวันที่: ${batch.date} (Cutoff: ${batch.cutoffTime} น.)`;
+  const dateStr = `รอบวันที่: ${batch.date} (Cutoff: ${batch.cutoffTime} น.) ${leaderContact ? `• ${leaderContact}` : ""}`;
   const totalStr = `ยอดเงินรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% ✅`;
   ctx.fillText(dateStr, padding, 180);
   ctx.fillText(totalStr, padding, 204);

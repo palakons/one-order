@@ -205,6 +205,9 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
 
   // New Batch Form State
   const [selectedShopId, setSelectedShopId] = useState(initialShops[0]?.id || "");
+  const [batchBuildingId, setBatchBuildingId] = useState("loc-m4");
+  const [batchLeaderName, setBatchLeaderName] = useState("Admin (M4)");
+  const [batchLeaderPhone, setBatchLeaderPhone] = useState("");
   const [batchCutoffTime, setBatchCutoffTime] = useState("11:15");
   const [batchTargetMin, setBatchTargetMin] = useState("200");
   const [batchNotes, setBatchNotes] = useState("รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4");
@@ -289,6 +292,7 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
     }
     setCreatingBatch(true);
     try {
+      const selectedBuilding = CAMPUS_LOCATIONS.find((l) => l.id === batchBuildingId) || CAMPUS_LOCATIONS[0];
       const res = await fetch("/api/batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -298,6 +302,11 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
           cutoffTime: batchCutoffTime,
           targetMinAmount: Number(batchTargetMin),
           notes: batchNotes,
+          hostLineId: batchLeaderName || undefined,
+          hostPhone: batchLeaderPhone || undefined,
+          hostName: batchLeaderName || undefined,
+          buildingId: selectedBuilding.id,
+          buildingName: selectedBuilding.name,
         }),
       });
       const data = await res.json();
@@ -346,6 +355,10 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
             cutoffTime: "11:15",
             targetMinAmount: s.minDeliveryAmount || 200,
             notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของชั้น 1 ตึก M4",
+            hostLineId: "Admin M4",
+            hostName: "Admin M4",
+            buildingId: "loc-m4",
+            buildingName: "ตึก M4",
           }),
         });
         const data = await res.json();
@@ -870,7 +883,12 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                 <label className="text-xs font-bold text-gray-700">Select Shop (เลือกร้านอาหาร)</label>
                 <select
                   value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
+                  onChange={(e) => {
+                    const sId = e.target.value;
+                    setSelectedShopId(sId);
+                    const s = shops.find((x) => x.id === sId);
+                    if (s?.minDeliveryAmount) setBatchTargetMin(String(s.minDeliveryAmount));
+                  }}
                   className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:outline-orange-500"
                 >
                   {shops.map((s) => (
@@ -879,6 +897,44 @@ export default function AdminClient({ initialBatches, initialShops }: Props) {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700">Delivery Destination (ตึกส่งอาหาร)</label>
+                <select
+                  value={batchBuildingId}
+                  onChange={(e) => setBatchBuildingId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:outline-orange-500"
+                >
+                  {CAMPUS_LOCATIONS.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name} — {loc.deskDetail}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-orange-50/60 border border-orange-200">
+                <div>
+                  <label className="text-xs font-bold text-orange-950">👑 Leader LINE ID / Name</label>
+                  <input
+                    type="text"
+                    value={batchLeaderName}
+                    onChange={(e) => setBatchLeaderName(e.target.value)}
+                    placeholder="เช่น somchai_v หรือ Admin"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:outline-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-orange-950">📞 Leader Phone (เบอร์ติดต่อกรณีปัญหา)</label>
+                  <input
+                    type="tel"
+                    value={batchLeaderPhone}
+                    onChange={(e) => setBatchLeaderPhone(e.target.value)}
+                    placeholder="เช่น 0812345678"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:outline-orange-500 font-mono"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

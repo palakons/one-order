@@ -255,11 +255,18 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
+  // Active orders and leader details
+  const activeOrders = (batch?.orders || []).filter((o) => !o.deletedAt);
+  const leaderLine = batch?.hostLineId || batch?.hostName || activeOrders[0]?.customerLineId || activeOrders[0]?.customerName || "หัวหน้าตี้";
+  const leaderPhone = batch?.hostPhone || activeOrders[0]?.customerPhone || "";
+  const buildingName = batch?.buildingName || "ตึก M4";
+
   // Compile Brief Order Text
   const getCompiledOrderText = () => {
     if (!batch) return "";
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}\n`;
-    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
+    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ${buildingName}\n`;
+    txt += `👑 หัวหน้าตี้ (Leader): ${leaderLine}${leaderPhone ? ` • 📞 โทร: ${leaderPhone}` : ""}\n`;
     txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
@@ -350,7 +357,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
   const timeInfo = getTimeRemaining(batch.cutoffTime, batch.date);
   const isBatchClosed = batch.status !== "OPEN" || timeInfo.isExpired;
-  const activeOrders = (batch.orders || []).filter((o) => !o.deletedAt);
 
   // Slip Gating Calculation:
   // All active orders must have a verified slip or slip image attached
@@ -429,7 +435,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </span>
               <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
                 {batch.isMinMet
-                  ? "🎉 ครบยอดส่งฟรีที่ตึก M4 แล้ว!"
+                  ? `🎉 ครบยอดส่งฟรีที่${buildingName} แล้ว!`
                   : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี`}
               </span>
             </div>
@@ -454,8 +460,30 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </span>
               <span className="flex items-center gap-1.5 font-bold text-emerald-900 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
                 <MapPin className="h-3.5 w-3.5 text-emerald-700" />
-                <span>จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4</span>
+                <span>จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 {buildingName}</span>
               </span>
+            </div>
+
+            {/* Leader Contact Card */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50/80 border border-purple-200 px-3.5 py-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-base">👑</span>
+                <span className="font-bold text-purple-950">
+                  หัวหน้าตี้ (Leader): <span className="font-extrabold text-purple-900">{leaderLine}</span>
+                </span>
+              </div>
+              {leaderPhone ? (
+                <a
+                  href={`tel:${leaderPhone}`}
+                  className="flex items-center gap-1.5 font-bold text-purple-900 hover:text-purple-700 bg-white px-2.5 py-1 rounded-lg border border-purple-200 shadow-2xs transition-colors"
+                  title="โทรหาหัวหน้าตี้"
+                >
+                  <Phone className="h-3.5 w-3.5 text-purple-700" />
+                  <span>โทร: {leaderPhone}</span>
+                </a>
+              ) : (
+                <span className="text-[11px] text-purple-600">ไม่มีเบอร์โทรระบุ</span>
+              )}
             </div>
           </div>
         </div>
@@ -936,7 +964,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <div className="space-y-3">
                   <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง M4 และสลิปทุกใบในรูปเดียว)</span>
+                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง {buildingName} และสลิปทุกใบในรูปเดียว)</span>
                   </div>
 
                   {/* Long Image Preview */}

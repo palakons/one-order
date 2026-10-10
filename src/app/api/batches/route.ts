@@ -17,7 +17,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shopId, date, cutoffTime, targetMinAmount, notes } = body;
+    const {
+      shopId,
+      date,
+      cutoffTime,
+      targetMinAmount,
+      notes,
+      hostLineId,
+      hostPhone,
+      hostName,
+      buildingId,
+      buildingName,
+    } = body;
 
     if (!shopId || !date || !cutoffTime || !targetMinAmount) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -29,6 +40,11 @@ export async function POST(request: Request) {
       cutoffTime,
       targetMinAmount: Number(targetMinAmount),
       notes,
+      hostLineId: (hostLineId || "").trim() || undefined,
+      hostPhone: (hostPhone || "").trim() || undefined,
+      hostName: (hostName || "").trim() || undefined,
+      buildingId: (buildingId || "").trim() || "loc-m4",
+      buildingName: (buildingName || "").trim() || "ตึก M4",
     });
 
     return NextResponse.json({ success: true, batch }, { status: 201 });

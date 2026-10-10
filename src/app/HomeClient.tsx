@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { BatchWithDetails, Order } from "@/lib/types";
+import { BatchWithDetails, Order, Shop } from "@/lib/types";
+import { CAMPUS_LOCATIONS } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
@@ -89,6 +90,19 @@ export default function HomeClient({ initialBatches }: Props) {
   const [dishPrice, setDishPrice] = useState("");
   const [dishNote, setDishNote] = useState("");
 
+  // Open Board Modal State (Anyone can open a board for Building / Shop)
+  const [showOpenBoardModal, setShowOpenBoardModal] = useState(false);
+  const [availableShops, setAvailableShops] = useState<Shop[]>([]);
+  const [openShopId, setOpenShopId] = useState("");
+  const [openBuildingId, setOpenBuildingId] = useState("loc-m4");
+  const [openLeaderName, setOpenLeaderName] = useState("");
+  const [openLeaderPhone, setOpenLeaderPhone] = useState("");
+  const [openCutoffTime, setOpenCutoffTime] = useState("11:15");
+  const [openTargetMin, setOpenTargetMin] = useState("200");
+  const [openNotes, setOpenNotes] = useState("");
+  const [creatingBoard, setCreatingBoard] = useState(false);
+  const [openBoardError, setOpenBoardError] = useState<string | null>(null);
+
   // Slip upload & BOT verification
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [slipPreview, setSlipPreview] = useState<string | null>(null);
@@ -134,6 +148,97 @@ export default function HomeClient({ initialBatches }: Props) {
       }
     } catch (err) {
       console.warn("Poll batches error:", err);
+    }
+  };
+
+  const fetchShops = async () => {
+    try {
+      const res = await fetch("/api/shops");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.shops)) {
+        setAvailableShops(data.shops);
+        if (data.shops.length > 0 && !openShopId) {
+          setOpenShopId(data.shops[0].id);
+          setOpenTargetMin(String(data.shops[0].minDeliveryAmount || 200));
+        }
+      }
+    } catch (e) {
+      console.warn("fetchShops error:", e);
+    }
+  };
+
+  const handleOpenBoardClick = () => {
+    setOpenBoardError(null);
+    setOpenLeaderName(customerLineId || (typeof window !== "undefined" ? localStorage.getItem("veatec_user_line") || "" : ""));
+    setOpenLeaderPhone(customerPhone || (typeof window !== "undefined" ? localStorage.getItem("veatec_user_phone") || "" : ""));
+    fetchShops();
+    setShowOpenBoardModal(true);
+  };
+
+  const handleCreateBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOpenBoardError(null);
+
+    const cleanLeader = openLeaderName.trim();
+    const cleanPhone = openLeaderPhone.trim();
+    const phoneDigits = cleanPhone.replace(/\D/g, "");
+
+    if (!openShopId) {
+      setOpenBoardError("กรุณาเลือกร้านอาหารที่ต้องการสั่ง");
+      return;
+    }
+    if (!cleanLeader) {
+      setOpenBoardError("กรุณากรอก LINE ID หรือชื่อหัวหน้าตี้");
+      return;
+    }
+    if (!cleanPhone || phoneDigits.length < 9) {
+      setOpenBoardError("กรุณากรอกเบอร์โทรศัพท์หัวหน้าตี้ (อย่างน้อย 9-10 หลัก) เพื่อให้ร้านค้าโทรประสานงานกรณีมีปัญหา");
+      return;
+    }
+
+    setCreatingBoard(true);
+    try {
+      const selectedBuilding = CAMPUS_LOCATIONS.find((l) => l.id === openBuildingId) || CAMPUS_LOCATIONS[0];
+      const res = await fetch("/api/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId: openShopId,
+          date: new Date().toISOString().split("T")[0],
+          cutoffTime: openCutoffTime,
+          targetMinAmount: Number(openTargetMin) || 200,
+          notes: openNotes.trim() || undefined,
+          hostLineId: cleanLeader,
+          hostPhone: cleanPhone,
+          hostName: cleanLeader,
+          buildingId: selectedBuilding.id,
+          buildingName: selectedBuilding.name,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "ไม่สามารถเปิดกระดานได้");
+      }
+
+      try {
+        localStorage.setItem("veatec_user_line", cleanLeader);
+        localStorage.setItem("veatec_user_phone", cleanPhone);
+        localStorage.setItem(`veatec_host_${data.batch.id}`, "true");
+        setCustomerLineId(cleanLeader);
+        setCustomerPhone(cleanPhone);
+        setIsHost(true);
+      } catch (e) {}
+
+      setShowOpenBoardModal(false);
+      setActiveBatchId(data.batch.id);
+      setViewingArchivedBatch(false);
+      await fetchBatches();
+      confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+    } catch (err: any) {
+      setOpenBoardError(err.message || "เกิดข้อผิดพลาดในการเปิดกระดาน");
+    } finally {
+      setCreatingBoard(false);
     }
   };
 
@@ -278,11 +383,19 @@ export default function HomeClient({ initialBatches }: Props) {
     }
   };
 
+  // Active orders & Leader info
+  const activeOrders = activeBatch ? (activeBatch.orders || []).filter((o) => !o.deletedAt) : [];
+  const leaderLine = activeBatch?.hostLineId || (activeOrders[0]?.customerLineId ? `@${activeOrders[0].customerLineId}` : activeOrders[0]?.customerName);
+  const leaderPhone = activeBatch?.hostPhone || activeOrders[0]?.customerPhone;
+
   // Compile Brief Text for LINE
   const getCompiledOrderText = () => {
     if (!activeBatch) return "";
     let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}\n`;
-    txt += `📍 จุดส่ง: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4\n`;
+    txt += `🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} (โต๊ะส่งอาหาร Delivery ชั้น 1)\n`;
+    if (leaderPhone || leaderLine) {
+      txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
+    }
     txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
@@ -359,7 +472,6 @@ export default function HomeClient({ initialBatches }: Props) {
 
   const timeInfo = activeBatch ? getTimeRemaining(activeBatch.cutoffTime, activeBatch.date) : null;
   const isBatchClosed = activeBatch ? activeBatch.status !== "OPEN" || timeInfo?.isExpired : false;
-  const activeOrders = activeBatch ? (activeBatch.orders || []).filter((o) => !o.deletedAt) : [];
 
   const allSlipsVerified =
     activeOrders.length > 0 &&
@@ -392,6 +504,15 @@ export default function HomeClient({ initialBatches }: Props) {
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>LIVE SYSTEM</span>
             </span>
+            <button
+              type="button"
+              onClick={handleOpenBoardClick}
+              className="text-purple-900 hover:bg-purple-100 border border-purple-300 bg-purple-50 px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors font-bold text-xs shadow-2xs"
+              title="เปิดกระดานสั่งอาหารใหม่ สำหรับตึกและร้านที่คุณต้องการ"
+            >
+              <Plus className="h-3.5 w-3.5 text-purple-700" />
+              <span>เปิดกระดาน</span>
+            </button>
             {archivedBatches.length > 0 && (
               <button
                 type="button"
@@ -414,11 +535,12 @@ export default function HomeClient({ initialBatches }: Props) {
       </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 sm:px-6 space-y-4">
-        {/* 1. Live Shop Tabs Bar & Obscured Archive Button */}
+        {/* 1. Live Shop Tabs Bar, Open Board & Archive Button */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
           {liveBatches.map((b, idx) => {
             const isActive = !viewingArchivedBatch && b.id === activeBatchId;
             const isMet = b.currentTotalAmount >= b.targetMinAmount;
+            const bldgCode = b.buildingName ? b.buildingName.replace("ตึก ", "") : "M4";
 
             return (
               <button
@@ -435,6 +557,9 @@ export default function HomeClient({ initialBatches }: Props) {
                 }`}
               >
                 <span>{idx + 1}. {b.shop.name.split(" ")[0]}</span>
+                <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
+                  {bldgCode}
+                </span>
                 <span
                   className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono font-bold ${
                     isMet
@@ -449,6 +574,17 @@ export default function HomeClient({ initialBatches }: Props) {
               </button>
             );
           })}
+
+          {/* Anyone can open a board button */}
+          <button
+            type="button"
+            onClick={handleOpenBoardClick}
+            className="flex items-center gap-1 whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs shrink-0"
+            title="เปิดกระดานรวมออเดอร์ใหม่ เลือกร้านและตึกที่ต้องการ"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>+ เปิดกระดานใหม่</span>
+          </button>
 
           {/* Obscured Archive Button on Tabs Bar */}
           {archivedBatches.length > 0 && (
@@ -498,6 +634,14 @@ export default function HomeClient({ initialBatches }: Props) {
               กระดานของวันนี้อาจยังไม่ได้เปิด หรือรอบสั่งทั้งหมดเสร็จสิ้นแล้ว
             </p>
             <div className="flex justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleOpenBoardClick}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>เปิดกระดานใหม่</span>
+              </button>
               {archivedBatches.length > 0 && (
                 <button
                   type="button"
@@ -508,12 +652,6 @@ export default function HomeClient({ initialBatches }: Props) {
                   <span>ดูกระดานเก่าในคลัง ({archivedBatches.length})</span>
                 </button>
               )}
-              <Link
-                href="/admin"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs"
-              >
-                <span>เปิดกระดานใหม่ (Admin)</span>
-              </Link>
             </div>
           </div>
         ) : activeBatch ? (
@@ -536,6 +674,29 @@ export default function HomeClient({ initialBatches }: Props) {
                   <p className="text-xs text-slate-600 max-w-xl mt-0.5">
                     {activeBatch.shop.description}
                   </p>
+
+                  {/* Leader Contact & Building Info */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
+                    <div className="flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-purple-950 font-medium shadow-2xs">
+                      <span className="text-amber-500 font-bold">👑</span>
+                      <span>หัวหน้าตี้ (Leader): <strong>{leaderLine || "ยังไม่มีหัวหน้าตี้"}</strong></span>
+                      {leaderPhone ? (
+                        <a
+                          href={`tel:${leaderPhone}`}
+                          className="ml-1 inline-flex items-center gap-1 rounded bg-purple-900 text-white px-2 py-0.5 text-[11px] font-mono font-bold hover:bg-purple-800 transition-colors shadow-2xs"
+                          title="แตะเพื่อโทรหาหัวหน้าตี้กรณีมีปัญหา"
+                        >
+                          <Phone className="h-2.5 w-2.5" />
+                          <span>โทร: {leaderPhone}</span>
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 font-medium shadow-2xs">
+                      <MapPin className="h-3 w-3 text-emerald-700" />
+                      <span>จุดส่ง: <strong>{activeBatch.buildingName || "ตึก M4"}</strong> (โต๊ะส่งอาหาร Delivery)</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Google Maps & PromptPay Buttons */}
@@ -571,7 +732,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   </span>
                   <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
                     {activeBatch.isMinMet
-                      ? "🎉 ครบยอดส่งฟรีที่ตึก M4 แล้ว!"
+                      ? `🎉 ครบยอดส่งฟรีที่${activeBatch.buildingName || "ตึก M4"} แล้ว!`
                       : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`}
                   </span>
                 </div>
@@ -594,7 +755,7 @@ export default function HomeClient({ initialBatches }: Props) {
                   </span>
                   <span className="flex items-center gap-1 text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                     <MapPin className="h-3 w-3 text-emerald-700" />
-                    <span>ส่งที่: โต๊ะส่งอาหาร Delivery ชั้น 1 ตึก M4</span>
+                    <span>ส่งที่: โต๊ะส่งอาหาร Delivery ชั้น 1 {activeBatch.buildingName || "ตึก M4"}</span>
                   </span>
                 </div>
               </div>
@@ -1071,7 +1232,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 <div className="space-y-3">
                   <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง M4 และสลิปทุกใบในรูปเดียว)</span>
+                    <span>สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง {activeBatch.buildingName || "ตึก M4"} และสลิปทุกใบในรูปเดียว)</span>
                   </div>
 
                   <div className="rounded-xl border border-slate-300 overflow-hidden bg-slate-900 shadow-inner max-h-80 overflow-y-auto">
@@ -1204,7 +1365,7 @@ export default function HomeClient({ initialBatches }: Props) {
                           className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1.5 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
                         >
                           <Camera className="h-3 w-3" />
-                          <span>ดูรูปส่ง M4</span>
+                          <span>ดูรูปส่ง {b.buildingName ? b.buildingName.replace("ตึก ", "") : "ของ"}</span>
                         </Link>
                       )}
                       <Link
@@ -1231,6 +1392,210 @@ export default function HomeClient({ initialBatches }: Props) {
                 ปิดหน้าต่าง
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Open Board Modal (Anyone can open a board for Building + Shop) */}
+      {showOpenBoardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-purple-900 text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">เปิดกระดานรวมออเดอร์ใหม่</h3>
+                  <p className="text-xs text-purple-200">เลือกตึกปลายทางและร้านอาหารเพื่อเริ่มตี้อาหารประจำวัน</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOpenBoardModal(false)}
+                className="rounded-lg p-1.5 text-purple-200 hover:bg-white/20 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateBoard} className="p-5 overflow-y-auto space-y-4 text-xs">
+              {openBoardError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-rose-800 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                  <span>{openBoardError}</span>
+                </div>
+              )}
+
+              {/* 1. ร้านอาหาร */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-800 flex items-center justify-between">
+                  <span>1. เลือกร้านอาหารที่ต้องการสั่ง <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] text-slate-500 font-normal">ร้านที่มีในระบบ</span>
+                </label>
+                <select
+                  value={openShopId}
+                  onChange={(e) => {
+                    const sId = e.target.value;
+                    setOpenShopId(sId);
+                    const s = availableShops.find((x) => x.id === sId);
+                    if (s?.minDeliveryAmount) {
+                      setOpenTargetMin(String(s.minDeliveryAmount));
+                    }
+                  }}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                >
+                  {availableShops.length === 0 ? (
+                    <option value="">กำลังโหลดรายชื่อร้าน...</option>
+                  ) : (
+                    availableShops.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.cuisine}) {s.minDeliveryAmount ? `• ขั้นต่ำ ฿${s.minDeliveryAmount}` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* 2. ตึกปลายทาง */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-800 flex items-center justify-between">
+                  <span>2. เลือกตึกส่งอาหาร (Building Destination) <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] text-purple-700 font-semibold">เฉพาะตึกนี้</span>
+                </label>
+                <select
+                  value={openBuildingId}
+                  onChange={(e) => setOpenBuildingId(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                >
+                  {CAMPUS_LOCATIONS.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name} — {loc.deskDetail}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500">
+                  📍 ไรเดอร์และร้านค้าจะมาส่งที่โต๊ะส่งอาหารของตึกที่เลือกนี้
+                </p>
+              </div>
+
+              {/* 3. ข้อมูลหัวหน้าตี้ (Leader Contact) */}
+              <div className="rounded-xl bg-purple-50/70 border border-purple-200 p-3.5 space-y-3">
+                <div className="flex items-center gap-1.5 text-purple-950 font-bold">
+                  <span className="text-sm">👑</span>
+                  <span>3. ข้อมูลผู้เปิดตี้ / หัวหน้าตี้ (Leader Contact)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700">
+                      ชื่อ / LINE ID <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={openLeaderName}
+                      onChange={(e) => setOpenLeaderName(e.target.value)}
+                      placeholder="เช่น somchai_v หรือ สมชาย"
+                      required
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700">
+                      เบอร์โทรศัพท์ <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={openLeaderPhone}
+                      onChange={(e) => setOpenLeaderPhone(e.target.value)}
+                      placeholder="เช่น 0812345678"
+                      required
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-purple-900 flex items-start gap-1">
+                  <Phone className="h-3 w-3 shrink-0 mt-0.5 text-purple-700" />
+                  <span>เบอร์โทรจะแสดงบนหัวกระดานและใบเสร็จยาว เพื่อให้ร้านค้าหรือไรเดอร์โทรติดต่อเมื่อมีปัญหา</span>
+                </p>
+              </div>
+
+              {/* 4. เวลา Cutoff & ยอดขั้นต่ำ */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">
+                    เวลาปิดรับ (Cutoff) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={openCutoffTime}
+                    onChange={(e) => setOpenCutoffTime(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">
+                    เป้ายอดขั้นต่ำ (฿)
+                  </label>
+                  <input
+                    type="number"
+                    value={openTargetMin}
+                    onChange={(e) => setOpenTargetMin(e.target.value)}
+                    min="0"
+                    step="10"
+                    required
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                  />
+                </div>
+              </div>
+
+              {/* 5. หมายเหตุ */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-800">
+                  หมายเหตุเพิ่มเติม (Notes / ปล.)
+                </label>
+                <input
+                  type="text"
+                  value={openNotes}
+                  onChange={(e) => setOpenNotes(e.target.value)}
+                  placeholder="เช่น โอนเงินพร้อมแนบสลิปทันที / อาหารมาส่งวางไว้ที่โต๊ะ"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowOpenBoardModal(false)}
+                  disabled={creatingBoard}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingBoard}
+                  className="rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-5 py-2 text-xs font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {creatingBoard ? (
+                    <>
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>กำลังเปิดกระดาน...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      <span>เปิดกระดานทันที</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

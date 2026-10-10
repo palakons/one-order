@@ -65,6 +65,10 @@ export interface Batch {
   status: BatchStatus;
   createdAt: string;
   hostLineId?: string; // Host / Open party initiator LINE ID
+  hostPhone?: string; // Host / Leader phone number (for issues)
+  hostName?: string; // Host / Leader display name
+  buildingId?: string; // Specific building ID (e.g. "loc-m4")
+  buildingName?: string; // Specific building name (e.g. "ตึก M4")
   sentToShopAt?: string; // ISO string when Host clicked "Send to Shop"
   notes?: string;
   deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk

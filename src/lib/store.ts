@@ -584,6 +584,11 @@ export async function createBatch(batchData: {
   cutoffTime: string;
   targetMinAmount: number;
   notes?: string;
+  hostLineId?: string;
+  hostPhone?: string;
+  hostName?: string;
+  buildingId?: string;
+  buildingName?: string;
 }): Promise<BatchWithDetails> {
   const id = `batch-${Date.now()}`;
   const newBatch: Batch = {
@@ -595,6 +600,11 @@ export async function createBatch(batchData: {
     status: "OPEN",
     createdAt: new Date().toISOString(),
     notes: batchData.notes,
+    hostLineId: batchData.hostLineId || undefined,
+    hostPhone: batchData.hostPhone || undefined,
+    hostName: batchData.hostName || undefined,
+    buildingId: batchData.buildingId || "loc-m4",
+    buildingName: batchData.buildingName || "ตึก M4",
   };
 
   if (isFirebaseConfigured && db) {
