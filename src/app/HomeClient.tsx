@@ -811,6 +811,12 @@ export default function HomeClient({ initialBatches }: Props) {
     ? CAMPUS_LOCATIONS.find((l) => l.id === activeBatch.buildingId) || CAMPUS_LOCATIONS[0]
     : CAMPUS_LOCATIONS[0];
   const activeLocalizedLocation = getLocalizedLocation(activeLocation, lang);
+  const activeShopMapUrl = activeBatch
+    ? activeBatch.shop.gmapUrl ||
+      `https://maps.google.com/?q=${encodeURIComponent(
+        (activeShopInfo?.name || activeBatch.shop.name) + " ระยอง"
+      )}`
+    : "";
 
   const timeProgressPercent = useMemo(() => {
     if (!activeBatch || !timeInfo) return 0;
@@ -1170,12 +1176,7 @@ export default function HomeClient({ initialBatches }: Props) {
                 {/* Open Map to see menu - ALWAYS prominently visible on the shop card! */}
                 <div>
                   <a
-                    href={
-                      activeBatch.shop.gmapUrl ||
-                      `https://maps.google.com/?q=${encodeURIComponent(
-                        (activeShopInfo?.name || activeBatch.shop.name) + " ระยอง"
-                      )}`
-                    }
+                    href={activeShopMapUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1 w-full rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs truncate"
@@ -1187,9 +1188,20 @@ export default function HomeClient({ initialBatches }: Props) {
                 </div>
 
                 {/* When expanded: show shop details */}
-                {isShopExpanded && (activeShopInfo?.description || activeBatch.shop.description) && (
-                  <div className="pt-1.5 mt-1 border-t border-purple-100 text-[9px] sm:text-[10px] text-slate-500 animate-fadeIn">
-                    <p className="line-clamp-2">{activeShopInfo?.description || activeBatch.shop.description}</p>
+                {isShopExpanded && (
+                  <div className="pt-1.5 mt-1 border-t border-purple-100 text-[9px] sm:text-[10px] text-slate-500 animate-fadeIn space-y-1">
+                    {(activeShopInfo?.description || activeBatch.shop.description) && (
+                      <p className="line-clamp-2">{activeShopInfo?.description || activeBatch.shop.description}</p>
+                    )}
+                    <a
+                      href={activeShopMapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-rose-700 font-bold hover:underline"
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span>{t.viewMenuMaps} ↗</span>
+                    </a>
                   </div>
                 )}
               </div>
@@ -1212,8 +1224,21 @@ export default function HomeClient({ initialBatches }: Props) {
                   </h3>
                 </div>
 
-                <div className="text-[9px] sm:text-[10px] text-slate-500 font-medium truncate" title={activeLocalizedLocation.deskDetail}>
-                  {activeLocalizedLocation.deskDetail}
+                <div className="flex items-center justify-between gap-1 text-[9px] sm:text-[10px]">
+                  <span className="text-slate-500 font-medium truncate" title={activeLocalizedLocation.deskDetail}>
+                    {activeLocalizedLocation.deskDetail}
+                  </span>
+                  {activeLocation.mapUrl && (
+                    <a
+                      href={activeLocation.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 text-emerald-700 hover:text-emerald-900 hover:underline font-bold shrink-0"
+                      title={lang === "en" ? "Open drop-off map" : lang === "cn" ? "打开取餐点地图" : "เปิดแผนที่จุดรับข้าว"}
+                    >
+                      <span>{t.dropoffMapShort}</span>
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -1286,6 +1311,55 @@ export default function HomeClient({ initialBatches }: Props) {
               </div>
             ) : (
               <>
+                {/* Prominent Box: Google Maps Restaurant Menu & Food Photos */}
+                <div className="rounded-xl sm:rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50/90 via-orange-50/60 to-amber-50/50 p-3 sm:p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-xs shrink-0">
+                      <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h4 className="font-black text-xs sm:text-sm text-slate-900 leading-tight">
+                          {t.viewMenuBoxTitle}
+                        </h4>
+                        <span className="rounded bg-rose-100 text-rose-800 px-1.5 py-0.2 text-[10px] font-bold">
+                          {lang === "en" ? "Menu & Photos" : lang === "cn" ? "菜单与实拍" : "เมนู & รูปอาหาร"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-snug">
+                        {lang === "en"
+                          ? `Inspect dish photos, prices, and reviews for ${activeShopInfo?.name || activeBatch.shop.name} directly on Google Maps before ordering.`
+                          : lang === "cn"
+                          ? `下单前可直接在地图上查看 ${activeShopInfo?.name || activeBatch.shop.name} 的菜品、价格与顾客评价。`
+                          : `คลิกดูรูปเมนู ราคาอาหารจริง และรีวิวของร้าน ${activeShopInfo?.name || activeBatch.shop.name} บน Google Maps ได้ทันที`}
+                      </p>
+                      {/* Display link to look at menu */}
+                      <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono text-rose-800/80 max-w-full truncate">
+                        <span className="shrink-0 text-slate-400 font-sans font-medium">Link:</span>
+                        <a
+                          href={activeShopMapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate underline hover:text-rose-900"
+                          title={activeShopMapUrl}
+                        >
+                          {activeShopMapUrl}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <a
+                    href={activeShopMapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>{t.viewMenuBoxBtn}</span>
+                  </a>
+                </div>
+
                 {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
                 <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3.5 shadow-2xs space-y-2 sm:space-y-2.5">
                   {/* Bar 1: Price / Order Starter Filling Bar */}
@@ -1515,6 +1589,25 @@ export default function HomeClient({ initialBatches }: Props) {
                     <span>{submitError}</span>
                   </div>
                 )}
+
+                {/* Helpful Menu Helper Box */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2 text-slate-700 min-w-0">
+                    <MapPin className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                    <span className="font-medium text-[11px] sm:text-xs truncate">
+                      {t.orderFormMenuHint}
+                    </span>
+                  </div>
+                  <a
+                    href={activeShopMapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-900 hover:underline text-[11px] sm:text-xs shrink-0"
+                  >
+                    <span>{t.openMenuHintBtn}</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
 
                 <form onSubmit={handleAddToWhiteboard} className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

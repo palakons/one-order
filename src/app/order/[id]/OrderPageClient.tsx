@@ -513,6 +513,11 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     activeOrders.every((o) => Boolean(o.slipImageUrl || o.isSlipVerified));
   const missingSlipOrders = activeOrders.filter((o) => !o.slipImageUrl && !o.isSlipVerified);
 
+  const batchShopMapUrl = batch
+    ? batch.shop.gmapUrl ||
+      `https://maps.google.com/?q=${encodeURIComponent(batch.shop.name + " ระยอง")}`
+    : "";
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
@@ -569,17 +574,15 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
             {/* Quick Actions: Google Maps & PromptPay QR */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {batch.shop.gmapUrl && (
-                <a
-                  href={batch.shop.gmapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-2xs transition-colors"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                  <span>ดูเมนูจาก Maps ↗</span>
-                </a>
-              )}
+              <a
+                href={batchShopMapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-2xs transition-colors"
+              >
+                <MapPin className="h-3.5 w-3.5 text-rose-600" />
+                <span>ดูเมนูจาก Maps ↗</span>
+              </a>
               <button
                 type="button"
                 onClick={() => setShowPromptPayModal(true)}
@@ -673,6 +676,50 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Dedicated Box: Google Maps Restaurant Menu & Food Photos */}
+        <div className="rounded-2xl sm:rounded-3xl border border-rose-200 bg-gradient-to-r from-rose-50/90 via-orange-50/60 to-amber-50/50 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-xs shrink-0">
+              <MapPin className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="font-black text-sm sm:text-base text-slate-900 leading-tight">
+                  เปิดดูเมนูอาหาร & รูปภาพร้านบน Google Maps
+                </h3>
+                <span className="rounded bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
+                  เมนู & รูปอาหาร
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+                คลิกดูรูปเมนู ราคาอาหารจริง และรีวิวของร้าน {batch.shop.name} บน Google Maps ก่อนสั่งได้ที่นี่
+              </p>
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-mono text-rose-800/80 max-w-full truncate">
+                <span className="shrink-0 text-slate-400 font-sans font-medium">Link:</span>
+                <a
+                  href={batchShopMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate underline hover:text-rose-900"
+                  title={batchShopMapUrl}
+                >
+                  {batchShopMapUrl}
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <a
+            href={batchShopMapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 text-xs sm:text-sm font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span>เปิดแผนที่ดูเมนูอาหาร ↗</span>
+          </a>
         </div>
 
         {/* 2. The Digital Whiteboard List */}
@@ -803,6 +850,25 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <span>{submitError}</span>
               </div>
             )}
+
+            {/* Menu helper box inside order form */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-2xl border border-rose-200 bg-rose-50/60 px-3.5 py-2.5 text-xs">
+              <div className="flex items-center gap-2 text-slate-700 min-w-0">
+                <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
+                <span className="font-medium text-xs truncate">
+                  ยังไม่แน่ใจว่าจะสั่งอะไร? ดูรูปเมนูและราคาจริงจากร้านบน Google Maps ได้ที่นี่:
+                </span>
+              </div>
+              <a
+                href={batchShopMapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-900 hover:underline text-xs shrink-0"
+              >
+                <span>เปิดดูเมนูบน Google Maps ↗</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
 
             <form onSubmit={handleAddToWhiteboard} className="space-y-4">
               {/* Row 1: LINE ID & Phone Number */}

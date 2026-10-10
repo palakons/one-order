@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { MapPin, ShoppingBag, MessageSquareHeart, Globe, ChevronDown } from "lucide-react";
-import CampusDesksModal from "./CampusDesksModal";
+import { ShoppingBag, MessageSquareHeart, Globe, ChevronDown } from "lucide-react";
 import SuggestionModal from "./SuggestionModal";
 import VeatecLogo from "./VeatecLogo";
 import { useLanguage, Language } from "@/lib/i18n";
@@ -15,7 +14,6 @@ const LANG_OPTIONS: { code: Language; label: string; flag: string; short: string
 ];
 
 export default function Navbar() {
-  const [showDesks, setShowDesks] = useState(false);
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const { lang, setLang, t } = useLanguage();
@@ -102,22 +100,10 @@ export default function Navbar() {
               <ShoppingBag className="h-3.5 w-3.5 text-purple-700 shrink-0" />
               <span className="hidden sm:inline">{t.myOrders}</span>
             </Link>
-
-            {/* Campus Desks */}
-            <button
-              onClick={() => setShowDesks(true)}
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 sm:px-2 sm:py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-              title={t.dropoffLocation}
-              aria-label={t.dropoffLocation}
-            >
-              <MapPin className="h-3.5 w-3.5 text-orange-600 shrink-0" />
-              <span className="hidden sm:inline">{t.dropoffShort}</span>
-            </button>
           </div>
         </div>
       </header>
 
-      {showDesks && <CampusDesksModal onClose={() => setShowDesks(false)} />}
       {showSuggestion && <SuggestionModal onClose={() => setShowSuggestion(false)} />}
     </>
   );
