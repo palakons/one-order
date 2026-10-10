@@ -22,14 +22,31 @@ interface DatabaseSchema {
   locations?: DeliveryLocation[];
 }
 
+export interface StoredMetrics {
+  readsToday: number;
+  writesToday: number;
+  deletesToday: number;
+  lastResetPeriod: string;
+  lastSuccessIso?: string;
+  lastErrorIso?: string;
+  lastErrorMessage?: string;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var __VEATEC_MEMORY_DB__: DatabaseSchema | undefined;
+  // eslint-disable-next-line no-var
+  var __VEATEC_METRICS__: StoredMetrics | undefined;
 }
 
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const DATA_DIR = isServerless ? "/tmp" : path.join(process.cwd(), "src", "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
+const METRICS_FILE = path.join(DATA_DIR, "metrics.json");
+
+export const MAX_DAILY_READS = 50000;
+export const MAX_DAILY_WRITES = 20000;
+export const MAX_DAILY_DELETES = 20000;
 
 const SEED_DATA: DatabaseSchema = {
   shops: [
@@ -352,22 +369,209 @@ async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
 }
 
 // -------------------------------------------------------------
-// System & Firebase Health Diagnostics
+// System & Firebase Health Diagnostics & Quota Tracker
 // -------------------------------------------------------------
 export type FirebaseSeverity = "normal" | "warning" | "interrupted";
+
+export interface QuotaMetrics {
+  readsToday: number;
+  writesToday: number;
+  deletesToday: number;
+  maxDailyReads: number;
+  maxDailyWrites: number;
+  maxDailyDeletes: number;
+  readsPercentage: number;
+  writesPercentage: number;
+  deletesPercentage: number;
+  lastResetPeriod: string;
+  nextResetIso: string;
+  timeUntilReset: string;
+  lastSuccessIso?: string;
+  lastErrorIso?: string;
+  lastErrorMessage?: string;
+}
+
+export interface FallbackStorageState {
+  storageFile: string;
+  isServerless: boolean;
+  fileExists: boolean;
+  fileSizeBytes: number;
+  fileSizeFormatted: string;
+  inMemoryLoaded: boolean;
+  counts: {
+    shops: number;
+    batches: number;
+    openBatches: number;
+    orders: number;
+    suggestions: number;
+    locations: number;
+  };
+  lastModifiedIso?: string;
+}
 
 export interface SystemStatus {
   firebaseConfigured: boolean;
   severity: FirebaseSeverity;
   quotaExhausted: boolean;
   fallbackMode: boolean;
+  activeStorageEngine: "firestore" | "fallback_local";
   lastError?: string;
   resetTimeInfo: string;
+  metrics: QuotaMetrics;
+  fallbackState: FallbackStorageState;
 }
 
 let lastSystemSeverity: FirebaseSeverity = "normal";
 let lastQuotaExhausted = false;
 let lastErrorMessage: string | null = null;
+
+function getPacificDateString(date = new Date()): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const y = parts.find((p) => p.type === "year")?.value || "";
+    const m = parts.find((p) => p.type === "month")?.value || "";
+    const d = parts.find((p) => p.type === "day")?.value || "";
+    return `${y}-${m}-${d}`;
+  } catch {
+    return date.toISOString().split("T")[0];
+  }
+}
+
+function calculateNextResetInfo(): { nextResetIso: string; timeUntilReset: string } {
+  const now = new Date();
+  const bkkFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+  const parts = bkkFormatter.formatToParts(now);
+  const year = parseInt(parts.find((p) => p.type === "year")?.value || "2026", 10);
+  const month = parseInt(parts.find((p) => p.type === "month")?.value || "1", 10) - 1;
+  const day = parseInt(parts.find((p) => p.type === "day")?.value || "1", 10);
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+
+  let targetDay = day;
+  if (hour >= 15) {
+    targetDay += 1;
+  }
+
+  // 15:00 Bangkok (UTC+7) is 08:00 UTC
+  const targetDate = new Date(Date.UTC(year, month, targetDay, 8, 0, 0));
+  const diffMs = Math.max(0, targetDate.getTime() - now.getTime());
+  const hoursLeft = Math.floor(diffMs / 3600000);
+  const minsLeft = Math.floor((diffMs % 3600000) / 60000);
+
+  return {
+    nextResetIso: targetDate.toISOString(),
+    timeUntilReset: `${hoursLeft} ชม. ${minsLeft} นาที`,
+  };
+}
+
+async function loadStoredMetrics(): Promise<StoredMetrics> {
+  const currentPeriod = getPacificDateString();
+  if (globalThis.__VEATEC_METRICS__) {
+    if (globalThis.__VEATEC_METRICS__.lastResetPeriod !== currentPeriod) {
+      globalThis.__VEATEC_METRICS__.readsToday = 0;
+      globalThis.__VEATEC_METRICS__.writesToday = 0;
+      globalThis.__VEATEC_METRICS__.deletesToday = 0;
+      globalThis.__VEATEC_METRICS__.lastResetPeriod = currentPeriod;
+      saveStoredMetrics(globalThis.__VEATEC_METRICS__).catch(() => {});
+    }
+    return globalThis.__VEATEC_METRICS__;
+  }
+
+  try {
+    const raw = await fs.readFile(METRICS_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as StoredMetrics;
+    if (parsed.lastResetPeriod !== currentPeriod) {
+      parsed.readsToday = 0;
+      parsed.writesToday = 0;
+      parsed.deletesToday = 0;
+      parsed.lastResetPeriod = currentPeriod;
+      saveStoredMetrics(parsed).catch(() => {});
+    }
+    globalThis.__VEATEC_METRICS__ = parsed;
+    return parsed;
+  } catch {
+    const fresh: StoredMetrics = {
+      readsToday: 0,
+      writesToday: 0,
+      deletesToday: 0,
+      lastResetPeriod: currentPeriod,
+    };
+    globalThis.__VEATEC_METRICS__ = fresh;
+    saveStoredMetrics(fresh).catch(() => {});
+    return fresh;
+  }
+}
+
+async function saveStoredMetrics(m: StoredMetrics): Promise<void> {
+  globalThis.__VEATEC_METRICS__ = m;
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(METRICS_FILE, JSON.stringify(m, null, 2), "utf-8");
+  } catch {
+    // serverless safe
+  }
+}
+
+export function recordFirestoreOp(op: "read" | "write" | "delete", count = 1) {
+  const currentPeriod = getPacificDateString();
+  if (!globalThis.__VEATEC_METRICS__) {
+    globalThis.__VEATEC_METRICS__ = {
+      readsToday: 0,
+      writesToday: 0,
+      deletesToday: 0,
+      lastResetPeriod: currentPeriod,
+    };
+  }
+
+  const m = globalThis.__VEATEC_METRICS__;
+  if (m.lastResetPeriod !== currentPeriod) {
+    m.readsToday = 0;
+    m.writesToday = 0;
+    m.deletesToday = 0;
+    m.lastResetPeriod = currentPeriod;
+  }
+
+  if (op === "read") m.readsToday += count;
+  if (op === "write") m.writesToday += count;
+  if (op === "delete") m.deletesToday += count;
+  m.lastSuccessIso = new Date().toISOString();
+
+  saveStoredMetrics(m).catch(() => {});
+}
+
+export async function resetQuotaMetrics(): Promise<void> {
+  const currentPeriod = getPacificDateString();
+  const fresh: StoredMetrics = {
+    readsToday: 0,
+    writesToday: 0,
+    deletesToday: 0,
+    lastResetPeriod: currentPeriod,
+    lastSuccessIso: new Date().toISOString(),
+  };
+  globalThis.__VEATEC_METRICS__ = fresh;
+  await saveStoredMetrics(fresh);
+}
+
+export function onFirestoreSuccess() {
+  if (lastQuotaExhausted) {
+    lastQuotaExhausted = false;
+    lastSystemSeverity = "normal";
+    lastErrorMessage = null;
+  }
+}
 
 export function recordFirestoreError(err: any) {
   const errMsg = String(err?.message || err || "");
@@ -382,47 +586,238 @@ export function recordFirestoreError(err: any) {
     lastSystemSeverity = "warning";
   }
   lastErrorMessage = errMsg;
+
+  if (globalThis.__VEATEC_METRICS__) {
+    globalThis.__VEATEC_METRICS__.lastErrorIso = new Date().toISOString();
+    globalThis.__VEATEC_METRICS__.lastErrorMessage = errMsg;
+    saveStoredMetrics(globalThis.__VEATEC_METRICS__).catch(() => {});
+  }
 }
 
-export function resetSystemQuota(): SystemStatus {
+export async function getQuotaMetrics(): Promise<QuotaMetrics> {
+  const stored = await loadStoredMetrics();
+  const resetInfo = calculateNextResetInfo();
+
+  const readsPercentage = Math.min(100, Number(((stored.readsToday / MAX_DAILY_READS) * 100).toFixed(2)));
+  const writesPercentage = Math.min(100, Number(((stored.writesToday / MAX_DAILY_WRITES) * 100).toFixed(2)));
+  const deletesPercentage = Math.min(100, Number(((stored.deletesToday / MAX_DAILY_DELETES) * 100).toFixed(2)));
+
+  return {
+    readsToday: stored.readsToday,
+    writesToday: stored.writesToday,
+    deletesToday: stored.deletesToday,
+    maxDailyReads: MAX_DAILY_READS,
+    maxDailyWrites: MAX_DAILY_WRITES,
+    maxDailyDeletes: MAX_DAILY_DELETES,
+    readsPercentage,
+    writesPercentage,
+    deletesPercentage,
+    lastResetPeriod: stored.lastResetPeriod,
+    nextResetIso: resetInfo.nextResetIso,
+    timeUntilReset: resetInfo.timeUntilReset,
+    lastSuccessIso: stored.lastSuccessIso,
+    lastErrorIso: stored.lastErrorIso,
+    lastErrorMessage: stored.lastErrorMessage,
+  };
+}
+
+export async function getFallbackStorageState(): Promise<FallbackStorageState> {
+  const data = await ensureDataFile();
+  let fileExists = false;
+  let fileSizeBytes = 0;
+  let lastModifiedIso: string | undefined = undefined;
+
+  try {
+    const st = await fs.stat(DATA_FILE);
+    fileExists = true;
+    fileSizeBytes = st.size;
+    lastModifiedIso = st.mtime.toISOString();
+  } catch {
+    fileExists = false;
+  }
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return {
+    storageFile: DATA_FILE,
+    isServerless,
+    fileExists,
+    fileSizeBytes,
+    fileSizeFormatted: formatSize(fileSizeBytes),
+    inMemoryLoaded: Boolean(globalThis.__VEATEC_MEMORY_DB__),
+    counts: {
+      shops: data.shops?.length || 0,
+      batches: data.batches?.length || 0,
+      openBatches: data.batches?.filter((b) => b.status === "OPEN" && !b.isDeleted).length || 0,
+      orders: data.orders?.length || 0,
+      suggestions: data.suggestions?.length || 0,
+      locations: data.locations?.length || CAMPUS_LOCATIONS.length,
+    },
+    lastModifiedIso,
+  };
+}
+
+export async function getFallbackDatabase(): Promise<DatabaseSchema> {
+  return await ensureDataFile();
+}
+
+// -------------------------------------------------------------
+// Tracked Firestore Call Wrappers
+// -------------------------------------------------------------
+async function trackedGetDocs(q: any, timeoutMs = 2500) {
+  try {
+    const snap = await withTimeout(getDocs(q), timeoutMs);
+    const readCount = Math.max(1, snap.docs.length);
+    recordFirestoreOp("read", readCount);
+    onFirestoreSuccess();
+    return snap;
+  } catch (err) {
+    recordFirestoreError(err);
+    throw err;
+  }
+}
+
+async function trackedGetDoc(ref: any, timeoutMs = 2000) {
+  try {
+    const snap = await withTimeout(getDoc(ref), timeoutMs);
+    recordFirestoreOp("read", 1);
+    onFirestoreSuccess();
+    return snap;
+  } catch (err) {
+    recordFirestoreError(err);
+    throw err;
+  }
+}
+
+async function trackedSetDoc(ref: any, data: any, options?: any, timeoutMs = 2500) {
+  try {
+    const result = options
+      ? await withTimeout(setDoc(ref, data, options), timeoutMs)
+      : await withTimeout(setDoc(ref, data), timeoutMs);
+    recordFirestoreOp("write", 1);
+    onFirestoreSuccess();
+    return result;
+  } catch (err) {
+    recordFirestoreError(err);
+    throw err;
+  }
+}
+
+async function trackedUpdateDoc(ref: any, data: any, timeoutMs = 2500) {
+  try {
+    const result = await withTimeout(updateDoc(ref, data), timeoutMs);
+    recordFirestoreOp("write", 1);
+    onFirestoreSuccess();
+    return result;
+  } catch (err) {
+    recordFirestoreError(err);
+    throw err;
+  }
+}
+
+async function trackedDeleteDoc(ref: any, timeoutMs = 2500) {
+  try {
+    const result = await withTimeout(deleteDoc(ref), timeoutMs);
+    recordFirestoreOp("delete", 1);
+    onFirestoreSuccess();
+    return result;
+  } catch (err) {
+    recordFirestoreError(err);
+    throw err;
+  }
+}
+
+export async function syncFirestoreToFallback(): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  counts?: FallbackStorageState["counts"];
+}> {
+  if (!isFirebaseConfigured || !db) {
+    return { success: false, error: "ไม่ได้ตั้งค่า Firebase" };
+  }
+
+  try {
+    const [shopsSnap, batchesSnap, ordersSnap, locsSnap, suggsSnap] = await Promise.all([
+      trackedGetDocs(collection(db, "shops")),
+      trackedGetDocs(collection(db, "batches")),
+      trackedGetDocs(collection(db, "orders")),
+      trackedGetDocs(collection(db, "locations")).catch(() => ({ docs: [] } as any)),
+      trackedGetDocs(collection(db, "suggestions")).catch(() => ({ docs: [] } as any)),
+    ]);
+
+    const schema: DatabaseSchema = {
+      shops: shopsSnap.docs.map((d: any) => d.data() as Shop),
+      batches: batchesSnap.docs.map((d: any) => d.data() as Batch),
+      orders: ordersSnap.docs.map((d: any) => d.data() as Order),
+      locations: locsSnap.docs.map((d: any) => d.data() as DeliveryLocation),
+      suggestions: suggsSnap.docs.map((d: any) => d.data() as Suggestion),
+    };
+
+    if (!schema.locations || schema.locations.length === 0) {
+      schema.locations = [...CAMPUS_LOCATIONS];
+    }
+
+    await writeData(schema);
+    const fbState = await getFallbackStorageState();
+
+    return {
+      success: true,
+      message: "ซิงค์ข้อมูลจาก Firestore ลง Fallback Cache เรียบร้อยแล้ว",
+      counts: fbState.counts,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `ซิงค์ล้มเหลว: ${err?.message || String(err)}`,
+    };
+  }
+}
+
+export async function resetSystemQuota(): Promise<SystemStatus> {
   lastSystemSeverity = "normal";
   lastQuotaExhausted = false;
   lastErrorMessage = null;
-  return getSystemStatus();
+  return await getSystemStatus();
 }
 
-export function getSystemStatus(): SystemStatus {
+export async function getSystemStatus(): Promise<SystemStatus> {
+  const metrics = await getQuotaMetrics();
+  const fallbackState = await getFallbackStorageState();
+  const fallbackMode = lastQuotaExhausted || !isFirebaseConfigured;
+
   return {
     firebaseConfigured: isFirebaseConfigured,
     severity: isFirebaseConfigured ? lastSystemSeverity : "normal",
     quotaExhausted: lastQuotaExhausted,
-    fallbackMode: lastQuotaExhausted || !isFirebaseConfigured,
+    fallbackMode,
+    activeStorageEngine: fallbackMode ? "fallback_local" : "firestore",
     lastError: lastErrorMessage || undefined,
-    resetTimeInfo: "15:00 น. ICT (00:00 PST)",
+    resetTimeInfo: "ทุกวันเวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)",
+    metrics,
+    fallbackState,
   };
 }
 
 export async function checkFirestoreHealth(): Promise<SystemStatus> {
   if (!isFirebaseConfigured || !db) {
-    return {
-      firebaseConfigured: false,
-      severity: "normal",
-      quotaExhausted: false,
-      fallbackMode: true,
-      resetTimeInfo: "15:00 น. ICT (00:00 PST)",
-    };
+    return await getSystemStatus();
   }
 
   try {
-    await withTimeout(getDocs(collection(db, "shops")), 2500);
-    // Probe succeeded without error - clear quota exhausted flag
+    await trackedGetDocs(collection(db, "shops"), 2500);
     lastSystemSeverity = "normal";
     lastQuotaExhausted = false;
     lastErrorMessage = null;
-    return getSystemStatus();
+    return await getSystemStatus();
   } catch (err: any) {
     recordFirestoreError(err);
-    return getSystemStatus();
+    return await getSystemStatus();
   }
 }
 
@@ -432,14 +827,14 @@ export async function ensureFirestoreSeeded(): Promise<void> {
   const firestore = db;
   hasAttemptedSeed = true;
   try {
-    const testSnap = await withTimeout(getDocs(collection(firestore, "shops")), 2000);
+    const testSnap = await trackedGetDocs(collection(firestore, "shops"), 2000);
     if (testSnap.empty) {
       await Promise.all([
         ...SEED_DATA.shops.map((shop) =>
-          withTimeout(setDoc(doc(firestore, "shops", shop.id), cleanForFirestore(shop), { merge: true }), 3000)
+          trackedSetDoc(doc(firestore, "shops", shop.id), cleanForFirestore(shop), { merge: true }, 3000)
         ),
         ...SEED_DATA.batches.map((batch) =>
-          withTimeout(setDoc(doc(firestore, "batches", batch.id), cleanForFirestore(batch), { merge: true }), 3000)
+          trackedSetDoc(doc(firestore, "batches", batch.id), cleanForFirestore(batch), { merge: true }, 3000)
         ),
       ]);
     }
@@ -454,7 +849,7 @@ export async function ensureFirestoreSeeded(): Promise<void> {
 export async function getShops(): Promise<Shop[]> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDocs(collection(db, "shops")), 2000);
+      const snap = await trackedGetDocs(collection(db, "shops"), 2000);
       if (!snap.empty) {
         return snap.docs.map((d) => d.data() as Shop);
       }
@@ -470,7 +865,7 @@ export async function getShops(): Promise<Shop[]> {
 export async function getShopById(id: string): Promise<Shop | undefined> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, "shops", id)), 2000);
+      const snap = await trackedGetDoc(doc(db, "shops", id), 2000);
       if (snap.exists()) return snap.data() as Shop;
     } catch (err) {
       console.warn("Firestore getShopById failed, using local fallback:", err);
@@ -484,7 +879,7 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
 export async function saveShop(shop: Shop): Promise<Shop> {
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(setDoc(doc(db, "shops", shop.id), cleanForFirestore(shop)), 2500);
+      await trackedSetDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), undefined, 2500);
       return shop;
     } catch (err) {
       console.warn("Firestore saveShop failed, using local fallback:", err);
@@ -505,7 +900,7 @@ export async function saveShop(shop: Shop): Promise<Shop> {
 export async function deleteShop(id: string): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(deleteDoc(doc(db, "shops", id)), 2500);
+      await trackedDeleteDoc(doc(db, "shops", id), 2500);
     } catch (err) {
       console.warn("Firestore deleteShop failed:", err);
     }
@@ -524,7 +919,7 @@ export async function deleteShop(id: string): Promise<boolean> {
 export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDocs(collection(db, "locations")), 2500);
+      const snap = await trackedGetDocs(collection(db, "locations"), 2500);
       if (!snap.empty) {
         return snap.docs.map((d) => d.data() as DeliveryLocation);
       }
@@ -543,7 +938,7 @@ export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
 export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<DeliveryLocation> {
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(setDoc(doc(db, "locations", loc.id), cleanForFirestore(loc)), 2500);
+      await trackedSetDoc(doc(db, "locations", loc.id), cleanForFirestore(loc), undefined, 2500);
     } catch (err) {
       console.warn("Firestore saveDeliveryLocation failed:", err);
     }
@@ -566,7 +961,7 @@ export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<Deliv
 export async function deleteDeliveryLocation(id: string): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(deleteDoc(doc(db, "locations", id)), 2500);
+      await trackedDeleteDoc(doc(db, "locations", id), 2500);
     } catch (err) {
       console.warn("Firestore deleteDeliveryLocation failed:", err);
     }
@@ -612,14 +1007,11 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
 
   if (isFirebaseConfigured && db) {
     try {
-      const [batchesSnap, ordersSnap, shopsSnap] = await withTimeout(
-        Promise.all([
-          getDocs(collection(db, "batches")),
-          getDocs(collection(db, "orders")),
-          getDocs(collection(db, "shops")),
-        ]),
-        2500
-      );
+      const [batchesSnap, ordersSnap, shopsSnap] = await Promise.all([
+        trackedGetDocs(collection(db, "batches")),
+        trackedGetDocs(collection(db, "orders")),
+        trackedGetDocs(collection(db, "shops")),
+      ]);
 
       if (!batchesSnap.empty) {
         const batches = batchesSnap.docs.map((d) => d.data() as Batch);
@@ -633,7 +1025,7 @@ export async function getBatches(sanitize = true): Promise<BatchWithDetails[]> {
           if (diff > 7 && !b.isDeleted) {
             b.isDeleted = true;
             b.deletedAt = new Date().toISOString();
-            updateDoc(doc(db, "batches", b.id), {
+            trackedUpdateDoc(doc(db, "batches", b.id), {
               isDeleted: true,
               deletedAt: b.deletedAt,
             }).catch((err) => console.warn("Failed to mark batch deleted in Firestore:", err));
@@ -675,16 +1067,13 @@ export async function getBatchById(id: string, sanitize = false): Promise<BatchW
 
   if (isFirebaseConfigured && db) {
     try {
-      const batchSnap = await withTimeout(getDoc(doc(db, "batches", id)), 2000);
+      const batchSnap = await trackedGetDoc(doc(db, "batches", id), 2000);
       if (batchSnap.exists()) {
         const batch = batchSnap.data() as Batch;
-        const [ordersSnap, shopsSnap] = await withTimeout(
-          Promise.all([
-            getDocs(collection(db, "orders")),
-            getDocs(collection(db, "shops")),
-          ]),
-          2000
-        );
+        const [ordersSnap, shopsSnap] = await Promise.all([
+          trackedGetDocs(collection(db, "orders")),
+          trackedGetDocs(collection(db, "shops")),
+        ]);
         const orders = ordersSnap.docs
           .map((d) => d.data() as Order)
           .filter((o) => o.batchId === id);
@@ -816,7 +1205,7 @@ export async function createBatch(batchData: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(setDoc(doc(db, "batches", id), cleanForFirestore(newBatch)), 2500);
+      await trackedSetDoc(doc(db, "batches", id), cleanForFirestore(newBatch), undefined, 2500);
       const shops = await getShops();
       return enrichBatchFromData(newBatch, shops, []);
     } catch (err) {
@@ -854,7 +1243,7 @@ export async function updateBatchStatus(
 
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(updateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload)), 2500);
+      await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload), 2500);
       return getBatchById(batchId);
     } catch (err) {
       console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
@@ -901,7 +1290,7 @@ export async function createOrder(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDocs(collection(db, "orders")), 2000);
+      const snap = await trackedGetDocs(collection(db, "orders"), 2000);
       existingOrders = snap.docs
         .map((d) => d.data() as Order)
         .filter((o) => o.batchId === input.batchId && !o.deletedAt);
@@ -947,7 +1336,7 @@ export async function createOrder(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(setDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder)), 2500);
+      await trackedSetDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder), undefined, 2500);
       return newOrder;
     } catch (err) {
       console.error("Firestore createOrder failed, using local fallback:", err);
@@ -968,13 +1357,14 @@ export async function deleteOrder(
   if (isFirebaseConfigured && db) {
     try {
       const orderRef = doc(db, "orders", orderId);
-      const snap = await withTimeout(getDoc(orderRef), 2000);
+      const snap = await trackedGetDoc(orderRef, 2000);
       if (snap.exists()) {
-        await withTimeout(
-          updateDoc(orderRef, {
+        await trackedUpdateDoc(
+          orderRef,
+          {
             deletedAt: new Date().toISOString(),
             deletedReason: `${reason} (by ${by})`,
-          }),
+          },
           2500
         );
         return true;
@@ -998,7 +1388,7 @@ export async function deleteOrder(
 export async function getSuggestions(): Promise<Suggestion[]> {
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDocs(collection(db, "suggestions")), 2000);
+      const snap = await trackedGetDocs(collection(db, "suggestions"), 2000);
       const list = snap.docs.map((d) => d.data() as Suggestion);
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (err) {
@@ -1030,7 +1420,7 @@ export async function createSuggestion(input: {
 
   if (isFirebaseConfigured && db) {
     try {
-      await withTimeout(setDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion)), 2500);
+      await trackedSetDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion), undefined, 2500);
       return newSuggestion;
     } catch (err) {
       console.error("Firestore createSuggestion failed, using local fallback:", err);
@@ -1047,8 +1437,7 @@ export async function createSuggestion(input: {
 export async function deleteSuggestion(id: string): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
-      const { deleteDoc } = await import("firebase/firestore");
-      await withTimeout(deleteDoc(doc(db, "suggestions", id)), 2500);
+      await trackedDeleteDoc(doc(db, "suggestions", id), 2500);
       return true;
     } catch (err) {
       console.warn("Firestore deleteSuggestion failed:", err);
@@ -1074,15 +1463,15 @@ export async function getActiveLineGroupIds(): Promise<string[]> {
 
   if (isFirebaseConfigured && db) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, "system", "line_config")), 2000);
+      const snap = await trackedGetDoc(doc(db, "system", "line_config"), 2000);
       if (snap.exists()) {
-        const data = snap.data();
-        if (Array.isArray(data.groupIds)) {
+        const data = snap.data() as any;
+        if (Array.isArray(data?.groupIds)) {
           data.groupIds.forEach((id: string) => {
             if (typeof id === "string" && id.trim()) groups.add(id.trim());
           });
         }
-        if (typeof data.activeGroupId === "string" && data.activeGroupId.trim()) {
+        if (typeof data?.activeGroupId === "string" && data.activeGroupId.trim()) {
           groups.add(data.activeGroupId.trim());
         }
       }
@@ -1101,19 +1490,17 @@ export async function saveActiveLineGroupId(groupId: string): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
       const ref = doc(db, "system", "line_config");
-      const snap = await withTimeout(getDoc(ref), 2000);
-      const existing: string[] = snap.exists() ? (snap.data().groupIds || []) : [];
+      const snap = await trackedGetDoc(ref, 2000);
+      const existing: string[] = snap.exists() ? ((snap.data() as any)?.groupIds || []) : [];
       const updated = Array.from(new Set([...existing, cleanId]));
-      await withTimeout(
-        setDoc(
-          ref,
-          {
-            activeGroupId: cleanId,
-            groupIds: updated,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        ),
+      await trackedSetDoc(
+        ref,
+        {
+          activeGroupId: cleanId,
+          groupIds: updated,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
         2500
       );
     } catch (err) {
@@ -1129,19 +1516,17 @@ export async function removeActiveLineGroupId(groupId: string): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
       const ref = doc(db, "system", "line_config");
-      const snap = await withTimeout(getDoc(ref), 2000);
-      const existing: string[] = snap.exists() ? (snap.data().groupIds || []) : [];
+      const snap = await trackedGetDoc(ref, 2000);
+      const existing: string[] = snap.exists() ? ((snap.data() as any)?.groupIds || []) : [];
       const updated = existing.filter((id) => id !== cleanId);
-      await withTimeout(
-        setDoc(
-          ref,
-          {
-            activeGroupId: updated[0] || "",
-            groupIds: updated,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        ),
+      await trackedSetDoc(
+        ref,
+        {
+          activeGroupId: updated[0] || "",
+          groupIds: updated,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
         2500
       );
     } catch (err) {

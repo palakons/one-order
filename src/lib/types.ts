@@ -98,3 +98,53 @@ export interface Suggestion {
   status?: "NEW" | "REVIEWED" | "RESOLVED";
 }
 
+export type FirebaseSeverity = "normal" | "warning" | "interrupted";
+
+export interface QuotaMetrics {
+  readsToday: number;
+  writesToday: number;
+  deletesToday: number;
+  maxDailyReads: number;
+  maxDailyWrites: number;
+  maxDailyDeletes: number;
+  readsPercentage: number;
+  writesPercentage: number;
+  deletesPercentage: number;
+  lastResetPeriod: string;
+  nextResetIso: string;
+  timeUntilReset: string;
+  lastSuccessIso?: string;
+  lastErrorIso?: string;
+  lastErrorMessage?: string;
+}
+
+export interface FallbackStorageState {
+  storageFile: string;
+  isServerless: boolean;
+  fileExists: boolean;
+  fileSizeBytes: number;
+  fileSizeFormatted: string;
+  inMemoryLoaded: boolean;
+  counts: {
+    shops: number;
+    batches: number;
+    openBatches: number;
+    orders: number;
+    suggestions: number;
+    locations: number;
+  };
+  lastModifiedIso?: string;
+}
+
+export interface SystemStatus {
+  firebaseConfigured: boolean;
+  severity: FirebaseSeverity;
+  quotaExhausted: boolean;
+  fallbackMode: boolean;
+  activeStorageEngine: "firestore" | "fallback_local";
+  lastError?: string;
+  resetTimeInfo: string;
+  metrics: QuotaMetrics;
+  fallbackState: FallbackStorageState;
+}
+

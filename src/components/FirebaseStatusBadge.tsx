@@ -10,16 +10,46 @@ import {
   ShieldCheck,
   Zap,
 } from "lucide-react";
-import { FirebaseSeverity, SystemStatus } from "@/lib/store";
+import { FirebaseSeverity, SystemStatus } from "@/lib/types";
 
 export default function FirebaseStatusBadge() {
   const [status, setStatus] = useState<SystemStatus>({
     firebaseConfigured: true,
-    severity: "interrupted", // Default to current quota-exhausted state
-    quotaExhausted: true,
-    fallbackMode: true,
-    resetTimeInfo: "15:00 น. ICT (00:00 PST)",
-    lastError: "RESOURCE_EXHAUSTED: Quota exceeded (Daily Spark free tier write limit reached)",
+    severity: "normal",
+    quotaExhausted: false,
+    fallbackMode: false,
+    activeStorageEngine: "firestore",
+    resetTimeInfo: "ทุกวันเวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)",
+    metrics: {
+      readsToday: 0,
+      writesToday: 0,
+      deletesToday: 0,
+      maxDailyReads: 50000,
+      maxDailyWrites: 20000,
+      maxDailyDeletes: 20000,
+      readsPercentage: 0,
+      writesPercentage: 0,
+      deletesPercentage: 0,
+      lastResetPeriod: "",
+      nextResetIso: "",
+      timeUntilReset: "",
+    },
+    fallbackState: {
+      storageFile: "src/data/store.json",
+      isServerless: false,
+      fileExists: true,
+      fileSizeBytes: 0,
+      fileSizeFormatted: "0 B",
+      inMemoryLoaded: true,
+      counts: {
+        shops: 5,
+        batches: 0,
+        openBatches: 0,
+        orders: 0,
+        suggestions: 0,
+        locations: 1,
+      },
+    },
   });
 
   const [showModal, setShowModal] = useState(false);

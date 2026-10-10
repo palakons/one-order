@@ -1,17 +1,25 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { getBatches, getShops, getDeliveryLocations } from "@/lib/store";
+import { getBatches, getShops, getDeliveryLocations, getSystemStatus } from "@/lib/store";
 import AdminClient from "./AdminClient";
 
 async function AdminDataLoader() {
   await connection();
   try {
-    const [batches, shops, locations] = await Promise.all([
+    const [batches, shops, locations, systemStatus] = await Promise.all([
       getBatches(),
       getShops(),
       getDeliveryLocations(),
+      getSystemStatus(),
     ]);
-    return <AdminClient initialBatches={batches} initialShops={shops} initialLocations={locations} />;
+    return (
+      <AdminClient
+        initialBatches={batches}
+        initialShops={shops}
+        initialLocations={locations}
+        initialSystemStatus={systemStatus}
+      />
+    );
   } catch (err) {
     console.error("AdminDataLoader error:", err);
     return <AdminClient initialBatches={[]} initialShops={[]} initialLocations={[]} />;

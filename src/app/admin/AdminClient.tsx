@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BatchWithDetails, Shop, Suggestion } from "@/lib/types";
+import {
+  BatchWithDetails,
+  Shop,
+  Suggestion,
+  SystemStatus,
+  QuotaMetrics,
+  FallbackStorageState,
+} from "@/lib/types";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
   ChefHat,
@@ -34,6 +41,11 @@ import {
   Send,
   X,
   Upload,
+  HardDrive,
+  FileJson,
+  Download,
+  Activity,
+  Server,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -42,12 +54,14 @@ interface Props {
   initialBatches: BatchWithDetails[];
   initialShops: Shop[];
   initialLocations?: DeliveryLocation[];
+  initialSystemStatus?: SystemStatus;
 }
 
 export default function AdminClient({
   initialBatches,
   initialShops,
   initialLocations,
+  initialSystemStatus,
 }: Props) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState("");
@@ -82,23 +96,50 @@ export default function AdminClient({
   const [manualGroupId, setManualGroupId] = useState("");
   const [addingGroupId, setAddingGroupId] = useState(false);
 
-  // System & Firebase Health Diagnostics State
-  const [systemStatus, setSystemStatus] = useState<{
-    firebaseConfigured: boolean;
-    severity: "normal" | "warning" | "interrupted";
-    quotaExhausted: boolean;
-    fallbackMode: boolean;
-    lastError?: string;
-    resetTimeInfo: string;
-  }>({
-    firebaseConfigured: isFirebaseConfigured,
-    severity: "normal",
-    quotaExhausted: false,
-    fallbackMode: !isFirebaseConfigured,
-    lastError: undefined,
-    resetTimeInfo: "15:00 น. ICT (00:00 PST)",
-  });
+  // System, Firebase & Fallback Storage State
+  const [systemStatus, setSystemStatus] = useState<SystemStatus>(
+    initialSystemStatus || {
+      firebaseConfigured: isFirebaseConfigured,
+      severity: "normal",
+      quotaExhausted: false,
+      fallbackMode: !isFirebaseConfigured,
+      activeStorageEngine: isFirebaseConfigured ? "firestore" : "fallback_local",
+      lastError: undefined,
+      resetTimeInfo: "ทุกวันเวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)",
+      metrics: {
+        readsToday: 0,
+        writesToday: 0,
+        deletesToday: 0,
+        maxDailyReads: 50000,
+        maxDailyWrites: 20000,
+        maxDailyDeletes: 20000,
+        readsPercentage: 0,
+        writesPercentage: 0,
+        deletesPercentage: 0,
+        lastResetPeriod: "",
+        nextResetIso: "",
+        timeUntilReset: "",
+      },
+      fallbackState: {
+        storageFile: "src/data/store.json",
+        isServerless: false,
+        fileExists: true,
+        fileSizeBytes: 0,
+        fileSizeFormatted: "0 B",
+        inMemoryLoaded: true,
+        counts: {
+          shops: initialShops.length,
+          batches: initialBatches.length,
+          openBatches: initialBatches.filter((b) => b.status === "OPEN" && !b.isDeleted).length,
+          orders: initialBatches.reduce((acc, b) => acc + (b.orders?.length || 0), 0),
+          suggestions: 0,
+          locations: initialLocations?.length || CAMPUS_LOCATIONS.length,
+        },
+      },
+    }
+  );
   const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [syncingFallback, setSyncingFallback] = useState(false);
 
   // Shop Add/Edit Modal State
   const [showShopModal, setShowShopModal] = useState(false);
@@ -185,6 +226,59 @@ export default function AdminClient({
     } finally {
       setRefreshingStatus(false);
     }
+  };
+
+  const handleResetMetrics = async () => {
+    if (!confirm("ต้องการรีเซ็ตตัวนับการเรียกใช้งาน Firestore ประจำวันนี้หรือไม่?")) return;
+    try {
+      setRefreshingStatus(true);
+      const res = await fetch("/api/system/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset_metrics" }),
+      });
+      const data = await res.json();
+      if (data.success && data.status) {
+        setSystemStatus(data.status);
+        alert("✅ รีเซ็ตตัวนับ Request รายวันเรียบร้อยแล้ว");
+      }
+    } catch (e: any) {
+      alert("เกิดข้อผิดพลาด: " + (e.message || "Unknown error"));
+    } finally {
+      setRefreshingStatus(false);
+    }
+  };
+
+  const handleSyncToFallback = async () => {
+    try {
+      setSyncingFallback(true);
+      const res = await fetch("/api/system/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_to_fallback" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.status) setSystemStatus(data.status);
+        alert(
+          `✅ ซิงค์สำเร็จ! อัปเดตข้อมูลจาก Firestore ลง Fallback Cache เรียบร้อยแล้ว\n` +
+          `• ร้านค้า: ${data.result?.counts?.shops ?? 0} ร้าน\n` +
+          `• รอบสั่งอาหาร: ${data.result?.counts?.batches ?? 0} รอบ\n` +
+          `• รายการคำสั่งซื้อ: ${data.result?.counts?.orders ?? 0} รายการ\n` +
+          `• จุดรับส่งอาหาร: ${data.result?.counts?.locations ?? 0} จุด`
+        );
+      } else {
+        alert("⚠️ ซิงค์ไม่สำเร็จ: " + (data.message || data.error || "Unknown error"));
+      }
+    } catch (e: any) {
+      alert("เกิดข้อผิดพลาดในการซิงค์: " + (e.message || "Unknown error"));
+    } finally {
+      setSyncingFallback(false);
+    }
+  };
+
+  const handleExportFallback = () => {
+    window.open("/api/system/status?export=true", "_blank");
   };
 
   const fetchSuggestions = async () => {
@@ -799,25 +893,35 @@ export default function AdminClient({
                   </span>
                   <span
                     className={`rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 ${
-                      systemStatus.fallbackMode
+                      systemStatus.activeStorageEngine === "firestore"
                         ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                        : "bg-purple-100 text-purple-900 border-purple-300"
+                        : "bg-amber-100 text-amber-900 border-amber-300"
                     }`}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {systemStatus.fallbackMode
-                      ? "High-Availability Fallback Active • ให้บริการต่อเนื่อง 100%"
-                      : "Connected to Cloud Firestore"}
+                    {systemStatus.activeStorageEngine === "firestore"
+                      ? "Active Engine: Google Cloud Firestore (Primary)"
+                      : "Active Engine: High-Availability Fallback Storage"}
+                  </span>
+                  <span className="rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+                    Spark Free Tier
                   </span>
                 </div>
                 <h2 className="text-base font-black text-slate-900">
                   {systemStatus.severity === "interrupted"
                     ? "สถานะโควตา Cloud Firestore รายวัน — ระบบทำงานต่อเนื่องผ่าน Local Architecture"
-                    : "สถานะการเชื่อมต่อฐานข้อมูล Google Cloud Firestore ปกติ"}
+                    : "สถานะการเรียกใช้งาน Google Cloud Firestore & โควตารายวัน"}
                 </h2>
-                <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
-                  Google Cloud Firestore Spark Plan รีเซ็ตโควตาทุกวันเวลา <strong>15:00 น. ICT (00:00 PST)</strong> หากถึงเวลาแล้ว สามารถกดปุ่ม &ldquo;ทดสอบ &amp; รีเซ็ตสถานะเดี๋ยวนี้&rdquo; เพื่อให้ระบบตรวจสอบการเชื่อมต่อใหม่ได้ทันที
-                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <p>
+                    รอบรีเซ็ตโควตา: <strong>{systemStatus.resetTimeInfo}</strong>
+                  </p>
+                  {systemStatus.metrics?.timeUntilReset && (
+                    <p className="font-semibold text-purple-900 bg-purple-100/60 px-2 py-0.5 rounded-md">
+                      ⏳ เริ่มรอบใหม่ใน: {systemStatus.metrics.timeUntilReset}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -828,12 +932,22 @@ export default function AdminClient({
                 onClick={handleProbeFirebase}
                 disabled={refreshingStatus}
                 className="rounded-xl border border-purple-300 bg-purple-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-800 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                title="ทดสอบอ่าน/เขียน Firestore ทันที"
+                title="ทดสอบอ่าน Firestore ทันที"
               >
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${refreshingStatus ? "animate-spin" : ""}`}
                 />
-                <span>{refreshingStatus ? "กำลังทดสอบ..." : "🔄 ทดสอบสถานะ Quota เดี๋ยวนี้"}</span>
+                <span>{refreshingStatus ? "กำลังทดสอบ..." : "🔄 ทดสอบ Quota เดี๋ยวนี้"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleResetMetrics}
+                disabled={refreshingStatus}
+                className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1 cursor-pointer"
+                title="รีเซ็ตตัวนับการเรียกใช้งานประจำวัน"
+              >
+                <RefreshCw className="h-3 w-3 text-slate-400" />
+                <span>รีเซ็ตตัวนับ</span>
               </button>
               <a
                 href="https://console.firebase.google.com/project/one-order-af750/usage"
@@ -844,6 +958,235 @@ export default function AdminClient({
                 <span>Console ↗</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
+            </div>
+          </div>
+
+          {/* Firestore Operations vs Quota Usage Bars */}
+          <div className="mt-4 pt-4 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Reads */}
+            <div className="bg-white/80 rounded-xl border border-slate-200 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  อ่านข้อมูล (Reads)
+                </span>
+                <span className="font-mono font-black text-slate-900">
+                  {(systemStatus.metrics?.readsToday || 0).toLocaleString()} / 50,000
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (systemStatus.metrics?.readsPercentage || 0) > 85
+                      ? "bg-rose-500"
+                      : (systemStatus.metrics?.readsPercentage || 0) > 60
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  }`}
+                  style={{
+                    width: `${Math.max(1, Math.min(100, systemStatus.metrics?.readsPercentage || 0))}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>ใช้ไป {systemStatus.metrics?.readsPercentage || 0}%</span>
+                <span>
+                  เหลือ {Math.max(0, 50000 - (systemStatus.metrics?.readsToday || 0)).toLocaleString()} ครั้ง
+                </span>
+              </div>
+            </div>
+
+            {/* Writes */}
+            <div className="bg-white/80 rounded-xl border border-slate-200 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-purple-500" />
+                  เขียนข้อมูล (Writes)
+                </span>
+                <span className="font-mono font-black text-slate-900">
+                  {(systemStatus.metrics?.writesToday || 0).toLocaleString()} / 20,000
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (systemStatus.metrics?.writesPercentage || 0) > 85
+                      ? "bg-rose-500"
+                      : (systemStatus.metrics?.writesPercentage || 0) > 60
+                      ? "bg-amber-500"
+                      : "bg-purple-600"
+                  }`}
+                  style={{
+                    width: `${Math.max(1, Math.min(100, systemStatus.metrics?.writesPercentage || 0))}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>ใช้ไป {systemStatus.metrics?.writesPercentage || 0}%</span>
+                <span>
+                  เหลือ {Math.max(0, 20000 - (systemStatus.metrics?.writesToday || 0)).toLocaleString()} ครั้ง
+                </span>
+              </div>
+            </div>
+
+            {/* Deletes */}
+            <div className="bg-white/80 rounded-xl border border-slate-200 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  ลบข้อมูล (Deletes)
+                </span>
+                <span className="font-mono font-black text-slate-900">
+                  {(systemStatus.metrics?.deletesToday || 0).toLocaleString()} / 20,000
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (systemStatus.metrics?.deletesPercentage || 0) > 85
+                      ? "bg-rose-500"
+                      : (systemStatus.metrics?.deletesPercentage || 0) > 60
+                      ? "bg-amber-500"
+                      : "bg-blue-600"
+                  }`}
+                  style={{
+                    width: `${Math.max(1, Math.min(100, systemStatus.metrics?.deletesPercentage || 0))}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>ใช้ไป {systemStatus.metrics?.deletesPercentage || 0}%</span>
+                <span>
+                  เหลือ {Math.max(0, 20000 - (systemStatus.metrics?.deletesToday || 0)).toLocaleString()} ครั้ง
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {systemStatus.lastError && (
+            <div className="mt-3 p-2.5 rounded-xl bg-amber-100/70 border border-amber-300 text-xs text-amber-900 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" />
+              <span>
+                <strong>แจ้งเตือนล่าสุด:</strong> {systemStatus.lastError} &mdash; ระบบเปิดใช้งาน Fallback ป้องกันการหยุดชะงัก
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Fallback Storage Inspection & Backup Card */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-900 shrink-0">
+                <HardDrive className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900">
+                    สถานะ Fallback Storage &mdash; ระบบสำรองข้อมูลท้องถิ่น
+                  </h3>
+                  <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold">
+                    High-Availability Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  ทำงานคู่ขนานแบบ Zero Downtime: หาก Firestore โควตาเต็ม ระบบจะบันทึกและอ่านข้อมูลจากเครื่องนี้ทันที
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleSyncToFallback}
+                disabled={syncingFallback}
+                className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                title="ดึงข้อมูลล่าสุดจาก Firestore ลง Fallback Cache"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncingFallback ? "animate-spin" : ""}`} />
+                <span>{syncingFallback ? "กำลังซิงค์..." : "🔁 ซิงค์จาก Firestore ลง Fallback"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportFallback}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                title="ดาวน์โหลดไฟล์ JSON สำรอง"
+              >
+                <Download className="h-3.5 w-3.5 text-slate-500" />
+                <span>ดาวน์โหลด Backup (JSON)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Fallback File Info & Content Counters Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">ที่ตั้งไฟล์สำรอง</span>
+              <span className="text-xs font-mono font-bold text-slate-800 break-all">
+                {systemStatus.fallbackState?.storageFile || "store.json"}
+              </span>
+            </div>
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">ขนาดไฟล์ในดิสก์</span>
+              <span className="text-xs font-black text-slate-800">
+                {systemStatus.fallbackState?.fileSizeFormatted || "0 B"}
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {systemStatus.fallbackState?.isServerless ? "Vercel /tmp Engine" : "Local Disk Storage"}
+              </span>
+            </div>
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">RAM Cache</span>
+              <span className="text-xs font-black text-emerald-700 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                พร้อมใช้งานใน RAM
+              </span>
+              <span className="text-[10px] text-slate-500 block font-mono">__VEATEC_MEMORY_DB__</span>
+            </div>
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">อัปเดตไฟล์ล่าสุด</span>
+              <span className="text-xs font-semibold text-slate-700">
+                {systemStatus.fallbackState?.lastModifiedIso
+                  ? new Date(systemStatus.fallbackState.lastModifiedIso).toLocaleTimeString("th-TH")
+                  : "เริ่มต้นระบบ"}
+              </span>
+              <span className="text-[10px] text-slate-400 block">
+                {systemStatus.fallbackState?.lastModifiedIso
+                  ? new Date(systemStatus.fallbackState.lastModifiedIso).toLocaleDateString("th-TH")
+                  : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Fallback Inventory Counters */}
+          <div className="rounded-xl bg-slate-50/70 border border-slate-200/60 p-3">
+            <span className="text-[11px] font-bold text-slate-500 block mb-2">
+              ปริมาณข้อมูลที่จัดเก็บใน Fallback Storage ขณะนี้:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
+                <Store className="h-3.5 w-3.5 text-purple-600" />
+                ร้านค้า: <strong className="text-purple-900">{systemStatus.fallbackState?.counts?.shops || 0}</strong> ร้าน
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
+                <Layers className="h-3.5 w-3.5 text-indigo-600" />
+                รอบสั่งอาหาร: <strong className="text-indigo-900">{systemStatus.fallbackState?.counts?.batches || 0}</strong> รอบ
+                {systemStatus.fallbackState?.counts?.openBatches !== undefined && (
+                  <span className="text-emerald-600 text-[10px]">({systemStatus.fallbackState.counts.openBatches} เปิดรับ)</span>
+                )}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                ออเดอร์: <strong className="text-emerald-900">{systemStatus.fallbackState?.counts?.orders || 0}</strong> รายการ
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
+                <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                จุดส่งอาหาร: <strong className="text-amber-900">{systemStatus.fallbackState?.counts?.locations || 0}</strong> จุด
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
+                <MessageSquareHeart className="h-3.5 w-3.5 text-pink-600" />
+                ข้อเสนอแนะ: <strong className="text-pink-900">{systemStatus.fallbackState?.counts?.suggestions || 0}</strong> เรื่อง
+              </span>
             </div>
           </div>
         </div>
