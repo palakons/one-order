@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getBatchById, updateBatchStatus } from "@/lib/store";
 import { getDropOffMapUrl } from "@/lib/locations";
 import { BatchStatus } from "@/lib/types";
-import { pushLineMessage, sendBatchReminderToLine, checkAndDispatchCutoffReminders } from "@/lib/line";
+import { pushLineMessage, sendBatchReminderToLine } from "@/lib/line";
 
 export async function GET(
   request: Request,
@@ -23,11 +23,6 @@ export async function GET(
     if (!batch) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 400 });
     }
-
-    // Trigger non-blocking cutoff reminder check in the background
-    const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    checkAndDispatchCutoffReminders(`${protocol}://${hostHeader}`).catch(() => {});
 
     return NextResponse.json({ success: true, batch });
   } catch (error) {

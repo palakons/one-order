@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBatches, createBatch } from "@/lib/store";
 import { getBangkokDate } from "@/lib/utils";
-import { checkAndDispatchCutoffReminders } from "@/lib/line";
 
 export async function GET(request: Request) {
   try {
@@ -10,11 +9,6 @@ export async function GET(request: Request) {
     const forceFresh = searchParams.get("fresh") === "true";
     const sanitize = role !== "shop" && role !== "host";
     const batches = await getBatches(sanitize, forceFresh);
-
-    // Trigger non-blocking cutoff reminder check in the background
-    const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    checkAndDispatchCutoffReminders(`${protocol}://${hostHeader}`).catch(() => {});
 
     return NextResponse.json({ success: true, batches });
   } catch (error) {

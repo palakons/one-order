@@ -166,7 +166,7 @@ export async function sendBatchReminderToLine(
   const summaryText = formatBatchOrderSummaryText(batch, appUrl);
   const manifestPhotoUrl = `${appUrl}/api/batches/${batch.id}/photo?type=manifest`;
 
-  // 1. If leader connected 1-to-1 LINE
+  // 1. Send strictly 1-to-1 to the leader if connected
   if (batch.hostLineUserId) {
     const ok = await pushLineMessage(summaryText, manifestPhotoUrl, batch.hostLineUserId);
     if (ok) {
@@ -174,23 +174,16 @@ export async function sendBatchReminderToLine(
         cutoffReminderSent: true,
         cutoffReminderSentAt: new Date().toISOString(),
       });
-      return { success: true, message: "ส่งสรุปออเดอร์ให้หัวหน้าตี้ทาง LINE เรียบร้อยแล้ว 🎉", targetUsed: "leader" };
+      return { success: true, message: "ส่งสรุปออเดอร์ให้หัวหน้าตี้ทาง LINE ส่วนตัวเรียบร้อยแล้ว 🎉", targetUsed: "leader" };
     }
+    return { success: false, message: "ไม่สามารถส่งข้อความถึง LINE ของหัวหน้าตี้ได้ กรุณาลองใหม่อีกครั้ง" };
   }
 
-  // 2. Fallback to active LINE groups or default target
-  const ok = await pushLineMessage(summaryText, manifestPhotoUrl);
-  if (ok) {
-    await updateBatch(batch.id, {
-      cutoffReminderSent: true,
-      cutoffReminderSentAt: new Date().toISOString(),
-    });
-    return { success: true, message: "ส่งสรุปออเดอร์เข้ากลุ่ม LINE เรียบร้อยแล้ว 🎉", targetUsed: "group" };
-  }
-
+  // 2. NEVER broadcast order manifests/reminders into public groups!
+  // Public groups are strictly reserved for "Order Delivered" notifications.
   return {
     success: false,
-    message: "ไม่สามารถส่งข้อความได้ กรุณาเชื่อมต่อ LINE Bot หรือเชิญบอทเข้ากลุ่มก่อน",
+    message: "ยังไม่ได้เชื่อมต่อ LINE ส่วนตัวของหัวหน้าตี้ (ระบบจะส่งสรุปออเดอร์เฉพาะแชทส่วนตัวของหัวหน้า เพื่อไม่รบกวนสมาชิกในกลุ่ม)",
   };
 }
 
@@ -213,17 +206,21 @@ export async function checkAndDispatchCutoffReminders(appUrl: string): Promise<n
       const { isExpired } = getTimeRemaining(batch.cutoffTime, batch.date);
       if (!isExpired) continue;
 
-      // Cutoff time lapsed! Push reminder to leader (or group)
+      // CRITICAL GUARD: Only send 1-to-1 to the leader. NEVER broadcast reminders to public groups!
+      if (!batch.hostLineUserId) {
+        // Mark as sent so we don't repeatedly check
+        await updateBatch(batch.id, {
+          cutoffReminderSent: true,
+          cutoffReminderSentAt: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      // Cutoff time lapsed! Push reminder strictly to leader's 1-to-1 chat
       const summaryText = formatBatchOrderSummaryText(batch, appUrl);
       const manifestPhotoUrl = `${appUrl}/api/batches/${batch.id}/photo?type=manifest`;
 
-      let anySent = false;
-      if (batch.hostLineUserId) {
-        anySent = await pushLineMessage(summaryText, manifestPhotoUrl, batch.hostLineUserId);
-      } else {
-        // If leader didn't link their 1-to-1 line, broadcast reminder to registered group
-        anySent = await pushLineMessage(summaryText, manifestPhotoUrl);
-      }
+      const anySent = await pushLineMessage(summaryText, manifestPhotoUrl, batch.hostLineUserId);
 
       await updateBatch(batch.id, {
         cutoffReminderSent: true,
