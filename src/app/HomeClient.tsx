@@ -2450,21 +2450,40 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   )}
                 </select>
 
-                {/* Warning / Recommendation if an active board for this shop already exists today */}
+                {/* Warning / Recommendation if an active (not-closed) board for this shop already exists today */}
                 {(() => {
-                  const dup = batches.find(
-                    (b) => b.shopId === openShopId && b.status === "OPEN" && !b.isDeleted
-                  );
+                  const dup = openingBatches.find((b) => b.shopId === openShopId);
                   if (!dup) return null;
                   return (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 space-y-1.5 animate-in fade-in">
                       <div className="flex items-center gap-1.5 font-bold text-amber-950 text-[11px]">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                        <span>ร้านนี้มีตี้เปิดอยู่แล้ววันนี้!</span>
+                        <span>
+                          {lang === "en"
+                            ? "This shop already has an open board accepting orders!"
+                            : lang === "cn"
+                            ? "该餐厅已有正在接单中的拼单！"
+                            : "ร้านนี้มีตี้เปิดรับออเดอร์อยู่แล้วในขณะนี้!"}
+                        </span>
                       </div>
                       <p className="text-[10px] text-amber-800 leading-relaxed">
-                        มีตี้ร้านนี้เปิดรับอยู่แล้วที่ <strong>{dup.buildingName || "ตึก M4"}</strong> (ยอดปัจจุบัน ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})
-                        หากสั่งรวมในตี้เดิมจะช่วยให้ครบยอด ฿200 ส่งฟรีได้เร็วยิ่งขึ้น
+                        {lang === "en" ? (
+                          <>
+                            An open board is currently accepting orders at{" "}
+                            <strong>{dup.buildingName || "M4"}</strong> (Cutoff: {dup.cutoffTime} • Current: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount}).
+                            Joining the existing board helps reach the free delivery minimum faster!
+                          </>
+                        ) : lang === "cn" ? (
+                          <>
+                            <strong>{dup.buildingName || "M4"}</strong> 已有正在接单的拼单 (截止: {dup.cutoffTime} • 进度: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})。
+                            合并拼单可更快达到免运门槛！
+                          </>
+                        ) : (
+                          <>
+                            มีตี้ร้านนี้กำลังเปิดรับออเดอร์อยู่ที่ <strong>{dup.buildingName || "ตึก M4"}</strong> (ปิดรับ {dup.cutoffTime} น. • ยอดปัจจุบัน ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})
+                            หากสั่งรวมในตี้เดิมจะช่วยให้ครบยอด ฿200 ส่งฟรีได้เร็วยิ่งขึ้น
+                          </>
+                        )}
                       </p>
                       <button
                         type="button"
@@ -2473,9 +2492,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           setActiveGroup("OPENING");
                           setActiveBatchId(dup.id);
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer active:scale-95"
                       >
-                        <span>👉 ไปร่วมตี้เดิมที่มีอยู่แล้ว</span>
+                        <span>
+                          {lang === "en"
+                            ? "👉 Join Existing Open Board"
+                            : lang === "cn"
+                            ? "👉 加入现有未截止拼单"
+                            : "👉 ไปร่วมตี้เดิมที่มีอยู่แล้ว"}
+                        </span>
                       </button>
                     </div>
                   );
