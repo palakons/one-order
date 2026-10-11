@@ -300,7 +300,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     fetchLocations();
     const now = new Date();
     setLastRefreshedAt(
-      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+      now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     );
   }, []);
 
@@ -335,7 +335,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         setBatches(data.batches);
         const now = new Date();
         setLastRefreshedAt(
-          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+          now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         );
       }
       if (resLocs) {
@@ -964,12 +964,44 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         {/* 1. Shop Tabs Bar (3 Groups + Deleted + Open Board Button) */}
         <div className="space-y-2">
           {/* Level 1: Group Selector Pills */}
+          {/* Level 1: Action Buttons (Open Board & Refresh) at the Front + Group Selector Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+            {/* Primary Action 1: Open New Board (Front & Prominent) */}
+            <button
+              type="button"
+              onClick={handleOpenBoardClick}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-black bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+              title={t.openBoardTitle}
+            >
+              <Plus className="h-4 w-4" />
+              <span>{t.openNewBoard}</span>
+            </button>
+
+            {/* Primary Action 2: Refresh Button with fetched timestamp (Front) */}
+            <button
+              type="button"
+              onClick={() => fetchBatches(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60 shrink-0"
+              title="กดเพื่ออัปเดตกระดานและออเดอร์ล่าสุด"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span>{lang === "en" ? "Refresh" : lang === "cn" ? "刷新" : "รีเฟรช"}</span>
+              {lastRefreshedAt && (
+                <span className="text-[10px] text-slate-500 font-mono font-normal">
+                  ({lastRefreshedAt}{lang === "th" ? " น." : ""})
+                </span>
+              )}
+            </button>
+
+            {/* Subtle Divider */}
+            <div className="h-4 w-px bg-slate-300 mx-0.5 shrink-0" />
+
             {/* Group 1: Opening */}
             <button
               type="button"
               onClick={() => handleSelectGroup("OPENING")}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeGroup === "OPENING"
                   ? "bg-purple-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
@@ -988,7 +1020,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <button
               type="button"
               onClick={() => handleSelectGroup("CLOSED_TODAY")}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeGroup === "CLOSED_TODAY"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
@@ -1007,7 +1039,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <button
               type="button"
               onClick={() => handleSelectGroup("ARCHIVED")}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeGroup === "ARCHIVED"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
@@ -1026,7 +1058,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <button
               type="button"
               onClick={() => handleSelectGroup("DELETED")}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeGroup === "DELETED"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900"
@@ -1040,35 +1072,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 {deletedBatches.length}
               </span>
             </button>
-
-            {/* Actions: Refresh and Open New Board */}
-            <div className="ml-auto flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => fetchBatches(true)}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
-                title="กดเพื่ออัปเดตกระดานและออเดอร์ล่าสุด"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">รีเฟรช</span>
-                {lastRefreshedAt && (
-                  <span className="text-[10px] text-slate-400 font-mono font-normal hidden md:inline">
-                    ({lastRefreshedAt})
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleOpenBoardClick}
-                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-2xs cursor-pointer"
-                title={t.openBoardTitle}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>{t.openNewBoard}</span>
-              </button>
-            </div>
           </div>
 
           {/* Level 2: Board Tabs for the active group */}
@@ -1214,17 +1217,34 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 ? t.noArchived7DaysBoards
                 : t.noDeletedBoards}
             </h3>
+            {lastRefreshedAt && (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 font-medium border border-slate-200">
+                <Clock className="h-3.5 w-3.5 text-purple-700 shrink-0" />
+                <span>
+                  {t.dataFetchedAt} {lastRefreshedAt} {lang === "th" ? "น." : ""}
+                </span>
+              </div>
+            )}
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               {activeGroup === "OPENING" ? t.noLiveBoardsSub : ""}
             </p>
-            <div className="flex justify-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleOpenBoardClick}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-800 shadow-2xs cursor-pointer active:scale-95"
               >
                 <Plus className="h-4 w-4" />
                 <span>{t.openNewBoard}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchBatches(true)}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer disabled:opacity-60 active:scale-95"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span>{lang === "en" ? "Refresh Data" : lang === "cn" ? "刷新数据" : "รีเฟรชข้อมูล"}</span>
               </button>
               {activeGroup !== "OPENING" && openingBatches.length > 0 && (
                 <button
