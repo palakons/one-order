@@ -446,6 +446,38 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
+  // Share Board Invitation to Friends
+  const handleShareBoardInvite = async () => {
+    if (!batch) return;
+    const locName = batch.buildingName || "ตึก M4";
+    const shopName = batch.shop.name;
+    const remainingText = batch.isMinMet
+      ? "ครบยอดส่งฟรีแล้ว 🎉"
+      : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี!`;
+    const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${batch.id}` : "https://veatec.vercel.app";
+    const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
+      `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
+      `⏰ ปิดรับเวลา ${batch.cutoffTime} น. (${remainingText})\n\n` +
+      `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `VEATEC - สั่งข้าวตี้ ${shopName}`,
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("คัดลอกข้อความชวนเพื่อนแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งเข้ากลุ่ม...");
+    } catch (e) {}
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
+  };
+
   // Share Manifest to LINE
   const handleShareToLine = async () => {
     if (!manifestData || !batch) return;
@@ -674,6 +706,42 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
             {/* Quick Actions */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {/* Call Shop */}
+              {batch.shop.phone && (
+                <a
+                  href={`tel:${batch.shop.phone}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
+                  title="โทรติดต่อร้านค้า"
+                >
+                  <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>📞 โทรสั่งร้าน ({batch.shop.phone})</span>
+                </a>
+              )}
+
+              {/* Shop LINE */}
+              {batch.shop.lineId && (
+                <a
+                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
+                  title="เปิด LINE ร้าน"
+                >
+                  <span>💬 LINE ร้าน</span>
+                </a>
+              )}
+
+              {/* Share with Friends */}
+              <button
+                type="button"
+                onClick={handleShareBoardInvite}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
+                title="แชร์ลิงก์ชวนเพื่อนเข้าตี้"
+              >
+                <Share2 className="h-3.5 w-3.5 text-purple-700" />
+                <span>📢 แชร์ชวนเพื่อน</span>
+              </button>
+
               {batch.shop.gmapUrl && (
                 <a
                   href={batch.shop.gmapUrl}
@@ -688,10 +756,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               <button
                 type="button"
                 onClick={() => setShowPromptPayModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 shadow-2xs transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
               >
                 <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+                <span>💳 ดู QR พร้อมเพย์</span>
               </button>
             </div>
           </div>

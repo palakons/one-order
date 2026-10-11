@@ -48,6 +48,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
@@ -256,6 +257,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [creatingBoard, setCreatingBoard] = useState(false);
   const [openBoardError, setOpenBoardError] = useState<string | null>(null);
   const [createdBatchForLine, setCreatedBatchForLine] = useState<BatchWithDetails | null>(null);
+  const [submittedOrderNotice, setSubmittedOrderNotice] = useState<{
+    orderNumber: number;
+    boxLabel: string;
+    shopName: string;
+  } | null>(null);
 
   // Slip upload & BOT verification
   const [slipFile, setSlipFile] = useState<File | null>(null);
@@ -449,6 +455,39 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     } finally {
       setCreatingBoard(false);
     }
+  };
+
+  // Share Board Invitation to LINE / Friends
+  const handleShareBoardInvite = async (targetBatch?: BatchWithDetails | null) => {
+    const b = targetBatch || activeBatch;
+    if (!b) return;
+    const locName = b.buildingName || "ตึก M4";
+    const shopName = b.shop.name;
+    const remainingText = b.isMinMet
+      ? "ครบยอดส่งฟรีแล้ว 🎉"
+      : `ขาดอีก ฿${b.amountRemaining} เพื่อส่งฟรี!`;
+    const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${b.id}` : "https://veatec.vercel.app";
+    const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
+      `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
+      `⏰ ปิดรับเวลา ${b.cutoffTime} น. (${remainingText})\n\n` +
+      `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `VEATEC - สั่งข้าวตี้ ${shopName}`,
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("คัดลอกข้อความชวนเพื่อนแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งเข้ากลุ่ม...");
+    } catch (e) {}
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
   };
 
   // Host Authorization Check & Prompt Helper
@@ -701,6 +740,13 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       setSlipVerification(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
+      if (data.order) {
+        setSubmittedOrderNotice({
+          orderNumber: data.order.orderNumber,
+          boxLabel: data.order.boxLabel,
+          shopName: activeBatch.shop.name,
+        });
+      }
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
       await fetchBatches();
     } catch (err: any) {
@@ -1319,14 +1365,25 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </span>
 
                   {!activeBatch.isDeleted ? (
-                    <Link
-                      href={`/order/${activeBatch.id}/leader`}
-                      className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
-                      title={t.manageBoard}
-                    >
-                      <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                      <span className="hidden sm:inline">{t.manageBoard.replace(" ↗", "")}</span>
-                    </Link>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleShareBoardInvite()}
+                        className="inline-flex items-center gap-0.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0 cursor-pointer"
+                        title="แชร์ชวนเพื่อนเข้าตี้"
+                      >
+                        <Share2 className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                        <span className="hidden sm:inline">แชร์</span>
+                      </button>
+                      <Link
+                        href={`/order/${activeBatch.id}/leader`}
+                        className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
+                        title={t.manageBoard}
+                      >
+                        <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                        <span className="hidden sm:inline">{t.manageBoard.replace(" ↗", "")}</span>
+                      </Link>
+                    </div>
                   ) : (
                     <span className="rounded bg-rose-100 text-rose-800 px-1 py-0.2 text-[8px] font-bold shrink-0">
                       Purged
@@ -1602,6 +1659,44 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </button>
                 </div>
 
+                {submittedOrderNotice && (
+                  <div className="rounded-xl border-2 border-emerald-500 bg-emerald-50/90 p-3.5 text-xs text-emerald-950 space-y-2 animate-in fade-in duration-300 shadow-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">🎉</span>
+                        <div>
+                          <h4 className="font-black text-sm text-emerald-950">
+                            {lang === "en" ? "Order Added to Whiteboard!" : lang === "cn" ? "点餐成功！已加入白板" : "ลงชื่อบนไวท์บอร์ดสำเร็จแล้ว!"}
+                          </h4>
+                          <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                            หมายเลขกล่องของคุณคือ: <span className="font-mono text-purple-950 bg-white px-2 py-0.5 rounded border border-emerald-300 font-black text-xs">#{submittedOrderNotice.orderNumber} {submittedOrderNotice.boxLabel}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSubmittedOrderNotice(null)}
+                        className="rounded p-1 text-emerald-700 hover:bg-emerald-200/50 cursor-pointer"
+                        title="ปิดการแจ้งเตือน"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1.5 border-t border-emerald-200/70 flex-wrap">
+                      <Link
+                        href="/orders"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3 py-1 rounded-lg transition-colors shadow-2xs"
+                      >
+                        <ShoppingBag className="h-3 w-3" />
+                        <span>ไปที่หน้า &apos;กล่องของฉัน&apos;</span>
+                      </Link>
+                      <span className="text-[10px] text-emerald-700">
+                        หรือพิมพ์เบอร์โทรใน LINE Bot (@473ekpei) เพื่อเช็คสถานะออเดอร์
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {submitError && (
                   <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800 flex items-center gap-2 font-medium">
                     <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
@@ -1673,6 +1768,55 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         {totalItemBoxes} {t.boxesCount}
                       </span>
                     </div>
+
+                    {/* Quick Pick Menu Items Chips */}
+                    {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
+                      <div className="space-y-1.5 pb-1">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                          <span className="flex items-center gap-1 text-purple-900">
+                            <Sparkles className="h-3 w-3 text-purple-700 shrink-0" />
+                            <span>{lang === "en" ? "Quick Pick from Shop Menu:" : lang === "cn" ? "快速选择菜单推荐:" : "แตะเลือกเมนูแนะนำของร้าน:"}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-normal">
+                            {lang === "en" ? "(Tap to auto-fill)" : lang === "cn" ? "(点击自动填入)" : "(แตะเพื่อใส่ชื่อและราคา)"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-xl bg-purple-50/50 border border-purple-200/60">
+                          {activeBatch.shop.menuItems.map((menuItem) => {
+                            const displayName = lang === "en" ? (menuItem.nameEn || menuItem.name) : menuItem.name;
+                            return (
+                              <button
+                                key={menuItem.id}
+                                type="button"
+                                onClick={() => {
+                                  const lastItem = orderItems[orderItems.length - 1];
+                                  if (lastItem && !lastItem.name.trim()) {
+                                    handleUpdateOrderItem(lastItem.id, "name", displayName);
+                                    handleUpdateOrderItem(lastItem.id, "price", String(menuItem.price));
+                                  } else {
+                                    setOrderItems((prev) => [
+                                      ...prev,
+                                      {
+                                        id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                                        name: displayName,
+                                        price: String(menuItem.price),
+                                        quantity: 1,
+                                        customNote: "",
+                                      },
+                                    ]);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-800 hover:border-purple-500 hover:bg-purple-100/70 hover:text-purple-950 transition-all shadow-2xs active:scale-95 text-left cursor-pointer"
+                              >
+                                {menuItem.popular && <span className="text-amber-500 text-[11px]">★</span>}
+                                <span>{displayName}</span>
+                                <span className="font-mono font-bold text-orange-600 ml-0.5">฿{menuItem.price}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2.5">
                       {orderItems.map((item, index) => {
@@ -2282,6 +2426,37 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     })
                   )}
                 </select>
+
+                {/* Warning / Recommendation if an active board for this shop already exists today */}
+                {(() => {
+                  const dup = batches.find(
+                    (b) => b.shopId === openShopId && b.status === "OPEN" && !b.isDeleted
+                  );
+                  if (!dup) return null;
+                  return (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-950 text-[11px]">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        <span>ร้านนี้มีตี้เปิดอยู่แล้ววันนี้!</span>
+                      </div>
+                      <p className="text-[10px] text-amber-800 leading-relaxed">
+                        มีตี้ร้านนี้เปิดรับอยู่แล้วที่ <strong>{dup.buildingName || "ตึก M4"}</strong> (ยอดปัจจุบัน ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})
+                        หากสั่งรวมในตี้เดิมจะช่วยให้ครบยอด ฿200 ส่งฟรีได้เร็วยิ่งขึ้น
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOpenBoardModal(false);
+                          setActiveGroup("OPENING");
+                          setActiveBatchId(dup.id);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <span>👉 ไปร่วมตี้เดิมที่มีอยู่แล้ว</span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 2. ตึกปลายทาง */}
@@ -2485,6 +2660,18 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               >
                 <span>📲 กดเชื่อมต่อ LINE Bot ใน 1 คลิก (แนะนำ)</span>
               </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleShareBoardInvite(createdBatchForLine);
+                  setCreatedBatchForLine(null);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 text-white font-black py-3 px-4 text-xs shadow-md active:scale-98 transition-all cursor-pointer"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>📢 แชร์ชวนเพื่อนเข้ากลุ่ม LINE (Share with Friends)</span>
+              </button>
 
               <div className="grid grid-cols-2 gap-2">
                 <Link
