@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getBatches, createBatch } from "@/lib/store";
+import { getBatches, createBatch, updateBatch } from "@/lib/store";
 import { getBangkokDate } from "@/lib/utils";
+import { sendNewBoardAnnouncement } from "@/lib/line";
 
 export async function GET(request: Request) {
   try {
@@ -60,7 +61,28 @@ export async function POST(request: Request) {
       buildingName: (buildingName || "").trim() || "ตึก M4",
     });
 
-    return NextResponse.json({ success: true, batch }, { status: 201 });
+    // Announce new board to LINE group (Single-card Flex or clean text)
+    let lineNotified = false;
+    try {
+      const rawHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
+      const baseUrl = (process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL.startsWith("https://"))
+        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")
+        : !rawHost.includes("localhost")
+        ? `https://${rawHost}`
+        : "https://veatec.vercel.app";
+
+      lineNotified = await sendNewBoardAnnouncement(batch, baseUrl);
+      if (lineNotified) {
+        await updateBatch(batch.id, {
+          boardAnnounced: true,
+          boardAnnouncedAt: new Date().toISOString(),
+        });
+      }
+    } catch (lineErr) {
+      console.warn("New board LINE broadcast error:", lineErr);
+    }
+
+    return NextResponse.json({ success: true, batch, lineNotified }, { status: 201 });
   } catch (error) {
     console.error("Failed to create batch:", error);
     return NextResponse.json({ success: false, error: "Failed to create batch" }, { status: 500 });

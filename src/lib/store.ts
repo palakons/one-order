@@ -1215,6 +1215,8 @@ export async function createBatch(batchData: {
     isSelfPickup: Boolean(batchData.isSelfPickup),
     buildingId: batchData.buildingId || "loc-m4",
     buildingName: batchData.buildingName || "ตึก M4",
+    boardAnnounced: false,
+    deliveryBroadcastSent: false,
   };
 
   invalidateStoreCache();

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getBatchById, updateBatchStatus } from "@/lib/store";
+import { getBatchById, updateBatchStatus, updateBatch } from "@/lib/store";
 import { getDropOffMapUrl } from "@/lib/locations";
 import { BatchStatus } from "@/lib/types";
-import { pushLineMessage, sendBatchReminderToLine } from "@/lib/line";
+import { pushLineMessage, sendBatchReminderToLine, sendDeliveryAnnouncement } from "@/lib/line";
 
 export async function GET(
   request: Request,
@@ -66,10 +66,16 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
 
-    // Broadcast ONLY when food is delivered (COMPLETED) with photo evidence
+    // Broadcast ONLY when food is delivered (COMPLETED)
+    // Strict Idempotency: Broadcast only once when transitioning to COMPLETED to prevent duplicate messages!
     let lineNotified = false;
     let lineError: string | null = null;
-    if (status === "COMPLETED") {
+    const isFirstTimeDelivered =
+      status === "COMPLETED" &&
+      existing.status !== "COMPLETED" &&
+      !existing.deliveryBroadcastSent;
+
+    if (isFirstTimeDelivered) {
       try {
         const rawHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || "veatec.vercel.app";
         // Always enforce public https for LINE API callbacks and links
@@ -78,9 +84,6 @@ export async function PATCH(
           : !rawHost.includes("localhost")
           ? `https://${rawHost}`
           : "https://veatec.vercel.app";
-
-        // Direct students to the safe public delivery page instead of internal merchant sheet!
-        const deliveryUrl = `${baseUrl}/delivery/${updated.id}`;
 
         let photoUrlForLine: string | undefined = undefined;
         if (updated.deliveryPhotoUrl) {
@@ -91,23 +94,23 @@ export async function PATCH(
           }
         }
 
-        const bldgName = updated.buildingName || "ตึก M4";
-        const dropOffMap = getDropOffMapUrl(updated);
-        const orderCount = (updated.orders || []).filter((o) => !o.deletedAt).length;
-        const broadcastText = `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨\n` +
-          `ร้าน: ${updated.shop.name} (${orderCount} กล่อง)\n` +
-          `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n` +
-          (dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : "") +
-          `\n📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
-          `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
-
-        // Push to LINE group - MUST AWAIT because on Vercel Serverless unawaited promises terminate when response returns!
-        lineNotified = await pushLineMessage(broadcastText, photoUrlForLine);
+        // Send exactly 1 card to the LINE group (Flex message with embedded photo or clean single text message)
+        lineNotified = await sendDeliveryAnnouncement(updated, baseUrl, photoUrlForLine);
         console.log(`[Delivery] LINE broadcast for batch ${updated.id}: ${lineNotified ? "SUCCESS" : "NO_TARGET_OR_FAILED"}`);
+
+        if (lineNotified) {
+          await updateBatch(updated.id, {
+            deliveryBroadcastSent: true,
+            deliveryBroadcastSentAt: new Date().toISOString(),
+          });
+        }
       } catch (err: any) {
         console.error("Auto LINE broadcast on delivery error:", err);
         lineError = err?.message || String(err);
       }
+    } else if (status === "COMPLETED") {
+      console.log(`[Delivery] Batch ${updated.id} already broadcasted previously, skipping duplicate LINE message`);
+      lineNotified = true;
     }
 
     return NextResponse.json({ success: true, batch: updated, lineNotified, lineError });

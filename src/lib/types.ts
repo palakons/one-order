@@ -80,6 +80,10 @@ export interface Batch {
   hostLineUserId?: string; // LINE User ID (U...) of leader for 1-to-1 bot push
   cutoffReminderSent?: boolean; // True if cutoff time reminder was pushed
   cutoffReminderSentAt?: string; // ISO timestamp when cutoff reminder was pushed
+  boardAnnounced?: boolean; // True if new board announcement was pushed to LINE group
+  boardAnnouncedAt?: string;
+  deliveryBroadcastSent?: boolean; // True if food delivered announcement was pushed to LINE group
+  deliveryBroadcastSentAt?: string;
 }
 
 export interface BatchWithDetails extends Batch {

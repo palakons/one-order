@@ -5,6 +5,320 @@ import { getActiveLineGroupIds, getBatches, updateBatch, getBatchById } from "./
 import { BatchWithDetails } from "./types";
 import { getDropOffMapUrl } from "./locations";
 import { getTimeRemaining } from "./utils";
+async function resolveTargetIds(customTargetId?: string): Promise<string[]> {
+  if (customTargetId) return [customTargetId];
+
+  const targets: string[] = [];
+  if (process.env.LINE_GROUP_ID) {
+    targets.push(process.env.LINE_GROUP_ID.trim());
+  }
+
+  try {
+    const savedGroupIds = await getActiveLineGroupIds();
+    savedGroupIds.forEach((id) => {
+      if (!targets.includes(id)) targets.push(id);
+    });
+  } catch (err) {
+    console.warn("Could not retrieve active group IDs:", err);
+  }
+
+  // Known default group if none found
+  if (targets.length === 0) {
+    targets.push("Cde4a9c739118f0c8414bbd2ecdf6ab01");
+  }
+
+  // Fallback to LINE_USER_ID if no groups found
+  if (targets.length === 0 && process.env.LINE_USER_ID) {
+    targets.push(process.env.LINE_USER_ID.trim());
+  }
+
+  return Array.from(new Set(targets.filter((t) => Boolean(t && typeof t === "string" && t.trim()))));
+}
+
+export async function pushLineFlexOrText(
+  altText: string,
+  flexBubble: any,
+  fallbackText: string,
+  customTargetId?: string
+): Promise<boolean> {
+  const token =
+    process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+    "tDuAIqGSY0EjLJ6JX5+xeNtfEWtlOtXdMggAuhMTDSYxB+d8LJI45ksz7qUlSIJUE7wVfOTM/BGYtHEfYLuP2FKrBCzZOa7pnWZCwJWb6m4Fjy98UQDZKFY9w2RcxBOF/4NZTJotAskvnDHAz0pxLAdB04t89/1O/w1cDnyilFU=";
+
+  const targets = await resolveTargetIds(customTargetId);
+
+  if (!token || targets.length === 0) {
+    console.warn("LINE notification skipped: missing token or target group");
+    return false;
+  }
+
+  // Exactly 1 message bubble in LINE chat!
+  const flexMessage = {
+    type: "flex",
+    altText,
+    contents: flexBubble,
+  };
+
+  let anySuccess = false;
+
+  for (const targetId of targets) {
+    try {
+      // 1. Try sending the Flex Message
+      const res = await fetch("https://api.line.me/v2/bot/message/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          to: targetId,
+          messages: [flexMessage],
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        console.log(`LINE Push Flex succeeded for target ${targetId}`);
+        anySuccess = true;
+      } else {
+        console.warn(`LINE Push Flex failed for ${targetId}, falling back to single text message:`, data);
+        // 2. Fallback to 1 clean text message
+        const fallbackRes = await fetch("https://api.line.me/v2/bot/message/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            to: targetId,
+            messages: [{ type: "text", text: fallbackText }],
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const fallbackData = await fallbackRes.json().catch(() => ({}));
+        if (fallbackRes.ok) {
+          console.log(`LINE Push text fallback succeeded for ${targetId}`);
+          anySuccess = true;
+        } else {
+          console.error(`LINE Push text fallback error for ${targetId}:`, fallbackData);
+        }
+      }
+    } catch (err) {
+      console.error(`Error pushing LINE message to ${targetId}:`, err);
+    }
+  }
+
+  return anySuccess;
+}
+
+export async function sendNewBoardAnnouncement(
+  batch: BatchWithDetails,
+  appUrl: string
+): Promise<boolean> {
+  const shopName = batch.shop.name;
+  const cutoff = batch.cutoffTime;
+  const locName = batch.isSelfPickup ? "รับเองที่หน้าร้าน" : `${batch.buildingName || "ตึก M4"} ชั้น 1`;
+  const leaderName = batch.hostName || (batch.hostLineId ? `@${batch.hostLineId}` : "เพื่อนในตี้");
+  const orderUrl = `${appUrl}/order/${batch.id}`;
+
+  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (ปิดรับ ${cutoff} น.) 🍱✨`;
+
+  const fallbackText =
+    `📢 [VEATEC @ VISTEC] เปิดตี้ใหม่แล้วครับ! 🍱✨\n` +
+    `ร้าน: ${shopName}\n` +
+    `⏰ ปิดรับออเดอร์: ${cutoff} น.\n` +
+    `📍 จุดส่งอาหาร: ${locName}\n` +
+    `👑 หัวหน้าตี้: ${leaderName}\n` +
+    `💰 ขั้นต่ำร้าน: ฿${batch.targetMinAmount}\n\n` +
+    `👉 เข้าร่วมสั่งอาหารร่วมตี้:\n${orderUrl}`;
+
+  const flexBubble = {
+    type: "bubble",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#3b0764",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "text",
+          text: "🍱 เปิดตี้ใหม่แล้ว! ชวนสั่งข้าวกลางวัน",
+          weight: "bold",
+          color: "#ffffff",
+          size: "sm",
+        },
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        {
+          type: "text",
+          text: shopName,
+          weight: "bold",
+          size: "xl",
+          color: "#1e1b4b",
+          wrap: true,
+        },
+        {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          contents: [
+            {
+              type: "box",
+              layout: "horizontal",
+              contents: [
+                { type: "text", text: "⏰ ปิดรับ:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: `${cutoff} น.`, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
+              ],
+            },
+            {
+              type: "box",
+              layout: "horizontal",
+              contents: [
+                { type: "text", text: "📍 จุดส่ง:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: locName, size: "xs", color: "#334155", flex: 7, wrap: true },
+              ],
+            },
+            {
+              type: "box",
+              layout: "horizontal",
+              contents: [
+                { type: "text", text: "👑 หัวหน้าตี้:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: leaderName, size: "xs", color: "#334155", flex: 7 },
+              ],
+            },
+            {
+              type: "box",
+              layout: "horizontal",
+              contents: [
+                { type: "text", text: "💰 ขั้นต่ำ:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: `฿${batch.targetMinAmount}`, size: "xs", color: "#334155", flex: 7 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#581c87",
+          action: {
+            type: "uri",
+            label: "👉 เข้าร่วมตี้ สั่งอาหารทันที",
+            uri: orderUrl,
+          },
+        },
+      ],
+    },
+  };
+
+  return pushLineFlexOrText(altText, flexBubble, fallbackText);
+}
+
+export async function sendDeliveryAnnouncement(
+  batch: BatchWithDetails,
+  appUrl: string,
+  photoUrl?: string
+): Promise<boolean> {
+  const shopName = batch.shop.name;
+  const bldgName = batch.buildingName || "ตึก M4";
+  const dropOffMap = getDropOffMapUrl(batch);
+  const orderCount = (batch.orders || []).filter((o) => !o.deletedAt).length;
+  const deliveryUrl = `${appUrl}/delivery/${batch.id}`;
+
+  const altText = `🛵 [VEATEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! (${shopName} ${orderCount} กล่อง) ✨`;
+
+  const fallbackText =
+    `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨\n` +
+    `ร้าน: ${shopName} (${orderCount} กล่อง)\n` +
+    `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n` +
+    (dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : "") +
+    `\n📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
+    `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
+
+  const flexBubble: any = {
+    type: "bubble",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        {
+          type: "text",
+          text: `🛵 อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨`,
+          weight: "bold",
+          size: "lg",
+          color: "#1e1b4b",
+          wrap: true,
+        },
+        {
+          type: "box",
+          layout: "vertical",
+          spacing: "xs",
+          contents: [
+            {
+              type: "text",
+              text: `ร้าน: ${shopName} (${orderCount} กล่อง)`,
+              size: "sm",
+              weight: "bold",
+              color: "#334155",
+            },
+            {
+              type: "text",
+              text: `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว`,
+              size: "xs",
+              color: "#64748b",
+              wrap: true,
+            },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#059669",
+          action: {
+            type: "uri",
+            label: "📸 ดูรูปหลักฐาน & รายชื่อกล่อง",
+            uri: deliveryUrl,
+          },
+        },
+      ],
+    },
+  };
+
+  // If photo is available and valid HTTPS, attach it as the hero image inside the single card!
+  if (photoUrl && photoUrl.startsWith("https://")) {
+    flexBubble.hero = {
+      type: "image",
+      url: photoUrl,
+      size: "full",
+      aspectRatio: "20:13",
+      aspectMode: "cover",
+      action: {
+        type: "uri",
+        uri: deliveryUrl,
+      },
+    };
+  }
+
+  return pushLineFlexOrText(altText, flexBubble, fallbackText);
+}
 
 export async function pushLineMessage(
   text: string,
@@ -15,39 +329,7 @@ export async function pushLineMessage(
     process.env.LINE_CHANNEL_ACCESS_TOKEN ||
     "tDuAIqGSY0EjLJ6JX5+xeNtfEWtlOtXdMggAuhMTDSYxB+d8LJI45ksz7qUlSIJUE7wVfOTM/BGYtHEfYLuP2FKrBCzZOa7pnWZCwJWb6m4Fjy98UQDZKFY9w2RcxBOF/4NZTJotAskvnDHAz0pxLAdB04t89/1O/w1cDnyilFU=";
 
-  let targets: string[] = [];
-
-  if (customTargetId) {
-    targets = [customTargetId];
-  } else {
-    // 1. Priority: Explicit LINE_GROUP_ID in environment
-    if (process.env.LINE_GROUP_ID) {
-      targets.push(process.env.LINE_GROUP_ID.trim());
-    }
-
-    // 2. Auto-discovered / registered Group IDs from Firestore
-    try {
-      const savedGroupIds = await getActiveLineGroupIds();
-      savedGroupIds.forEach((id) => {
-        if (!targets.includes(id)) targets.push(id);
-      });
-    } catch (err) {
-      console.warn("Could not retrieve active group IDs:", err);
-    }
-
-    // 3. Known default group if none found
-    if (targets.length === 0) {
-      targets.push("Cde4a9c739118f0c8414bbd2ecdf6ab01");
-    }
-
-    // 4. Fallback to LINE_USER_ID if no groups found
-    if (targets.length === 0 && process.env.LINE_USER_ID) {
-      targets.push(process.env.LINE_USER_ID.trim());
-    }
-  }
-
-  // Deduplicate target IDs
-  targets = Array.from(new Set(targets.filter((t) => Boolean(t && typeof t === "string" && t.trim()))));
+  const targets = await resolveTargetIds(customTargetId);
 
   if (!token || targets.length === 0) {
     console.warn(
