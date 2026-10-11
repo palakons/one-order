@@ -408,7 +408,11 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       const data = await res.json();
       if (data.success) {
         confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
-        alert("บันทึกส่งอาหารเรียบร้อยแล้ว! ระบบแจ้งเตือนทุกคนในกลุ่ม LINE สำเร็จ 🎉");
+        if (data.lineNotified) {
+          alert("บันทึกส่งอาหารเรียบร้อยแล้ว! ระบบส่งแจ้งเตือนเข้ากลุ่ม LINE สำเร็จ 🎉");
+        } else {
+          alert("บันทึกส่งอาหารเรียบร้อยแล้ว! (สถานะในระบบอัปเดตแล้ว แต่ไม่พบกลุ่ม LINE หรือส่งแจ้งเตือน LINE ไม่สำเร็จ)");
+        }
         setShowDeliveryModal(false);
         setDeliveryPhotoData(null);
         setDeliveryPhotoError(null);

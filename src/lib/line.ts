@@ -35,11 +35,19 @@ export async function pushLineMessage(
       console.warn("Could not retrieve active group IDs:", err);
     }
 
-    // 3. Fallback to LINE_USER_ID if no groups found
+    // 3. Known default group if none found
+    if (targets.length === 0) {
+      targets.push("Cde4a9c739118f0c8414bbd2ecdf6ab01");
+    }
+
+    // 4. Fallback to LINE_USER_ID if no groups found
     if (targets.length === 0 && process.env.LINE_USER_ID) {
       targets.push(process.env.LINE_USER_ID.trim());
     }
   }
+
+  // Deduplicate target IDs
+  targets = Array.from(new Set(targets.filter((t) => Boolean(t && typeof t === "string" && t.trim()))));
 
   if (!token || targets.length === 0) {
     console.warn(
@@ -73,9 +81,10 @@ export async function pushLineMessage(
           to: targetId,
           messages,
         }),
+        signal: AbortSignal.timeout(8000),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         console.error(`LINE Push Error for target ${targetId}:`, data);
 
@@ -91,8 +100,9 @@ export async function pushLineMessage(
               to: targetId,
               messages: [{ type: "text", text }],
             }),
+            signal: AbortSignal.timeout(8000),
           });
-          const retryData = await retryRes.json();
+          const retryData = await retryRes.json().catch(() => ({}));
           if (retryRes.ok) {
             console.log(`LINE Push text-only fallback succeeded for ${targetId}`);
             anySuccess = true;
