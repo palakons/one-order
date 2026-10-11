@@ -966,32 +966,35 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           {/* Level 1: Group Selector Pills */}
           {/* Level 1: Action Buttons (Open Board & Refresh) at the Front + Group Selector Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
-            {/* Primary Action 1: Open New Board (Front & Prominent) */}
+            {/* Primary Action 1: Open New Board (Front & Compact) */}
             <button
               type="button"
               onClick={handleOpenBoardClick}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-black bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-black bg-purple-900 text-white hover:bg-purple-800 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
               title={t.openBoardTitle}
             >
-              <Plus className="h-4 w-4" />
-              <span>{t.openNewBoard}</span>
+              <Plus className="h-3.5 w-3.5" />
+              <span>{lang === "en" ? "Board" : lang === "cn" ? "拼单" : "กระดาน"}</span>
             </button>
 
-            {/* Primary Action 2: Refresh Button with fetched timestamp (Front) */}
+            {/* Primary Action 2: Refresh Button (Icon Only & Compact) */}
             <button
               type="button"
               onClick={() => fetchBatches(true)}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60 shrink-0"
-              title="กดเพื่ออัปเดตกระดานและออเดอร์ล่าสุด"
+              className="inline-flex items-center justify-center rounded-xl p-1.5 text-xs font-bold border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer disabled:opacity-60 active:scale-95 shrink-0"
+              title={
+                lastRefreshedAt
+                  ? lang === "en"
+                    ? `Data fetched at ${lastRefreshedAt} (Click to refresh)`
+                    : lang === "cn"
+                    ? `数据获取于 ${lastRefreshedAt} (点击刷新)`
+                    : `ดึงข้อมูลล่าสุดเมื่อ ${lastRefreshedAt} น. (กดเพื่อรีเฟรช)`
+                  : "กดเพื่อรีเฟรชข้อมูล"
+              }
+              aria-label="รีเฟรช"
             >
               <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
-              <span>{lang === "en" ? "Refresh" : lang === "cn" ? "刷新" : "รีเฟรช"}</span>
-              {lastRefreshedAt && (
-                <span className="text-[10px] text-slate-500 font-mono font-normal">
-                  ({lastRefreshedAt}{lang === "th" ? " น." : ""})
-                </span>
-              )}
             </button>
 
             {/* Subtle Divider */}
