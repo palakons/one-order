@@ -68,7 +68,7 @@ export default function AdminClient({
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "shops" | "desks" | "batches" | "suggestions" | "line"
+    "shops" | "desks" | "batches" | "suggestions"
   >("shops");
 
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
@@ -105,6 +105,9 @@ export default function AdminClient({
 
   // Collapsible toggle for Firebase and Datastore Monitor Pane (Default: Collapsed)
   const [isSystemPaneOpen, setIsSystemPaneOpen] = useState(false);
+
+  // Collapsible toggle for LINE Notification Pane (Default: Collapsed)
+  const [isLinePaneOpen, setIsLinePaneOpen] = useState(false);
 
   // System, Firebase & Fallback Storage State
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(
@@ -198,6 +201,7 @@ export default function AdminClient({
         setIsAuthenticated(true);
         fetchSuggestions();
         fetchLocations();
+        fetchLineStatus();
       }
     } catch (e) {
       console.warn("sessionStorage check failed", e);
@@ -454,6 +458,7 @@ export default function AdminClient({
       setPassError(false);
       fetchSuggestions();
       fetchLocations();
+      fetchLineStatus();
     } else {
       setPassError(true);
     }
@@ -1283,8 +1288,317 @@ export default function AdminClient({
     )}
   </div>
 
-  {/* Navigation Tabs */}
-  <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
+  {/* Collapsible LINE Notification & Group Dispatch Card */}
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all">
+          {/* Header Bar / Collapsed Summary Bar */}
+          <div
+            onClick={() => {
+              setIsLinePaneOpen((prev) => !prev);
+              if (!lineStatus) fetchLineStatus();
+            }}
+            className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#06C755] text-white shrink-0 font-black text-sm shadow-xs">
+                L
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider border ${
+                      lineStatus?.hasToken
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                        : "bg-slate-100 text-slate-700 border-slate-200"
+                    }`}
+                  >
+                    {lineStatus?.hasToken ? "Messaging API Ready" : "Messaging API"}
+                  </span>
+                  <span
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold border flex items-center gap-1 ${
+                      lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                        : "bg-amber-50 text-amber-900 border-amber-200"
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
+                          ? "bg-emerald-500 animate-pulse"
+                          : "bg-amber-500"
+                      }`}
+                    />
+                    {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
+                      ? `${lineStatus.activeGroupIds.length} กลุ่มเชื่อมต่ออยู่`
+                      : "ยังไม่มีกลุ่มเชื่อมต่อ"}
+                  </span>
+                  <span className="rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+                    Free Plan (300 ข้อความ/ด.)
+                  </span>
+                  <span className="text-xs font-black text-slate-900 ml-1">
+                    LINE Notification &amp; Group Dispatch
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 mt-0.5">
+                  <span>
+                    โควตาฟรี:{" "}
+                    <strong className="text-purple-700 font-bold">
+                      {lineStatus?.quota?.remaining ?? 300}/{lineStatus?.quota?.limit ?? 300}
+                    </strong>{" "}
+                    ข้อความคงเหลือ
+                  </span>
+                  <span>•</span>
+                  <span>
+                    ส่งไปแล้วเดือนนี้: <strong>{lineStatus?.quota?.totalUsage ?? 0}</strong> ข้อความ
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Webhook: <strong>/api/line/webhook</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fetchLineStatus();
+                }}
+                disabled={loadingLine}
+                className="rounded-xl border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs flex items-center gap-1 cursor-pointer"
+                title="รีเฟรชข้อมูล LINE"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 text-emerald-600 ${loadingLine ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">รีเฟรช</span>
+              </button>
+              <span className="text-xs font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors flex items-center gap-1">
+                <span>{isLinePaneOpen ? "ย่อเก็บ" : "ขยายดูรายละเอียด"}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                    isLinePaneOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </span>
+            </div>
+          </div>
+
+          {/* Expanded Content */}
+          {isLinePaneOpen && (
+            <div className="border-t border-slate-200 p-4 sm:p-5 space-y-5 bg-slate-50/40">
+              {/* Connection Cards */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-gray-900">1. สถานะการเชื่อมต่อ LINE Messaging API</h3>
+                  <button
+                    type="button"
+                    onClick={fetchLineStatus}
+                    disabled={loadingLine}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 text-gray-500 ${loadingLine ? "animate-spin" : ""}`} />
+                    <span>รีเฟรชสถานะ</span>
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase">Channel Access Token</div>
+                    <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      <span className="text-emerald-800">พร้อมใช้งาน (Configured)</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase">Environment Group ID</div>
+                    <div className="mt-1 font-bold text-xs truncate">
+                      {lineStatus?.envGroupId ? (
+                        <span className="text-emerald-800 font-mono">{lineStatus.envGroupId}</span>
+                      ) : (
+                        <span className="text-gray-400 font-normal">Auto-detect Active</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase">กลุ่มที่เชื่อมต่ออยู่</div>
+                    <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
+                            ? "bg-emerald-500"
+                            : "bg-amber-500"
+                        }`}
+                      />
+                      <span
+                        className={
+                          lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
+                            ? "text-emerald-800"
+                            : "text-amber-800"
+                        }
+                      >
+                        {lineStatus?.activeGroupIds?.length || 0} กลุ่มที่ตรวจพบ
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 flex flex-col justify-between">
+                    <div>
+                      <div className="text-[11px] font-bold text-purple-900 uppercase flex items-center justify-between">
+                        <span>โควตาข้อความฟรี / เดือน</span>
+                        <span className="font-mono text-[9px] bg-purple-200 text-purple-800 px-1 py-0.2 rounded font-bold">Free Plan</span>
+                      </div>
+                      <div className="mt-1 flex items-baseline gap-1.5 font-bold text-xs">
+                        <span className="text-base font-black text-purple-950 font-mono">
+                          {lineStatus?.quota?.remaining ?? 300}
+                        </span>
+                        <span className="text-gray-500 text-[11px]">
+                          / {lineStatus?.quota?.limit ?? 300} คงเหลือ
+                        </span>
+                      </div>
+                      <div className="mt-1.5 w-full bg-purple-200/70 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-purple-700 h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, ((lineStatus?.quota?.remaining ?? 300) / (lineStatus?.quota?.limit ?? 300)) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-purple-800 mt-2 font-medium">
+                      ส่งไปแล้วเดือนนี้: <strong>{lineStatus?.quota?.totalUsage ?? 0}</strong> ข้อความ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Connected Groups List */}
+                <div className="pt-2 space-y-2">
+                  <h4 className="text-xs font-bold text-gray-700">กลุ่ม LINE ที่จะได้รับแจ้งเตือนอัตโนมัติ:</h4>
+                  {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 ? (
+                    <div className="space-y-2">
+                      {lineStatus.activeGroupIds.map((gid) => (
+                        <div
+                          key={gid}
+                          className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span className="font-mono font-bold text-emerald-950">{gid}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTestLinePush(gid)}
+                              disabled={testingLine}
+                              className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs transition-all cursor-pointer"
+                            >
+                              {testingLine ? "กำลังส่ง..." : "ทดสอบส่ง"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGroup(gid)}
+                              className="rounded-lg border border-rose-200 bg-white px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            >
+                              ลบ
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      ยังไม่มี Group ID บันทึกในระบบ (สามารถเพิ่มด้วยตนเองด้านล่าง หรือพิมพ์ &lsquo;group id&rsquo; ในกลุ่มแชท)
+                    </p>
+                  )}
+                </div>
+
+                {/* Manual Add Group ID Form */}
+                <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    placeholder="ใส่ LINE Group ID ด้วยตนเอง (ขึ้นต้นด้วย C... หรือ R...)"
+                    value={manualGroupId}
+                    onChange={(e) => setManualGroupId(e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddManualGroup}
+                    disabled={addingGroupId}
+                    className="rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer shrink-0"
+                  >
+                    {addingGroupId ? "กำลังเพิ่ม..." : "+ เพิ่ม Group ID"}
+                  </button>
+                </div>
+
+                {lineTestResult && (
+                  <div
+                    className={`rounded-xl p-3 text-xs font-bold border ${
+                      lineTestResult.success
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                        : "border-rose-300 bg-rose-50 text-rose-900"
+                    }`}
+                  >
+                    {lineTestResult.message}
+                  </div>
+                )}
+              </div>
+
+              {/* Broadcast Custom Message Card */}
+              <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50/50 to-white p-5 shadow-xs space-y-3">
+                <h3 className="font-bold text-sm text-purple-950 flex items-center gap-2">
+                  <Send className="h-4 w-4 text-purple-700" />
+                  <span>2. ส่งประกาศข้อความเข้ากลุ่ม LINE (Broadcast Announcement)</span>
+                </h3>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  พิมพ์ข้อความเพื่อส่งประกาศเข้ากลุ่ม LINE ของนักศึกษาและอาจารย์ VISTEC ทุกกลุ่มที่เชื่อมต่ออยู่
+                </p>
+                <textarea
+                  rows={3}
+                  placeholder="เช่น: 🍱 [VEATEC] แจ้งเตือน: วันนี้มีร้านอาหารเปิดรอบพิเศษส่งฟรีถึงตึก M4 สั่งได้ถึง 11:15 น.!"
+                  value={customBroadcastMsg}
+                  onChange={(e) => setCustomBroadcastMsg(e.target.value)}
+                  className="w-full rounded-xl border border-purple-200 bg-white p-3 text-xs text-gray-900 focus:outline-purple-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendBroadcast}
+                  disabled={sendingBroadcast || !customBroadcastMsg.trim()}
+                  className="rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                >
+                  {sendingBroadcast ? "กำลังส่งประกาศ..." : "📢 ส่งประกาศเข้ากลุ่มเดี๋ยวนี้"}
+                </button>
+              </div>
+
+              {/* Webhook URL & Instructions Card */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-3">
+                <h3 className="font-bold text-sm text-gray-900">3. ข้อมูล Webhook URL สำหรับ LINE Developers Console</h3>
+                <p className="text-xs text-gray-600">
+                  นำ URL ด้านล่างนี้ไปกรอกในช่อง <strong>Webhook URL</strong> บน LINE Developers Console:
+                </p>
+                <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 p-3 text-xs font-mono">
+                  <span className="truncate">https://one-order-seven.vercel.app/api/line/webhook</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://one-order-seven.vercel.app/api/line/webhook");
+                      setCopiedWebhook(true);
+                      setTimeout(() => setCopiedWebhook(false), 2000);
+                    }}
+                    className="rounded bg-white/20 hover:bg-white/30 text-white px-2 py-1 text-xs font-bold transition-colors cursor-pointer shrink-0 ml-2"
+                  >
+                    {copiedWebhook ? "คัดลอกแล้ว!" : "คัดลอก"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
           <button
             onClick={() => setActiveTab("shops")}
             className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
@@ -1337,26 +1651,6 @@ export default function AdminClient({
           >
             <MessageSquareHeart className="h-4 w-4" />
             <span>ข้อเสนอแนะ ({suggestions.length})</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab("line");
-              fetchLineStatus();
-            }}
-            className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-              activeTab === "line"
-                ? "border-purple-800 text-purple-900"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-            }`}
-          >
-            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#06C755] text-white text-[9px] font-black">
-              L
-            </span>
-            <span>LINE แจ้งเตือน</span>
-            {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 && (
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            )}
           </button>
         </div>
 
@@ -1836,233 +2130,6 @@ export default function AdminClient({
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 5: LINE NOTIFICATION */}
-        {/* ========================================================= */}
-        {activeTab === "line" && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#06C755] text-white text-xs font-black">
-                    L
-                  </span>
-                  <span>LINE Notification &amp; Group Dispatch</span>
-                </h2>
-                <p className="text-xs text-gray-500">
-                  จัดการเชื่อมต่อกลุ่ม LINE และส่งข้อความแจ้งเตือนเมื่ออาหารมาส่ง
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={fetchLineStatus}
-                disabled={loadingLine}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer self-start sm:self-center"
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 text-gray-500 ${loadingLine ? "animate-spin" : ""}`}
-                />
-                <span>รีเฟรชสถานะ</span>
-              </button>
-            </div>
-
-            {/* Connection Cards */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-              <h3 className="font-bold text-sm text-gray-900">1. สถานะการเชื่อมต่อ LINE Messaging API</h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <div className="text-[11px] font-bold text-gray-500 uppercase">Channel Access Token</div>
-                  <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    <span className="text-emerald-800">พร้อมใช้งาน (Configured)</span>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <div className="text-[11px] font-bold text-gray-500 uppercase">Environment Group ID</div>
-                  <div className="mt-1 font-bold text-xs truncate">
-                    {lineStatus?.envGroupId ? (
-                      <span className="text-emerald-800 font-mono">{lineStatus.envGroupId}</span>
-                    ) : (
-                      <span className="text-gray-400 font-normal">Auto-detect Active</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <div className="text-[11px] font-bold text-gray-500 uppercase">กลุ่มที่เชื่อมต่ออยู่</div>
-                  <div className="mt-1 flex items-center gap-1.5 font-bold text-xs">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
-                          ? "bg-emerald-500"
-                          : "bg-amber-500"
-                      }`}
-                    />
-                    <span
-                      className={
-                        lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0
-                          ? "text-emerald-800"
-                          : "text-amber-800"
-                      }
-                    >
-                      {lineStatus?.activeGroupIds?.length || 0} กลุ่มที่ตรวจพบ
-                    </span>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 flex flex-col justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold text-purple-900 uppercase flex items-center justify-between">
-                      <span>โควตาข้อความฟรี / เดือน</span>
-                      <span className="font-mono text-[9px] bg-purple-200 text-purple-800 px-1 py-0.2 rounded font-bold">Free Plan</span>
-                    </div>
-                    <div className="mt-1 flex items-baseline gap-1.5 font-bold text-xs">
-                      <span className="text-base font-black text-purple-950 font-mono">
-                        {lineStatus?.quota?.remaining ?? 300}
-                      </span>
-                      <span className="text-gray-500 text-[11px]">
-                        / {lineStatus?.quota?.limit ?? 300} คงเหลือ
-                      </span>
-                    </div>
-                    <div className="mt-1.5 w-full bg-purple-200/70 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-purple-700 h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, ((lineStatus?.quota?.remaining ?? 300) / (lineStatus?.quota?.limit ?? 300)) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-purple-800 mt-2 font-medium">
-                    ส่งไปแล้วเดือนนี้: <strong>{lineStatus?.quota?.totalUsage ?? 0}</strong> ข้อความ
-                  </p>
-                </div>
-              </div>
-
-              {/* Connected Groups List */}
-              <div className="pt-2 space-y-2">
-                <h4 className="text-xs font-bold text-gray-700">กลุ่ม LINE ที่จะได้รับแจ้งเตือนอัตโนมัติ:</h4>
-                {lineStatus?.activeGroupIds && lineStatus.activeGroupIds.length > 0 ? (
-                  <div className="space-y-2">
-                    {lineStatus.activeGroupIds.map((gid) => (
-                      <div
-                        key={gid}
-                        className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                          <span className="font-mono font-bold text-emerald-950">{gid}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleTestLinePush(gid)}
-                            disabled={testingLine}
-                            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs transition-all cursor-pointer"
-                          >
-                            {testingLine ? "กำลังส่ง..." : "ทดสอบส่ง"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveGroup(gid)}
-                            className="rounded-lg border border-rose-200 bg-white px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            ลบ
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                    ยังไม่มี Group ID บันทึกในระบบ (สามารถเพิ่มด้วยตนเองด้านล่าง หรือพิมพ์ &lsquo;group id&rsquo; ในกลุ่มแชท)
-                  </p>
-                )}
-              </div>
-
-              {/* Manual Add Group ID Form */}
-              <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  placeholder="ใส่ LINE Group ID ด้วยตนเอง (ขึ้นต้นด้วย C... หรือ R...)"
-                  value={manualGroupId}
-                  onChange={(e) => setManualGroupId(e.target.value)}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddManualGroup}
-                  disabled={addingGroupId}
-                  className="rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer shrink-0"
-                >
-                  {addingGroupId ? "กำลังเพิ่ม..." : "+ เพิ่ม Group ID"}
-                </button>
-              </div>
-
-              {lineTestResult && (
-                <div
-                  className={`rounded-xl p-3 text-xs font-bold border ${
-                    lineTestResult.success
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                      : "border-rose-300 bg-rose-50 text-rose-900"
-                  }`}
-                >
-                  {lineTestResult.message}
-                </div>
-              )}
-            </div>
-
-            {/* Broadcast Custom Message Card */}
-            <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50/50 to-white p-5 shadow-xs space-y-3">
-              <h3 className="font-bold text-sm text-purple-950 flex items-center gap-2">
-                <Send className="h-4 w-4 text-purple-700" />
-                <span>2. ส่งประกาศข้อความเข้ากลุ่ม LINE (Broadcast Announcement)</span>
-              </h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                พิมพ์ข้อความเพื่อส่งประกาศเข้ากลุ่ม LINE ของนักศึกษาและอาจารย์ VISTEC ทุกกลุ่มที่เชื่อมต่ออยู่
-              </p>
-              <textarea
-                rows={3}
-                placeholder="เช่น: 🍱 [VEATEC] แจ้งเตือน: วันนี้มีร้านอาหารเปิดรอบพิเศษส่งฟรีถึงตึก M4 สั่งได้ถึง 11:15 น.!"
-                value={customBroadcastMsg}
-                onChange={(e) => setCustomBroadcastMsg(e.target.value)}
-                className="w-full rounded-xl border border-purple-200 bg-white p-3 text-xs text-gray-900 focus:outline-purple-500"
-              />
-              <button
-                type="button"
-                onClick={handleSendBroadcast}
-                disabled={sendingBroadcast || !customBroadcastMsg.trim()}
-                className="rounded-xl bg-purple-900 px-4 py-2 text-xs font-bold text-white hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-              >
-                {sendingBroadcast ? "กำลังส่งประกาศ..." : "📢 ส่งประกาศเข้ากลุ่มเดี๋ยวนี้"}
-              </button>
-            </div>
-
-            {/* Webhook URL & Instructions Card */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-3">
-              <h3 className="font-bold text-sm text-gray-900">3. ข้อมูล Webhook URL สำหรับ LINE Developers Console</h3>
-              <p className="text-xs text-gray-600">
-                นำ URL ด้านล่างนี้ไปกรอกในช่อง <strong>Webhook URL</strong> บน LINE Developers Console:
-              </p>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 p-3 text-xs font-mono">
-                <span className="truncate">https://one-order-seven.vercel.app/api/line/webhook</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText("https://one-order-seven.vercel.app/api/line/webhook");
-                    setCopiedWebhook(true);
-                    setTimeout(() => setCopiedWebhook(false), 2000);
-                  }}
-                  className="rounded bg-white/20 hover:bg-white/30 text-white px-2 py-1 text-xs font-bold transition-colors cursor-pointer shrink-0 ml-2"
-                >
-                  {copiedWebhook ? "คัดลอกแล้ว!" : "คัดลอก"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
       {/* ========================================================= */}
