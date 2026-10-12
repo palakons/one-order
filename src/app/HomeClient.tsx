@@ -18,6 +18,7 @@ import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-v
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getTimeRemaining, getBangkokDate, getDaysDifference } from "@/lib/utils";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
+import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
 import confetti from "canvas-confetti";
 import {
   MapPin,
@@ -414,8 +415,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       if (data.success && Array.isArray(data.shops)) {
         setAvailableShops(data.shops);
         if (data.shops.length > 0 && !openShopId) {
-          setOpenShopId(data.shops[0].id);
-          setOpenTargetMin(String(data.shops[0].minDeliveryAmount || 200));
+          const bkkDay = getBangkokDayOfWeek();
+          const firstOpen = data.shops.find((s: Shop) => isShopOpenOnDay(s, bkkDay)) || data.shops[0];
+          setOpenShopId(firstOpen.id);
+          setOpenTargetMin(String(firstOpen.minDeliveryAmount || 200));
         }
       }
     } catch (e) {
@@ -431,6 +434,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     const cleanDigits = savedPhone.replace(/\D/g, "");
     setOpenHostPin(cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "");
     setOpenCutoffTime(getDefaultCutoff());
+    const bkkDay = getBangkokDayOfWeek();
+    if (availableShops.length > 0) {
+      const currentShop = availableShops.find((s) => s.id === openShopId);
+      if (!currentShop || !isShopOpenOnDay(currentShop, bkkDay)) {
+        const firstOpen = availableShops.find((s) => isShopOpenOnDay(s, bkkDay)) || availableShops[0];
+        setOpenShopId(firstOpen.id);
+        setOpenTargetMin(String(firstOpen.minDeliveryAmount || 200));
+      }
+    }
     fetchShops();
     fetchLocations();
     setShowOpenBoardModal(true);
@@ -447,6 +459,21 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
     if (!openShopId) {
       setOpenBoardError("กรุณาเลือกร้านอาหารที่ต้องการสั่ง");
+      return;
+    }
+    const targetShop = availableShops.find((s) => s.id === openShopId);
+    if (!targetShop) {
+      setOpenBoardError("กรุณาเลือกร้านอาหารที่ต้องการสั่ง");
+      return;
+    }
+    if (targetShop.isActive === false) {
+      setOpenBoardError("ร้านนี้ปิดให้บริการชั่วคราว (Inactive) ไม่สามารถเปิดกระดานตี้ได้");
+      return;
+    }
+    const bkkDay = getBangkokDayOfWeek();
+    if (!isShopOpenOnDay(targetShop, bkkDay)) {
+      const daysText = formatOpenDaysText(targetShop.openDays, lang);
+      setOpenBoardError(`ร้านนี้ปิดทำการในวันนี้ (วันเปิดทำการ: ${daysText}) กรุณาเลือกร้านอื่นที่เปิดให้บริการ`);
       return;
     }
     if (!cleanLeader) {
@@ -2214,10 +2241,12 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
             <div>
               <p className="text-[11px] text-slate-500 font-medium">{t.accountName}</p>
-              <p className="text-sm font-black text-slate-900">{activeBatch.shop.promptpayAccountName}</p>
-              <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
-                {activeBatch.shop.promptpayNumber}
-              </p>
+              <p className="text-sm font-black text-slate-900">{activeBatch.shop.promptpayAccountName || activeBatch.shop.name}</p>
+              {activeBatch.shop.promptpayNumber && (
+                <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
+                  {activeBatch.shop.promptpayNumber}
+                </p>
+              )}
             </div>
 
             {/* Subtle Guideline Disclosure */}
@@ -2226,16 +2255,18 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               <span>{t.qrModalGuideline}</span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(activeBatch.shop.promptpayNumber);
-                alert(t.copiedPromptPay);
-              }}
-              className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200 transition-colors"
-            >
-              {t.copyPromptPay}
-            </button>
+            {activeBatch.shop.promptpayNumber && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(activeBatch.shop.promptpayNumber || "");
+                  alert(t.copiedPromptPay);
+                }}
+                className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200 transition-colors"
+              >
+                {t.copyPromptPay}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -2507,7 +2538,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               )}
 
               {/* 1. ร้านอาหาร */}
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className="font-bold text-slate-800 flex items-center justify-between">
                   <span>{t.stepShop} <span className="text-rose-500">*</span></span>
                   <span className="text-[10px] text-slate-500 font-normal">
@@ -2534,14 +2565,72 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   ) : (
                     availableShops.map((s) => {
                       const localizedShop = getShopLocalizedInfo(s, lang);
+                      const bkkDay = getBangkokDayOfWeek();
+                      const isOpen = isShopOpenOnDay(s, bkkDay);
+                      const daysText = formatOpenDaysText(s.openDays, lang);
                       return (
                         <option key={s.id} value={s.id}>
-                          {localizedShop.name} ({localizedShop.cuisine}) {s.minDeliveryAmount ? `• ${lang === "en" ? "Min" : lang === "cn" ? "免运" : "ขั้นต่ำ"} ฿${s.minDeliveryAmount}` : ""}
+                          {isOpen ? "🟢" : "🔴"} {localizedShop.name} ({localizedShop.cuisine}) &bull; {isOpen ? (lang === "en" ? "Open today" : lang === "cn" ? "今日接单" : "เปิดวันนี้") : (lang === "en" ? `Closed (${daysText})` : lang === "cn" ? `休息 (${daysText})` : `ปิดวันนี้ (${daysText})`)} {s.minDeliveryAmount ? `&bull; ${lang === "en" ? "Min" : lang === "cn" ? "免运" : "ขั้นต่ำ"} ฿${s.minDeliveryAmount}` : ""}
                         </option>
                       );
                     })
                   )}
                 </select>
+
+                {/* Selected Shop Status Badge / Alert */}
+                {(() => {
+                  const bkkDay = getBangkokDayOfWeek();
+                  const selectedShop = availableShops.find((x) => x.id === openShopId);
+                  if (!selectedShop) return null;
+                  const isOpen = isShopOpenOnDay(selectedShop, bkkDay);
+                  const daysText = formatOpenDaysText(selectedShop.openDays, lang);
+                  const isShopActive = selectedShop.isActive !== false;
+
+                  if (!isShopActive) {
+                    return (
+                      <div className="rounded-xl border border-rose-300 bg-rose-50 p-2.5 text-xs text-rose-900 flex items-center gap-2 animate-in fade-in">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                        <div>
+                          <strong className="block font-bold">
+                            {lang === "en" ? "Shop is temporarily inactive" : lang === "cn" ? "餐厅暂停接单" : "ร้านปิดให้บริการชั่วคราว (Inactive)"}
+                          </strong>
+                          <span className="text-[11px] text-rose-700">
+                            {lang === "en" ? "Cannot open a board for this shop. Please choose another shop." : lang === "cn" ? "暂时无法为此餐厅开单，请选择其他餐厅。" : "ไม่สามารถเปิดตี้สำหรับร้านนี้ได้ กรุณาเลือกร้านอาหารอื่น"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (!isOpen) {
+                    return (
+                      <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-950 flex items-center gap-2 animate-in fade-in">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                        <div>
+                          <strong className="block font-bold">
+                            {lang === "en" ? "Shop is closed today" : lang === "cn" ? "餐厅今日休息" : "ร้านปิดทำการในวันนี้"}
+                          </strong>
+                          <span className="text-[11px] text-amber-800">
+                            {lang === "en" ? `Open days: ${daysText}. Please choose an open restaurant.` : lang === "cn" ? `营业日: ${daysText}。请选择今日营业的餐厅。` : `วันเปิดทำการปกติ: ${daysText} — กรุณาเลือกร้านอื่นที่เปิดรับออเดอร์วันนี้`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-2 text-xs text-emerald-900 flex items-center gap-2 animate-in fade-in">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-0.5" />
+                      <div className="min-w-0 flex-1 text-[11px]">
+                        <span className="font-bold text-emerald-950">
+                          {lang === "en" ? "Open today" : lang === "cn" ? "今日正常接单" : "ร้านเปิดรับออเดอร์วันนี้"}
+                        </span>
+                        <span className="text-emerald-700 ml-1.5">&bull; วันทำการ: {daysText}</span>
+                        <span className="text-emerald-700 ml-1.5">&bull; ขั้นต่ำ ฿{selectedShop.minDeliveryAmount || 200}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Warning / Recommendation if an active (not-closed) board for this shop already exists today */}
                 {(() => {
@@ -2742,23 +2831,32 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 >
                   {t.cancel}
                 </button>
-                <button
-                  type="submit"
-                  disabled={creatingBoard}
-                  className="rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-5 py-2 text-xs font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {creatingBoard ? (
-                    <>
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      <span>{t.openingBoard}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      <span>{t.openBoardButton}</span>
-                    </>
-                  )}
-                </button>
+                {(() => {
+                  const bkkDay = getBangkokDayOfWeek();
+                  const targetShop = availableShops.find((s) => s.id === openShopId);
+                  const isClosed = targetShop ? !isShopOpenOnDay(targetShop, bkkDay) : false;
+                  return (
+                    <button
+                      type="submit"
+                      disabled={creatingBoard || isClosed}
+                      className="rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-5 py-2 text-xs font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    >
+                      {creatingBoard ? (
+                        <>
+                          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          <span>{t.openingBoard}</span>
+                        </>
+                      ) : isClosed ? (
+                        <span>ร้านปิดวันนี้ (ไม่สามารถเปิดตี้)</span>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          <span>{t.openBoardButton}</span>
+                        </>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
             </form>
           </div>

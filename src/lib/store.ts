@@ -68,6 +68,8 @@ const SEED_DATA: DatabaseSchema = {
       menuImageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:15",
+      isActive: true,
+      openDays: [1, 2, 3, 4, 5],
       menuItems: [
         { id: "pt1", name: "ข้าวกะเพราหมูกรอบคั่วพริกแห้ง", nameEn: "Crispy Pork Holy Basil Rice", price: 60, popular: true },
         { id: "pt2", name: "ข้าวหมูกระเทียมพริกไทยสด", nameEn: "Garlic Pepper Pork with Rice", price: 55, popular: true },
@@ -95,6 +97,8 @@ const SEED_DATA: DatabaseSchema = {
       menuImageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:20",
+      isActive: true,
+      openDays: [1, 2, 3, 4, 5],
       menuItems: [
         { id: "cr1", name: "หอยจ๊อปูทอดกรอบเนื้อแน่น (จาน 5 ลูก)", nameEn: "Crispy Crab Meat Rolls (Hoi Jor)", price: 120, popular: true },
         { id: "cr2", name: "ข้าวผัดเนื้อปูแกะสด", nameEn: "Fresh Crab Fried Rice", price: 70, popular: true },
@@ -121,6 +125,8 @@ const SEED_DATA: DatabaseSchema = {
       menuImageUrl: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:25",
+      isActive: true,
+      openDays: [1, 2, 3, 4, 5],
       menuItems: [
         { id: "mm1", name: "ข้าวแห้งทะเลทรงเครื่อง (Signature)", nameEn: "Signature Dry Seafood Rice Bowl", price: 70, popular: true },
         { id: "mm2", name: "ข้าวราดปลาพิโรธผัดฉ่าสูตรเด็ด", nameEn: "Fiery Stir-fried Spicy Fish with Rice", price: 70, popular: true },
@@ -147,6 +153,8 @@ const SEED_DATA: DatabaseSchema = {
       menuImageUrl: "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 200,
       defaultCutoffTime: "11:30",
+      isActive: true,
+      openDays: [1, 2, 3, 4, 5],
       menuItems: [
         { id: "ks1", name: "ส้มตำไทยไข่เค็ม", nameEn: "Thai Papaya Salad with Salted Egg", price: 55, popular: true },
         { id: "ks2", name: "ส้มตำปูปลาร้านัวแซ่บ", nameEn: "Spicy Papaya Salad with Fermented Fish", price: 50, popular: true },
@@ -173,6 +181,8 @@ const SEED_DATA: DatabaseSchema = {
       menuImageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
       minDeliveryAmount: 150,
       defaultCutoffTime: "11:45",
+      isActive: true,
+      openDays: [1, 2, 3, 4, 5],
       menuItems: [
         { id: "lt1", name: "ชาไทยพรีเมียมเย็น (สูตรเข้มข้น หวานน้อย)", nameEn: "Signature Thai Iced Tea", price: 50, popular: true },
         { id: "lt2", name: "Iced Americano Special Blend (คั่วกลาง)", nameEn: "Iced Americano Medium Roast", price: 55, popular: true },

@@ -28,12 +28,14 @@ export async function POST(request: Request) {
       menuImageUrl,
       minDeliveryAmount,
       defaultCutoffTime,
+      isActive,
+      openDays,
       menuItems,
     } = body;
 
-    if (!name || !phone || !promptpayNumber || !promptpayAccountName) {
+    if (!name || !phone) {
       return NextResponse.json(
-        { success: false, error: "Missing required shop details" },
+        { success: false, error: "Missing required shop details: name and phone are required" },
         { status: 400 }
       );
     }
@@ -47,14 +49,16 @@ export async function POST(request: Request) {
       phone,
       lineId: lineId || "",
       gmapUrl: gmapUrl || `https://maps.google.com/?q=${encodeURIComponent(name + " ระยอง")}`,
-      promptpayNumber,
-      promptpayAccountName,
+      promptpayNumber: promptpayNumber || "",
+      promptpayAccountName: promptpayAccountName || "",
       promptpayQrUrl:
         promptpayQrUrl ||
-        `https://promptpay.io/${promptpayNumber}.png`,
+        (promptpayNumber ? `https://promptpay.io/${promptpayNumber}.png` : ""),
       menuImageUrl: menuImageUrl || "",
       minDeliveryAmount: Number(minDeliveryAmount) || 200,
       defaultCutoffTime: defaultCutoffTime || "11:15",
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+      openDays: Array.isArray(openDays) && openDays.length > 0 ? openDays : [1, 2, 3, 4, 5],
       menuItems: menuItems || [],
     };
 
@@ -80,13 +84,15 @@ export async function PUT(request: Request) {
       ...(existingShop || {}),
       ...body,
       id,
+      promptpayQrUrl:
+        body.promptpayQrUrl !== undefined
+          ? body.promptpayQrUrl
+          : existingShop?.promptpayQrUrl || "",
       minDeliveryAmount: Number(body.minDeliveryAmount) || existingShop?.minDeliveryAmount || 200,
       menuItems: body.menuItems || existingShop?.menuItems || [],
+      isActive: body.isActive !== undefined ? Boolean(body.isActive) : (existingShop?.isActive ?? true),
+      openDays: Array.isArray(body.openDays) ? body.openDays : (existingShop?.openDays ?? [1, 2, 3, 4, 5]),
     };
-
-    if (body.promptpayNumber && !body.promptpayQrUrl) {
-      updatedShop.promptpayQrUrl = `https://promptpay.io/${body.promptpayNumber}.png`;
-    }
 
     const saved = await saveShop(updatedShop);
     return NextResponse.json({ success: true, shop: saved });

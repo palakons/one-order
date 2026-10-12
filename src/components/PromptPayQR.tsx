@@ -5,8 +5,8 @@ import { QrCode, Copy, Check, Smartphone, ShieldCheck, Phone, MessageSquare } fr
 
 interface Props {
   shopName: string;
-  accountName: string;
-  promptpayNumber: string;
+  accountName?: string;
+  promptpayNumber?: string;
   amount: number;
   qrUrl?: string;
   phone?: string;
@@ -26,10 +26,10 @@ export default function PromptPayQR({
   const isContactShop =
     qrUrl === "contact shop" ||
     promptpayNumber === "contact shop" ||
-    !promptpayNumber ||
+    (!promptpayNumber && !qrUrl) ||
     qrUrl?.toLowerCase().includes("contact");
 
-  const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${promptpayNumber}`;
+  const fallbackQr = promptpayNumber ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${promptpayNumber}` : "";
   const displayQr = qrUrl && qrUrl.startsWith("http") ? qrUrl : fallbackQr;
 
   const copyToClipboard = (text: string, type: "number" | "amount") => {
@@ -166,26 +166,30 @@ export default function PromptPayQR({
 
           {/* Account name */}
           <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide">ชื่อบัญชีร้านค้า:</div>
-            <div className="font-bold text-gray-900 text-xs sm:text-sm">{accountName}</div>
-            <div className="text-[11px] text-gray-500">{shopName}</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide">ร้านค้า:</div>
+            <div className="font-bold text-gray-900 text-xs sm:text-sm">{shopName}</div>
+            {accountName && (
+              <div className="text-[11px] text-gray-600 mt-0.5">ชื่อบัญชี: {accountName}</div>
+            )}
           </div>
 
           {/* PromptPay Number */}
-          <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide">เบอร์พร้อมเพย์:</div>
-            <div className="flex items-center justify-between mt-0.5">
-              <span className="font-mono text-xs sm:text-sm font-bold text-gray-900">{promptpayNumber}</span>
-              <button
-                type="button"
-                onClick={() => copyToClipboard(promptpayNumber, "number")}
-                className="inline-flex items-center gap-1 rounded bg-white hover:bg-gray-100 border border-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
-              >
-                {copiedNumber ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                <span>{copiedNumber ? "คัดลอกแล้ว" : "คัดลอกเบอร์"}</span>
-              </button>
+          {promptpayNumber && (
+            <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide">เบอร์พร้อมเพย์:</div>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="font-mono text-xs sm:text-sm font-bold text-gray-900">{promptpayNumber}</span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(promptpayNumber, "number")}
+                  className="inline-flex items-center gap-1 rounded bg-white hover:bg-gray-100 border border-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                >
+                  {copiedNumber ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  <span>{copiedNumber ? "คัดลอกแล้ว" : "คัดลอกเบอร์"}</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

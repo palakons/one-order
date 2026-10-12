@@ -1137,22 +1137,26 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
             <div>
               <p className="text-xs text-gray-500">ชื่อบัญชี:</p>
-              <p className="text-sm font-black text-gray-900">{batch.shop.promptpayAccountName}</p>
-              <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
-                {batch.shop.promptpayNumber}
-              </p>
+              <p className="text-sm font-black text-gray-900">{batch.shop.promptpayAccountName || batch.shop.name}</p>
+              {batch.shop.promptpayNumber && (
+                <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
+                  {batch.shop.promptpayNumber}
+                </p>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(batch.shop.promptpayNumber);
-                alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
-              }}
-              className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
-            >
-              คัดลอกหมายเลขพร้อมเพย์
-            </button>
+            {batch.shop.promptpayNumber && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(batch.shop.promptpayNumber || "");
+                  alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+                }}
+                className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
+              >
+                คัดลอกหมายเลขพร้อมเพย์
+              </button>
+            )}
           </div>
         </div>
       )}

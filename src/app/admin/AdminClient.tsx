@@ -49,9 +49,11 @@ import {
   ChevronDown,
   Maximize2,
   ShoppingBag,
+  Info,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
+import { DAYS_OF_WEEK, formatOpenDaysText } from "@/lib/shop-utils";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -133,6 +135,8 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
   const qrUrl =
     shop.promptpayQrUrl ||
     (shop.promptpayNumber ? `https://promptpay.io/${shop.promptpayNumber.replace(/\D/g, "")}.png` : null);
+  const isActive = shop.isActive !== false;
+  const daysText = formatOpenDaysText(shop.openDays);
 
   return (
     <div
@@ -181,16 +185,28 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
             {shop.nameEn && (
               <p className="text-[11px] text-gray-500 truncate">{shop.nameEn}</p>
             )}
-            <span
-              className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold border mt-1"
-              style={{
-                backgroundColor: `${accentColor}15`,
-                color: accentColor,
-                borderColor: `${accentColor}35`,
-              }}
-            >
-              {shop.cuisine || "อาหารจานเดียว"}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              <span
+                className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold border"
+                style={{
+                  backgroundColor: `${accentColor}15`,
+                  color: accentColor,
+                  borderColor: `${accentColor}35`,
+                }}
+              >
+                {shop.cuisine || "อาหารจานเดียว"}
+              </span>
+              {isActive ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>เปิดใช้งาน (Active)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 text-[10px] font-bold">
+                  <span>ปิดชั่วคราว (Inactive)</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -207,15 +223,9 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
             </a>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-gray-500">พร้อมเพย์:</span>
-            <span className="font-mono font-bold text-gray-800">
-              {shop.promptpayNumber}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-gray-500">ชื่อบัญชี:</span>
-            <span className="font-semibold text-gray-800 truncate max-w-[150px]">
-              {shop.promptpayAccountName}
+            <span className="text-[11px] text-gray-500">วันเปิดทำการ:</span>
+            <span className="font-semibold text-gray-800">
+              📅 {daysText}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -227,7 +237,7 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
         </div>
 
         {/* PromptPay QR Code Thumbnail */}
-        {qrUrl && (
+        {qrUrl ? (
           <div
             className="flex items-center gap-2.5 p-2 rounded-xl border transition-colors"
             style={{
@@ -241,8 +251,6 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
                 onZoomQr({
                   url: qrUrl,
                   title: `${shop.name} — พร้อมเพย์ QR`,
-                  number: shop.promptpayNumber,
-                  accountName: shop.promptpayAccountName,
                 })
               }
               className="relative h-12 w-12 rounded-lg bg-white p-1 border border-gray-200 shrink-0 shadow-2xs cursor-zoom-in hover:scale-105 transition-transform group"
@@ -263,26 +271,25 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
                 <QrCode className="h-3.5 w-3.5 shrink-0" style={{ color: accentColor }} />
                 <span className="truncate">PromptPay QR</span>
               </div>
-              <div className="text-[11px] font-mono text-gray-600 truncate">
-                {shop.promptpayNumber}
-              </div>
               <button
                 type="button"
                 onClick={() =>
                   onZoomQr({
                     url: qrUrl,
                     title: `${shop.name} — พร้อมเพย์ QR`,
-                    number: shop.promptpayNumber,
-                    accountName: shop.promptpayAccountName,
                   })
                 }
-                className="text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
+                className="text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer mt-1"
                 style={{ color: accentColor }}
               >
-                <span>คลิกขยายใหญ่</span>
+                <span>คลิกดูรูป QR เต็ม</span>
                 <Maximize2 className="h-2.5 w-2.5" />
               </button>
             </div>
+          </div>
+        ) : (
+          <div className="p-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 text-center text-xs text-gray-500">
+            <span className="text-[11px]">⚠️ ยังไม่มีรูป QR พร้อมเพย์ (กดแก้ไขเพื่ออัปโหลด)</span>
           </div>
         )}
 
@@ -434,12 +441,12 @@ export default function AdminClient({
   const [shopPhone, setShopPhone] = useState("");
   const [shopLineId, setShopLineId] = useState("");
   const [shopGmapUrl, setShopGmapUrl] = useState("");
-  const [shopPromptPayNumber, setShopPromptPayNumber] = useState("");
-  const [shopPromptPayName, setShopPromptPayName] = useState("");
   const [shopPromptPayQrUrl, setShopPromptPayQrUrl] = useState("");
   const [shopMenuImageUrl, setShopMenuImageUrl] = useState("");
   const [shopMinDelivery, setShopMinDelivery] = useState("200");
   const [shopDefaultCutoff, setShopDefaultCutoff] = useState("11:15");
+  const [shopIsActive, setShopIsActive] = useState(true);
+  const [shopOpenDays, setShopOpenDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [shopMenuItems, setShopMenuItems] = useState<Array<{ name: string; price: number; popular: boolean }>>([
     { name: "ข้าวกะเพราหมูกรอบ", price: 60, popular: true },
     { name: "ข้าวหมูกระเทียม", price: 55, popular: false },
@@ -820,12 +827,12 @@ export default function AdminClient({
     setShopPhone("");
     setShopLineId("");
     setShopGmapUrl("");
-    setShopPromptPayNumber("");
-    setShopPromptPayName("");
     setShopPromptPayQrUrl("");
     setShopMenuImageUrl("");
     setShopMinDelivery("200");
     setShopDefaultCutoff("11:15");
+    setShopIsActive(true);
+    setShopOpenDays([1, 2, 3, 4, 5]);
     setShopMenuItems([
       { name: "ข้าวกะเพราหมูกรอบ", price: 60, popular: true },
       { name: "ข้าวหมูกระเทียม", price: 55, popular: false },
@@ -842,12 +849,16 @@ export default function AdminClient({
     setShopPhone(shop.phone || "");
     setShopLineId(shop.lineId || "");
     setShopGmapUrl(shop.gmapUrl || "");
-    setShopPromptPayNumber(shop.promptpayNumber || "");
-    setShopPromptPayName(shop.promptpayAccountName || "");
     setShopPromptPayQrUrl(shop.promptpayQrUrl || "");
     setShopMenuImageUrl(shop.menuImageUrl || "");
     setShopMinDelivery(String(shop.minDeliveryAmount || 200));
     setShopDefaultCutoff(shop.defaultCutoffTime || "11:15");
+    setShopIsActive(shop.isActive !== false);
+    setShopOpenDays(
+      Array.isArray(shop.openDays) && shop.openDays.length > 0
+        ? shop.openDays
+        : [1, 2, 3, 4, 5]
+    );
     setShopMenuItems(
       (shop.menuItems || []).map((m) => ({
         name: m.name,
@@ -890,8 +901,8 @@ export default function AdminClient({
 
   const handleSaveShop = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopName.trim() || !shopPromptPayNumber.trim() || !shopPromptPayName.trim()) {
-      alert("กรุณากรอกชื่อร้าน เบอร์พร้อมเพย์ และชื่อบัญชีพร้อมเพย์");
+    if (!shopName.trim() || !shopPhone.trim()) {
+      alert("กรุณากรอกชื่อร้านและเบอร์โทรศัพท์");
       return;
     }
 
@@ -906,12 +917,12 @@ export default function AdminClient({
         phone: shopPhone.trim(),
         lineId: shopLineId.trim(),
         gmapUrl: shopGmapUrl.trim() || `https://maps.google.com/?q=${encodeURIComponent(shopName.trim() + " ระยอง")}`,
-        promptpayNumber: shopPromptPayNumber.trim(),
-        promptpayAccountName: shopPromptPayName.trim(),
         promptpayQrUrl: shopPromptPayQrUrl.trim() || undefined,
         menuImageUrl: shopMenuImageUrl.trim() || undefined,
         minDeliveryAmount: Number(shopMinDelivery) || 200,
         defaultCutoffTime: shopDefaultCutoff.trim() || "11:15",
+        isActive: shopIsActive,
+        openDays: shopOpenDays,
         menuItems: shopMenuItems.map((it, idx) => ({
           id: `dish-${Date.now()}-${idx}`,
           name: it.name,
@@ -1550,6 +1561,14 @@ export default function AdminClient({
                   เหลือ {Math.max(0, 20000 - (systemStatus.metrics?.deletesToday || 0)).toLocaleString()} ครั้ง
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Explanation note for Reads/Writes serverless counting */}
+          <div className="mt-3 p-3 rounded-xl bg-purple-50/70 border border-purple-200/80 text-[11px] text-purple-900 flex items-start gap-2.5">
+            <Info className="h-4 w-4 shrink-0 text-purple-700 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-bold">💡 หมายเหตุตัวเลข Reads/Writes:</span> สถิตินี้ถูกนับแบบ In-Memory บนแต่ละ Serverless Worker Instance ของ Vercel เพื่อประหยัดโควตา Write ของ Firestore ไม่ให้เสียครั้งเขียนในการเก็บสถิติ ตัวเลขอาจแตกต่างกันตาม Instance ที่รับ Request และจะรีเซ็ตอัตโนมัติทุกวันเวลา 15:00 น. ตามรอบโควตาฟรี 24 ชม. ของ Google Cloud (US Pacific 00:00)
             </div>
           </div>
 
@@ -2736,68 +2755,126 @@ export default function AdminClient({
                 </p>
               </div>
 
-              {/* Direct PromptPay Section */}
+              {/* Shop Active Status & Open Days (Mon - Sun) */}
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200/70 pb-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 block">สถานะเปิด/ปิดร้าน (Shop Active Status)</span>
+                    <span className="text-[11px] text-gray-500">
+                      {shopIsActive ? "เปิดรับออเดอร์ในระบบปกติ" : "ปิดรับออเดอร์ชั่วคราว (หัวหน้าตี้จะไม่สามารถเปิดตี้ร้านนี้ได้)"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShopIsActive(!shopIsActive)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      shopIsActive
+                        ? "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${shopIsActive ? "bg-white animate-pulse" : "bg-gray-500"}`} />
+                    <span>{shopIsActive ? "🟢 เปิดใช้งาน (Active)" : "⚪ ปิดร้านชั่วคราว (Inactive)"}</span>
+                  </button>
+                </div>
+
+                {/* Day of Week Selector */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-900">
+                      วันเปิดทำการ (Open Days Mon - Sun)
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setShopOpenDays([1, 2, 3, 4, 5])}
+                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
+                      >
+                        จ.-ศ.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShopOpenDays([1, 2, 3, 4, 5, 6, 0])}
+                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
+                      >
+                        ทุกวัน
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShopOpenDays([6, 0])}
+                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
+                      >
+                        ส.-อา.
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {DAYS_OF_WEEK.map((d) => {
+                      const isSelected = shopOpenDays.includes(d.day);
+                      return (
+                        <button
+                          key={d.day}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setShopOpenDays(shopOpenDays.filter((x) => x !== d.day));
+                            } else {
+                              setShopOpenDays([...shopOpenDays, d.day]);
+                            }
+                          }}
+                          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center border transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-purple-900 text-white border-purple-900 shadow-xs scale-102"
+                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <span className="text-[11px] font-bold">{d.short}</span>
+                          <span className={`text-[9px] ${isSelected ? "text-purple-200" : "text-gray-400"}`}>{d.en}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="text-[11px] text-gray-500 font-medium">
+                    สรุปวันทำการ: <strong className="text-gray-800">{formatOpenDaysText(shopOpenDays)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct PromptPay Section - Only QR Image */}
               <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 space-y-3">
                 <div className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
                   <QrCode className="h-4 w-4 text-purple-700" />
-                  <span>ข้อมูลพร้อมเพย์ของร้าน (PromptPay Payment)</span>
+                  <span>รูปภาพ QR Code พร้อมเพย์ร้าน (PromptPay QR Image)</span>
                 </div>
+                <p className="text-[11px] text-gray-600">
+                  อัปโหลดรูปภาพ QR Code พร้อมเพย์ของร้านสำหรับให้สมาชิกลงขันโอนเงิน (ระบบเรียบง่าย ไม่ต้องระบุเบอร์หรือชื่อบัญชี)
+                </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700">เบอร์พร้อมเพย์ / เลขบัตร *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="0819999999"
-                      value={shopPromptPayNumber}
-                      onChange={(e) => setShopPromptPayNumber(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
-                    />
+                {shopPromptPayQrUrl && (
+                  <div className="relative h-28 w-28 rounded-xl border border-purple-200 overflow-hidden bg-white shadow-2xs">
+                    <img src={shopPromptPayQrUrl} alt="QR Preview" className="h-full w-full object-contain p-1" />
                   </div>
+                )}
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700">ชื่อบัญชีพร้อมเพย์ *</label>
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0 shadow-2xs">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>อัปโหลดรูป QR ร้าน</span>
                     <input
-                      type="text"
-                      required
-                      placeholder="สมศรี ใจดี"
-                      value={shopPromptPayName}
-                      onChange={(e) => setShopPromptPayName(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleUploadShopImageFile(e, "qr")}
+                      className="hidden"
                     />
-                  </div>
-                </div>
-
-                {/* PromptPay QR Image Upload */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 block">
-                    รูปภาพ QR Code พร้อมเพย์ร้าน
                   </label>
-                  {shopPromptPayQrUrl && (
-                    <div className="relative h-24 w-24 rounded-xl border overflow-hidden bg-white mb-2">
-                      <img src={shopPromptPayQrUrl} alt="QR Preview" className="h-full w-full object-contain" />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0">
-                      <Upload className="h-3.5 w-3.5" />
-                      <span>อัปโหลดรูป QR</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleUploadShopImageFile(e, "qr")}
-                        className="hidden"
-                      />
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="หรือใส่ลิงก์รูป QR URL"
-                      value={shopPromptPayQrUrl}
-                      onChange={(e) => setShopPromptPayQrUrl(e.target.value)}
-                      className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
-                    />
-                  </div>
+                  <input
+                    type="url"
+                    placeholder="หรือวางลิงก์รูป QR Image URL"
+                    value={shopPromptPayQrUrl}
+                    onChange={(e) => setShopPromptPayQrUrl(e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
+                  />
                 </div>
               </div>
 
@@ -3084,18 +3161,28 @@ export default function AdminClient({
             </div>
 
             <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (zoomedQr.number) {
-                    navigator.clipboard?.writeText(zoomedQr.number.replace(/\D/g, ""));
+              {zoomedQr.number ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(zoomedQr.number?.replace(/\D/g, "") || "");
                     alert(`คัดลอกเลขพร้อมเพย์ ${zoomedQr.number} แล้ว`);
-                  }
-                }}
-                className="flex-1 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 py-2 text-xs font-bold text-gray-700 transition-colors cursor-pointer"
-              >
-                คัดลอกเลขพร้อมเพย์
-              </button>
+                  }}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 py-2 text-xs font-bold text-gray-700 transition-colors cursor-pointer"
+                >
+                  คัดลอกเลขพร้อมเพย์
+                </button>
+              ) : (
+                <a
+                  href={zoomedQr.url}
+                  download="promptpay-qr.png"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 text-center rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 py-2 text-xs font-bold text-purple-900 transition-colors cursor-pointer"
+                >
+                  เปิดดูภาพเต็ม / บันทึกรูป
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => setZoomedQr(null)}

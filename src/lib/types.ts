@@ -16,13 +16,15 @@ export interface Shop {
   phone: string;
   lineId?: string;
   gmapUrl?: string; // Google Maps link for the restaurant
-  promptpayNumber: string;
-  promptpayAccountName: string;
-  promptpayQrUrl?: string;
+  promptpayNumber?: string;
+  promptpayAccountName?: string;
+  promptpayQrUrl?: string; // QR code image URL (primary payment display)
   menuImageUrl?: string;
   accentColor?: string; // Dominant / average logo color for card accents
   minDeliveryAmount: number; // default 200 THB
   defaultCutoffTime: string; // e.g. "11:15"
+  isActive?: boolean; // Active toggle (defaults to true)
+  openDays?: number[]; // [0, 1, 2, 3, 4, 5, 6] (0 = Sun, 1 = Mon, ..., 6 = Sat)
   menuItems: MenuItem[];
 }
 
