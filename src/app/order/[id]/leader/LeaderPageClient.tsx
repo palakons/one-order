@@ -682,35 +682,20 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
         {/* 1. Leader Mission Control Header Card */}
         <div className="rounded-3xl border border-purple-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md border border-purple-200">
-                  {batch.shop.cuisine}
-                </span>
-                <span
-                  className={`text-[11px] font-black px-2.5 py-0.5 rounded-md ${
-                    batch.status === "OPEN"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : batch.status === "ORDERED"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  สถานะ: {batch.status}
-                </span>
-              </div>
-              <h1 className="mt-1.5 text-2xl sm:text-3xl font-black text-gray-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Top row: Shop Name and Drop-off Location dominant together */}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
                 {batch.shop.name}
               </h1>
-              <p className="mt-1 text-xs text-gray-600">
-                จุดส่ง: <strong>{buildingName} ชั้น 1</strong> • รอบวันที่: {batch.date} (Cutoff: {batch.cutoffTime} น.)
-              </p>
+              <span className="inline-flex items-center gap-1.5 text-base sm:text-lg font-black text-purple-900 bg-purple-100/90 px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
+                <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-purple-700 shrink-0" />
+                <span>{buildingName} ชั้น 1</span>
+              </span>
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Actions (Call Shop, LINE Shop, Share with Friends) */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {/* Call Shop */}
               {batch.shop.phone && (
                 <a
                   href={`tel:${batch.shop.phone}`}
@@ -722,7 +707,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {/* Shop LINE */}
               {batch.shop.lineId && (
                 <a
                   href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
@@ -735,7 +719,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {/* Share with Friends */}
               <button
                 type="button"
                 onClick={handleShareBoardInvite}
@@ -745,39 +728,37 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <Share2 className="h-3.5 w-3.5 text-purple-700" />
                 <span>📢 แชร์ชวนเพื่อน</span>
               </button>
-
-              {batch.shop.gmapUrl && (
-                <a
-                  href={batch.shop.gmapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-2xs transition-colors"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                  <span>ดูเมนูจาก Maps ↗</span>
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowPromptPayModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
-              >
-                <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                <span>💳 ดู QR พร้อมเพย์</span>
-              </button>
             </div>
           </div>
 
           {/* Delivery Goal & Progress */}
           <div className="pt-3 border-t border-gray-100 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-gray-700 flex items-center gap-1.5">
-                <ShoppingBag className="h-4 w-4 text-purple-900" />
-                <span>
-                  ยอดสั่งตอนนี้: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
-                  <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-gray-700 flex items-center gap-1.5">
+                  <ShoppingBag className="h-4 w-4 text-purple-900" />
+                  <span>
+                    ยอดสั่งตอนนี้: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+                    <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
+                  </span>
                 </span>
-              </span>
+
+                {/* Small button next to order amount bar for self-pickup */}
+                <button
+                  type="button"
+                  onClick={handleToggleSelfPickup}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all border cursor-pointer ${
+                    isSelfPickup
+                      ? "bg-amber-500 text-white border-amber-600 shadow-2xs"
+                      : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
+                  }`}
+                  title="สลับเป็นโหมดรับเองหน้าร้าน"
+                >
+                  <span className="text-xs">🚶</span>
+                  <span>{isSelfPickup ? "✓ รับเองหน้าร้าน" : "เปลี่ยนไปรับเอง"}</span>
+                </button>
+              </div>
+
               <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
                 {batch.isMinMet ? "🎉 ครบยอดส่งฟรีแล้ว!" : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี`}
               </span>
@@ -806,7 +787,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   type="button"
                   disabled={updatingStatus}
                   onClick={() => handleToggleBoardStatus("CLOSED")}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800 hover:bg-rose-100 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
                 >
                   <Lock className="h-3.5 w-3.5 text-rose-600" />
                   <span>ปิดรับออเดอร์ก่อนเวลา</span>
@@ -816,7 +797,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   type="button"
                   disabled={updatingStatus}
                   onClick={() => handleToggleBoardStatus("OPEN")}
-                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <Unlock className="h-3.5 w-3.5 text-emerald-600" />
                   <span>เปิดรับออเดอร์ต่อ</span>
@@ -825,92 +806,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
             </div>
           </div>
         </div>
-
-        {/* LINE Bot Integration Card for Leader */}
-        <div className="rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#06C755]/15 text-[#06C755] font-black text-xl shadow-inner">
-                💬
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-bold text-xs sm:text-sm text-slate-900">
-                    การเชื่อมต่อ LINE Bot (@473ekpei)
-                  </h4>
-                  {batch.hostLineUserId ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-black">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      เชื่อมต่อแล้ว
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold">
-                      ยังไม่ได้เชื่อมต่อ
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-600">
-                  {batch.hostLineUserId
-                    ? `บอทจะส่งข้อความสรุปออเดอร์พร้อมภาพใบสั่งอาหาร (Long Manifest) ให้คุณทาง LINE ส่วนตัวเมื่อถึงเวลาตัดรอบ (${batch.cutoffTime} น.)`
-                    : `เชื่อมต่อเพื่อให้บอทส่งข้อความสรุปยอด + ใบเสร็จสั่งอาหาร (Long Manifest) ให้คุณทาง LINE ส่วนตัวอัตโนมัติเมื่อหมดเวลา`}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
-              {!batch.hostLineUserId && (
-                <a
-                  href={`https://line.me/R/oaMessage/@473ekpei/?text=${encodeURIComponent("เชื่อมต่อกระดาน: " + batch.id)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white px-3.5 py-2 text-xs font-black shadow-xs transition-all active:scale-95"
-                >
-                  <span>📲 เชื่อมต่อ LINE Bot 1 คลิก</span>
-                </a>
-              )}
-              <button
-                type="button"
-                disabled={sendingLineReminder}
-                onClick={handleSendLineReminder}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-3.5 py-2 text-xs font-bold shadow-2xs transition-all active:scale-95 disabled:opacity-50"
-                title="ส่งสรุปออเดอร์พร้อมรูปภาพ One Long Manifest ไปยัง LINE ทันที"
-              >
-                <Send className="h-3.5 w-3.5 text-purple-700" />
-                <span>{sendingLineReminder ? "กำลังส่ง..." : "🔔 ส่งสรุปเข้า LINE เดี๋ยวนี้"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Self-Pickup Option when minimum goal is not met */}
-        {!batch.isMinMet && (
-          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-start gap-2.5">
-              <span className="text-xl">🚶</span>
-              <div>
-                <h4 className="font-bold text-xs sm:text-sm text-amber-950">
-                  ยอดสั่งยังไม่ถึงเป้าส่งฟรี (ขาดอีก ฿{batch.amountRemaining})
-                </h4>
-                <p className="text-xs text-amber-800">
-                  ในฐานะหัวหน้าตี้ คุณสามารถเลือกสั่งแบบ <strong>"ไปรับเองหน้าร้าน (Self-Pickup)"</strong> เพื่อส่งออเดอร์ให้ร้านทำอาหารได้เลย
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleToggleSelfPickup}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-2xs self-start sm:self-auto shrink-0 ${
-                isSelfPickup
-                  ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400"
-                  : "bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/50"
-              }`}
-            >
-              <Check className={`h-3.5 w-3.5 ${isSelfPickup ? "opacity-100" : "opacity-0"}`} />
-              <span>{isSelfPickup ? "✓ เลือกรับเองหน้าร้านแล้ว" : "เปลี่ยนเป็น: รับเองหน้าร้าน"}</span>
-            </button>
-          </div>
-        )}
 
         {/* 3. Send to Shop & Delivery Control Bar */}
         <div className={`rounded-3xl border-2 p-5 sm:p-6 text-white shadow-md space-y-4 transition-all ${
