@@ -1620,46 +1620,46 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <div key={ord.id} className="p-3.5 hover:bg-slate-50/80 transition-colors">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              {/* Nested smaller metadata row */}
-                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mb-1">
-                                <span className="inline-flex items-center justify-center font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-900 shrink-0">
-                                  #{ord.orderNumber}
-                                </span>
-                                <span className="font-semibold text-slate-700 truncate max-w-[150px]">
-                                  {lineName}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                {hasSlip ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 text-[10px] font-bold">
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                                    <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 px-2 py-0.5 text-[10px] font-bold">
-                                    <span>⏳ รอสลิป</span>
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* PROMINENT Food Items */}
+                              {/* 1. BIG PROMINENT Food Item(s) ON TOP */}
                               <div className="space-y-1">
                                 {ord.items.map((it, idx) => (
                                   <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
-                                    <span className="text-base font-bold text-slate-950">
+                                    <span className="text-lg font-black text-slate-950">
                                       {it.quantity > 1 && (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
                                           {it.quantity}x
                                         </span>
                                       )}
                                       {it.name}
                                     </span>
                                     {it.customNote && (
-                                      <span className="text-xs font-medium text-amber-900 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5">
+                                      <span className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.5">
                                         {it.customNote}
                                       </span>
                                     )}
                                   </div>
                                 ))}
+                              </div>
+
+                              {/* 2. Person & Transfer Status go BELOW Menu */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 pt-1.5">
+                                <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-slate-900 text-white shrink-0">
+                                  #{ord.orderNumber}
+                                </span>
+                                <span className="font-bold text-sm text-slate-800 truncate max-w-[150px]">
+                                  {lineName}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                {hasSlip ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold">
+                                    <span>⏳ รอสลิป</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
 

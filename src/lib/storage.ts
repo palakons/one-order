@@ -33,8 +33,20 @@ export async function saveImageToStorage(
   const docId = pathToDocId(filePath);
   const createdAt = new Date().toISOString();
 
-  // 1. Save to Firestore storage_files collection using native binary Bytes
-  if (isFirebaseConfigured && db) {
+  // 1. Primary: Save to Firebase Cloud Storage bucket
+  let savedToCloudStorage = false;
+  if (isFirebaseConfigured && storage) {
+    try {
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, buffer, { contentType: mimeType });
+      savedToCloudStorage = true;
+    } catch (err) {
+      console.warn("Firebase Storage bucket upload notice, falling back to Firestore:", err);
+    }
+  }
+
+  // 2. Fallback: Save to Firestore storage_files collection if Cloud Storage is not available
+  if (!savedToCloudStorage && isFirebaseConfigured && db) {
     try {
       const docRef = doc(db, "storage_files", docId);
       await setDoc(docRef, {
@@ -47,17 +59,6 @@ export async function saveImageToStorage(
       });
     } catch (err) {
       console.error(`Failed to save image ${filePath} to Firestore storage_files:`, err);
-    }
-  }
-
-  // 2. Also save to Firebase Cloud Storage bucket if active
-  if (isFirebaseConfigured && storage) {
-    try {
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, buffer, { contentType: mimeType });
-    } catch (err) {
-      // Non-fatal, Firestore storage_files has already stored the binary
-      console.warn(`Optional Firebase Storage bucket upload notice:`, err);
     }
   }
 
