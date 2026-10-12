@@ -13,6 +13,7 @@ import {
 import { getLocationById, DeliveryLocation, CAMPUS_LOCATIONS } from "./locations";
 import { getBangkokDate, getDaysDifference } from "./utils";
 import { isFirebaseConfigured, db } from "./firebase";
+import { saveBase64ToStorage, deleteImageFromStorage } from "./storage";
 import {
   collection,
   doc,
@@ -373,12 +374,13 @@ export async function getStorageMetrics(): Promise<StorageMetrics> {
 
   if (isFirebaseConfigured && db) {
     try {
-      const [batchesSnap, ordersSnap, shopsSnap, suggsSnap, metaSnap] = await Promise.all([
+      const [batchesSnap, ordersSnap, shopsSnap, suggsSnap, metaSnap, storageFilesSnap] = await Promise.all([
         trackedGetDocs(collection(db, "batches"), 3000).catch(() => ({ docs: [] } as any)),
         trackedGetDocs(collection(db, "orders"), 3000).catch(() => ({ docs: [] } as any)),
         trackedGetDocs(collection(db, "shops"), 2000).catch(() => ({ docs: [] } as any)),
         trackedGetDocs(collection(db, "suggestions"), 2000).catch(() => ({ docs: [] } as any)),
         trackedGetDoc(doc(db, "system", "storage_retention"), 2000).catch(() => ({ exists: () => false } as any)),
+        trackedGetDocs(collection(db, "storage_files"), 3000).catch(() => ({ docs: [] } as any)),
       ]);
 
       totalBatches = batchesSnap.docs.length;
@@ -388,7 +390,7 @@ export async function getStorageMetrics(): Promise<StorageMetrics> {
 
       ordersSnap.docs.forEach((d: any) => {
         const o = d.data() as Order;
-        if (o.slipImageUrl && o.slipImageUrl.length > 50) {
+        if (o.slipImageUrl && o.slipImageUrl.length > 50 && o.slipImageUrl.startsWith("data:image/")) {
           slipsCount++;
           estimatedImageStorageBytes += Math.round(o.slipImageUrl.length * 0.75);
         }
@@ -396,10 +398,17 @@ export async function getStorageMetrics(): Promise<StorageMetrics> {
 
       batchesSnap.docs.forEach((d: any) => {
         const b = d.data() as Batch;
-        if (b.deliveryPhotoUrl && b.deliveryPhotoUrl.length > 50) {
+        if (b.deliveryPhotoUrl && b.deliveryPhotoUrl.length > 50 && b.deliveryPhotoUrl.startsWith("data:image/")) {
           deliveryPhotosCount++;
           estimatedImageStorageBytes += Math.round(b.deliveryPhotoUrl.length * 0.75);
         }
+      });
+
+      storageFilesSnap.docs.forEach((d: any) => {
+        const sf = d.data();
+        if (sf.category === "slips") slipsCount++;
+        else if (sf.category === "delivery") deliveryPhotosCount++;
+        estimatedImageStorageBytes += sf.sizeBytes || 45000;
       });
 
       if (metaSnap && typeof metaSnap.exists === "function" && metaSnap.exists()) {
@@ -521,6 +530,27 @@ export async function runStorageCleanup(retentionDays = 30): Promise<{
         );
       }
     });
+
+    // 3. Process storage_files collection: delete image binaries older than retentionDays
+    try {
+      const storageFilesSnap = await trackedGetDocs(collection(db!, "storage_files"), 3000).catch(() => ({ docs: [] } as any));
+      storageFilesSnap.docs.forEach((d: any) => {
+        const sf = d.data();
+        const sfDateStr = sf.createdAt ? sf.createdAt.split("T")[0] : "";
+        const diff = sfDateStr ? getDaysDifference(sfDateStr, todayStr) : 0;
+        if (diff > retentionDays) {
+          estimatedBytesFreed += sf.sizeBytes || 45000;
+          if (sf.category === "slips") slipsPurged++;
+          else if (sf.category === "delivery") photosPurged++;
+          updates.push(
+            trackedDeleteDoc(d.ref).catch((err) => console.warn(`Failed to delete storage_file ${d.id}:`, err))
+          );
+          if (sf.path) {
+            deleteImageFromStorage(sf.path).catch(() => {});
+          }
+        }
+      });
+    } catch (e) {}
 
     await Promise.all(updates);
 
@@ -992,7 +1022,21 @@ export async function updateBatchStatus(
     updatePayload.sentToShopAt = new Date().toISOString();
   }
   if (deliveryPhotoUrl) {
-    updatePayload.deliveryPhotoUrl = deliveryPhotoUrl;
+    let finalPhotoUrl = deliveryPhotoUrl;
+    let deliveryPhotoPath: string | undefined = undefined;
+    if (deliveryPhotoUrl.startsWith("data:image/")) {
+      try {
+        const stored = await saveBase64ToStorage("delivery", deliveryPhotoUrl, `delivery_${batchId}.jpg`);
+        finalPhotoUrl = stored.url;
+        deliveryPhotoPath = stored.path;
+      } catch (err) {
+        console.warn("Failed to offload delivery photo to storage:", err);
+      }
+    }
+    updatePayload.deliveryPhotoUrl = finalPhotoUrl;
+    if (deliveryPhotoPath) {
+      updatePayload.deliveryPhotoPath = deliveryPhotoPath;
+    }
     updatePayload.deliveredAt = new Date().toISOString();
   } else if (status === "COMPLETED") {
     updatePayload.deliveredAt = new Date().toISOString();
@@ -1011,8 +1055,18 @@ export async function updateBatch(
   fields: Partial<Batch>
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
+  const payload = { ...fields };
+  if (payload.deliveryPhotoUrl && payload.deliveryPhotoUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("delivery", payload.deliveryPhotoUrl, `delivery_${batchId}.jpg`);
+      payload.deliveryPhotoUrl = stored.url;
+      payload.deliveryPhotoPath = stored.path;
+    } catch (err) {
+      console.warn("Failed to offload delivery photo in updateBatch:", err);
+    }
+  }
   if (isFirebaseConfigured && db) {
-    await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(fields), 2500);
+    await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(payload), 2500);
     return getBatchById(batchId);
   }
   throw new Error("Firestore is not configured. Cannot update batch.");
@@ -1034,6 +1088,20 @@ export async function createOrder(input: {
 }): Promise<Order> {
   invalidateStoreCache();
   let existingOrders: Order[] = [];
+
+  let slipImageUrl = input.slipImageUrl;
+  let slipImagePath: string | undefined = undefined;
+
+  // Offload base64 slip image to storage if applicable
+  if (slipImageUrl && slipImageUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("slips", slipImageUrl);
+      slipImageUrl = stored.url;
+      slipImagePath = stored.path;
+    } catch (err) {
+      console.warn("Failed to offload slip to storage:", err);
+    }
+  }
 
   if (isFirebaseConfigured && db) {
     try {
@@ -1069,11 +1137,12 @@ export async function createOrder(input: {
       customNote: it.customNote,
     })),
     totalAmount: input.totalAmount,
-    slipImageUrl: input.slipImageUrl,
+    slipImageUrl,
+    slipImagePath,
     slipTransRef: input.slipTransRef,
     slipBankCode: input.slipBankCode,
     slipBankName: input.slipBankName,
-    isSlipVerified: input.isSlipVerified ?? Boolean(input.slipImageUrl),
+    isSlipVerified: input.isSlipVerified ?? Boolean(slipImageUrl),
     createdAt: new Date().toISOString(),
     boxLabel,
   };
@@ -1096,6 +1165,10 @@ export async function deleteOrder(
     const orderRef = doc(db, "orders", orderId);
     const snap = await trackedGetDoc(orderRef, 2000);
     if (snap.exists()) {
+      const orderData = snap.data() as Order;
+      if (orderData.slipImagePath) {
+        deleteImageFromStorage(orderData.slipImagePath).catch(() => {});
+      }
       await trackedUpdateDoc(
         orderRef,
         {

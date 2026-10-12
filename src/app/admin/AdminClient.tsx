@@ -47,6 +47,7 @@ import {
   Activity,
   Server,
   ChevronDown,
+  Maximize2,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -56,6 +57,272 @@ interface Props {
   initialShops: Shop[];
   initialLocations?: DeliveryLocation[];
   initialSystemStatus?: SystemStatus;
+}
+
+function getDeterministicColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  return `hsl(${hue}, 65%, 45%)`;
+}
+
+function useAverageColor(imageUrl?: string, fallbackSeed?: string, explicitColor?: string) {
+  const [color, setColor] = useState<string | null>(explicitColor || null);
+
+  useEffect(() => {
+    if (explicitColor) {
+      setColor(explicitColor);
+      return;
+    }
+    if (!imageUrl) {
+      setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
+      return;
+    }
+
+    let isMounted = true;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = imageUrl;
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          if (isMounted) {
+            setColor(`rgb(${r}, ${g}, ${b})`);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
+        }
+      }
+    };
+
+    img.onerror = () => {
+      if (isMounted) {
+        setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
+      }
+    };
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imageUrl, fallbackSeed, explicitColor]);
+
+  return color || (fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
+}
+
+interface ShopAdminCardProps {
+  shop: Shop;
+  onEdit: (shop: Shop) => void;
+  onDelete: (id: string, name: string) => void;
+  onZoomQr: (data: { url: string; title: string; number?: string; accountName?: string }) => void;
+}
+
+function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps) {
+  const accentColor = useAverageColor(shop.menuImageUrl, shop.name + shop.cuisine, shop.accentColor);
+  const qrUrl =
+    shop.promptpayQrUrl ||
+    (shop.promptpayNumber ? `https://promptpay.io/${shop.promptpayNumber.replace(/\D/g, "")}.png` : null);
+
+  return (
+    <div
+      className="relative rounded-2xl bg-white p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-3 border overflow-hidden"
+      style={{
+        borderColor: accentColor ? `${accentColor}35` : "#e2e8f0",
+      }}
+    >
+      {/* Top accent ribbon using average logo color */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1.5"
+        style={{ backgroundColor: accentColor }}
+      />
+
+      <div className="space-y-3 pt-1">
+        {/* Shop Image & Header */}
+        <div className="flex items-start gap-3">
+          <div
+            className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0 border"
+            style={{
+              backgroundColor: `${accentColor}12`,
+              borderColor: `${accentColor}30`,
+            }}
+          >
+            {shop.menuImageUrl ? (
+              <img
+                src={shop.menuImageUrl}
+                alt={shop.name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center"
+                style={{ color: accentColor }}
+              >
+                <Store className="h-7 w-7" />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h3 className="font-black text-sm text-gray-900 truncate" title={shop.name}>
+              {shop.name}
+            </h3>
+            {shop.nameEn && (
+              <p className="text-[11px] text-gray-500 truncate">{shop.nameEn}</p>
+            )}
+            <span
+              className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold border mt-1"
+              style={{
+                backgroundColor: `${accentColor}15`,
+                color: accentColor,
+                borderColor: `${accentColor}35`,
+              }}
+            >
+              {shop.cuisine || "อาหารจานเดียว"}
+            </span>
+          </div>
+        </div>
+
+        {/* Info details */}
+        <div className="space-y-1.5 text-xs text-gray-600 bg-gray-50/70 rounded-xl p-2.5 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">โทร:</span>
+            <a
+              href={`tel:${shop.phone}`}
+              className="font-bold hover:underline font-mono"
+              style={{ color: accentColor }}
+            >
+              {shop.phone}
+            </a>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">พร้อมเพย์:</span>
+            <span className="font-mono font-bold text-gray-800">
+              {shop.promptpayNumber}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">ชื่อบัญชี:</span>
+            <span className="font-semibold text-gray-800 truncate max-w-[150px]">
+              {shop.promptpayAccountName}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">เป้าส่งฟรี:</span>
+            <span className="font-bold text-emerald-700">
+              ฿{shop.minDeliveryAmount || 200}
+            </span>
+          </div>
+        </div>
+
+        {/* PromptPay QR Code Thumbnail */}
+        {qrUrl && (
+          <div
+            className="flex items-center gap-2.5 p-2 rounded-xl border transition-colors"
+            style={{
+              backgroundColor: `${accentColor}08`,
+              borderColor: `${accentColor}25`,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                onZoomQr({
+                  url: qrUrl,
+                  title: `${shop.name} — พร้อมเพย์ QR`,
+                  number: shop.promptpayNumber,
+                  accountName: shop.promptpayAccountName,
+                })
+              }
+              className="relative h-12 w-12 rounded-lg bg-white p-1 border border-gray-200 shrink-0 shadow-2xs cursor-zoom-in hover:scale-105 transition-transform group"
+              title="คลิกเพื่อขยายดู QR Code ขนาดใหญ่"
+            >
+              <img
+                src={qrUrl}
+                alt={`PromptPay QR ${shop.name}`}
+                className="h-full w-full object-contain"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                <Maximize2 className="h-3.5 w-3.5 text-gray-900 bg-white/90 rounded p-0.5" />
+              </div>
+            </button>
+            <div className="min-w-0 flex-1 text-xs">
+              <div className="flex items-center gap-1 font-bold text-gray-800">
+                <QrCode className="h-3.5 w-3.5 shrink-0" style={{ color: accentColor }} />
+                <span className="truncate">PromptPay QR</span>
+              </div>
+              <div className="text-[11px] font-mono text-gray-600 truncate">
+                {shop.promptpayNumber}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  onZoomQr({
+                    url: qrUrl,
+                    title: `${shop.name} — พร้อมเพย์ QR`,
+                    number: shop.promptpayNumber,
+                    accountName: shop.promptpayAccountName,
+                  })
+                }
+                className="text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
+                style={{ color: accentColor }}
+              >
+                <span>คลิกขยายใหญ่</span>
+                <Maximize2 className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Google Maps link badge */}
+        {shop.gmapUrl && (
+          <div className="pt-0.5">
+            <a
+              href={shop.gmapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:underline"
+            >
+              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+              <span className="truncate">ดูเมนูจาก Google Maps ↗</span>
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => onEdit(shop)}
+          className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+        >
+          <Edit className="h-3 w-3" />
+          <span>แก้ไขร้าน</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDelete(shop.id, shop.name)}
+          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+        >
+          <Trash2 className="h-3 w-3" />
+          <span>ลบร้าน</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminClient({
@@ -177,6 +444,12 @@ export default function AdminClient({
   const [newDishName, setNewDishName] = useState("");
   const [newDishPrice, setNewDishPrice] = useState("");
   const [savingShop, setSavingShop] = useState(false);
+  const [zoomedQr, setZoomedQr] = useState<{
+    url: string;
+    title: string;
+    number?: string;
+    accountName?: string;
+  } | null>(null);
 
   // Drop-off Point (Desk) Add/Edit Modal State
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -942,14 +1215,6 @@ export default function AdminClient({
                   <span>
                     ภาพจัดเก็บ: <strong>{systemStatus.storageMetrics?.estimatedImageStorageFormatted ?? "0 B"}</strong> ({systemStatus.storageMetrics?.slipsCount ?? 0} สลิป)
                   </span>
-                  {lineStatus?.quota && (
-                    <>
-                      <span>•</span>
-                      <span className="text-purple-700 font-bold">
-                        LINE: {lineStatus.quota.remaining}/{lineStatus.quota.limit} ฟรีคงเหลือ
-                      </span>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
@@ -1736,108 +2001,13 @@ export default function AdminClient({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {shops.map((s) => (
-                  <div
+                  <ShopAdminCard
                     key={s.id}
-                    className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
-                  >
-                    <div className="space-y-3">
-                      {/* Shop Image & Header */}
-                      <div className="flex items-start gap-3">
-                        <div className="relative h-16 w-16 rounded-xl overflow-hidden bg-purple-50 border border-purple-100 shrink-0">
-                          {s.menuImageUrl ? (
-                            <img
-                              src={s.menuImageUrl}
-                              alt={s.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-purple-300">
-                              <Store className="h-7 w-7" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-black text-sm text-gray-900 truncate" title={s.name}>
-                            {s.name}
-                          </h3>
-                          {s.nameEn && (
-                            <p className="text-[11px] text-gray-500 truncate">{s.nameEn}</p>
-                          )}
-                          <span className="inline-block rounded-md bg-purple-50 border border-purple-200 px-1.5 py-0.2 text-[10px] font-bold text-purple-900 mt-1">
-                            {s.cuisine || "อาหารจานเดียว"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Info details */}
-                      <div className="space-y-1.5 text-xs text-gray-600 bg-gray-50/70 rounded-xl p-2.5 border border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-500">โทร:</span>
-                          <a
-                            href={`tel:${s.phone}`}
-                            className="font-bold text-purple-900 hover:underline font-mono"
-                          >
-                            {s.phone}
-                          </a>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-500">พร้อมเพย์:</span>
-                          <span className="font-mono font-bold text-gray-800">
-                            {s.promptpayNumber}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-500">ชื่อบัญชี:</span>
-                          <span className="font-semibold text-gray-800 truncate max-w-[150px]">
-                            {s.promptpayAccountName}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-500">เป้าส่งฟรี:</span>
-                          <span className="font-bold text-emerald-700">
-                            ฿{s.minDeliveryAmount || 200}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Google Maps link badge */}
-                      {s.gmapUrl && (
-                        <div className="pt-0.5">
-                          <a
-                            href={s.gmapUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:underline"
-                          >
-                            <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-                            <span className="truncate">ดูเมนูจาก Google Maps ↗</span>
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditShop(s)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
-                      >
-                        <Edit className="h-3 w-3" />
-                        <span>แก้ไขร้าน</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteShop(s.id, s.name)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>ลบร้าน</span>
-                      </button>
-                    </div>
-                  </div>
+                    shop={s}
+                    onEdit={handleOpenEditShop}
+                    onDelete={handleDeleteShop}
+                    onZoomQr={setZoomedQr}
+                  />
                 ))}
               </div>
             )}
@@ -2588,6 +2758,72 @@ export default function AdminClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Zoom QR Modal */}
+      {zoomedQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in"
+          onClick={() => setZoomedQr(null)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl space-y-4 text-center animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setZoomedQr(null)}
+              className="absolute top-4 right-4 rounded-full p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-1">
+              <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-purple-50 text-purple-900 mb-1">
+                <QrCode className="h-6 w-6" />
+              </div>
+              <h3 className="text-base font-black text-gray-900">{zoomedQr.title}</h3>
+              {zoomedQr.accountName && (
+                <p className="text-xs text-gray-600">ชื่อบัญชี: <strong>{zoomedQr.accountName}</strong></p>
+              )}
+              {zoomedQr.number && (
+                <p className="text-xs font-mono text-purple-900 bg-purple-50 inline-block px-2.5 py-0.5 rounded-lg font-bold">
+                  {zoomedQr.number}
+                </p>
+              )}
+            </div>
+
+            <div className="relative mx-auto w-64 h-64 rounded-2xl border-2 border-dashed border-purple-200 bg-white p-3 shadow-inner flex items-center justify-center">
+              <img
+                src={zoomedQr.url}
+                alt={zoomedQr.title}
+                className="h-full w-full object-contain rounded-xl"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (zoomedQr.number) {
+                    navigator.clipboard?.writeText(zoomedQr.number.replace(/\D/g, ""));
+                    alert(`คัดลอกเลขพร้อมเพย์ ${zoomedQr.number} แล้ว`);
+                  }
+                }}
+                className="flex-1 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 py-2 text-xs font-bold text-gray-700 transition-colors cursor-pointer"
+              >
+                คัดลอกเลขพร้อมเพย์
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomedQr(null)}
+                className="flex-1 rounded-xl bg-purple-900 hover:bg-purple-800 text-white py-2 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
           </div>
         </div>
       )}

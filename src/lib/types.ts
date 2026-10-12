@@ -20,6 +20,7 @@ export interface Shop {
   promptpayAccountName: string;
   promptpayQrUrl?: string;
   menuImageUrl?: string;
+  accentColor?: string; // Dominant / average logo color for card accents
   minDeliveryAmount: number; // default 200 THB
   defaultCutoffTime: string; // e.g. "11:15"
   menuItems: MenuItem[];
@@ -44,6 +45,7 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   slipImageUrl: string;
+  slipImagePath?: string; // Stored path e.g. "slips/slip_123.jpg"
   slipTransRef?: string; // Unique transaction ref from slip QR (Anti-duplicate)
   slipBankCode?: string; // Bank code e.g. 014 (SCB)
   slipBankName?: string; // Bank name e.g. SCB (ไทยพาณิชย์)
@@ -74,6 +76,7 @@ export interface Batch {
   sentToShopAt?: string; // ISO string when Host clicked "Send to Shop"
   notes?: string;
   deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk
+  deliveryPhotoPath?: string; // Stored path e.g. "delivery/delivery_123.jpg"
   deliveredAt?: string; // ISO string when food was placed at campus desks
   isDeleted?: boolean; // Purged after 7 days (privacy/retention)
   deletedAt?: string; // ISO timestamp when marked deleted
