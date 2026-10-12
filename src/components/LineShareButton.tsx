@@ -32,7 +32,8 @@ export default function LineShareButton({ batch }: Props) {
     ? "✅ ส่งถึงตึกมหาวิทยาลัย (Campus Delivery)"
     : "⚠️ ยอดรวมไม่ถึงเกณฑ์ -> ลูกค้ารับเองที่ร้าน (Self Pick-up at shop)";
 
-  const currentHost = typeof window !== "undefined" ? window.location.origin : "https://one-order.app";
+  const currentHost = typeof window !== "undefined" ? window.location.origin : "https://veatec.vercel.app";
+  const orderUrl = `${currentHost}/order/${batch.id}`;
   const manifestUrl = `${currentHost}/shop/${batch.id}`;
 
   const isCompleted = batch.status === "COMPLETED";
@@ -67,7 +68,10 @@ ${Object.entries(itemCounts)
   .map(([item, count]) => `• ${item} x ${count}`)
   .join("\n")}
 
-👉 ดูใบออเดอร์ครัว & สลิปโอนเงินทั้งหมดได้ที่ลิงก์นี้:
+👉 หน้ารายการสั่งอาหาร (Order Pane):
+${orderUrl}
+
+🧾 ดูใบออเดอร์ครัว & สลิปโอนเงินทั้งหมดได้ที่:
 ${manifestUrl}`;
 
   const lineShareUrl = `https://line.me/R/msg/text/?${encodeURIComponent(messageText)}`;

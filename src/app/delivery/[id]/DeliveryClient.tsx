@@ -54,13 +54,22 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
             <ArrowLeft className="h-4 w-4" />
             <span>กลับหน้าหลัก</span>
           </Link>
-          <Link
-            href="/orders"
-            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-colors"
-          >
-            <ShoppingBag className="h-3.5 w-3.5" />
-            <span>ดูออเดอร์ของฉัน</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/order/${batchId}`}
+              className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors"
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span>ดูกระดานสั่งอาหาร</span>
+            </Link>
+            <Link
+              href="/orders"
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-colors"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              <span>ดูออเดอร์ของฉัน</span>
+            </Link>
+          </div>
         </div>
 
         {/* Hero Delivery Status Card */}

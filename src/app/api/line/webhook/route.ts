@@ -148,8 +148,8 @@ export async function POST(request: Request) {
                     type: "action",
                     action: {
                       type: "uri",
-                      label: "🍱 สั่งอาหาร",
-                      uri: appUrl,
+                      label: "🍱 กระดานสั่งอาหาร",
+                      uri: `${appUrl}/order/${targetBatch.id}`,
                     },
                   },
                 ],

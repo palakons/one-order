@@ -442,7 +442,7 @@ export function formatBatchOrderSummaryText(batch: BatchWithDetails, appUrl: str
   txt += `------------------------------------\n`;
   txt += `🧾 รูปใบสรุปสั่งอาหาร (One Long Manifest) & สลิปทั้งหมด:\n`;
   txt += `${appUrl}/api/batches/${batch.id}/photo?type=manifest\n\n`;
-  txt += `👉 หน้าจัดการตี้: ${appUrl}/order/${batch.id}/leader`;
+  txt += `👉 ดูกระดานสั่งอาหาร (Order Pane): ${appUrl}/order/${batch.id}`;
   return txt;
 }
 
