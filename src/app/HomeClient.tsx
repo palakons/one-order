@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order, Shop } from "@/lib/types";
 import {
@@ -59,6 +60,7 @@ interface Props {
 }
 
 export default function HomeClient({ initialBatches, initialLocations }: Props) {
+  const router = useRouter();
   const { t, lang } = useLanguage();
   const [batches, setBatches] = useState<BatchWithDetails[]>(initialBatches);
   const [locations, setLocations] = useState<DeliveryLocation[]>(() => {
@@ -256,7 +258,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [openNotes, setOpenNotes] = useState("");
   const [creatingBoard, setCreatingBoard] = useState(false);
   const [openBoardError, setOpenBoardError] = useState<string | null>(null);
-  const [createdBatchForLine, setCreatedBatchForLine] = useState<BatchWithDetails | null>(null);
   const [submittedOrderNotice, setSubmittedOrderNotice] = useState<{
     orderNumber: number;
     boxLabel: string;
@@ -458,12 +459,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       } catch (e) {}
 
       setShowOpenBoardModal(false);
-      setCreatedBatchForLine(data.batch);
       setBatches((prev) => [data.batch, ...prev.filter((b) => b.id !== data.batch.id)]);
       setActiveGroup("OPENING");
       setActiveBatchId(data.batch.id);
-      await fetchBatches(true);
       confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+      router.push(`/order/${data.batch.id}?new_board=1`);
     } catch (err: any) {
       setOpenBoardError(err.message || "เกิดข้อผิดพลาดในการเปิดกระดาน");
     } finally {
@@ -2686,75 +2686,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         </div>
       )}
 
-      {/* Modal: Connect LINE Bot after creating a board */}
-      {createdBatchForLine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-emerald-100 space-y-4">
-            <div className="text-center space-y-2">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-inner">
-                <span className="text-3xl">🎉</span>
-              </div>
-              <h3 className="text-lg font-black text-slate-900">
-                เปิดกระดานสำเร็จแล้ว!
-              </h3>
-              <p className="text-xs text-slate-600">
-                ร้าน <strong className="text-purple-900">{createdBatchForLine.shop?.name}</strong> • ปิดรับเวลา <strong className="text-purple-900">{createdBatchForLine.cutoffTime} น.</strong>
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5">
-              <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px]">✓</span>
-                <span>เชื่อมต่อ LINE Bot (@473ekpei) เพื่อรับแจ้งเตือน</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-emerald-800">
-                เมื่อถึงเวลาตัดรอบ ({createdBatchForLine.cutoffTime} น.) บอทจะส่งข้อความสรุปออเดอร์พร้อมภาพใบสั่งอาหาร (One Long Manifest) ให้คุณใน LINE ทันที เพื่อให้คุณส่งร้านได้สะดวก ไม่พลาดเวลา!
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <a
-                href={`https://line.me/R/oaMessage/@473ekpei/?text=${encodeURIComponent("เชื่อมต่อกระดาน: " + createdBatchForLine.id)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setCreatedBatchForLine(null)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] text-white font-black py-3.5 px-4 text-sm shadow-lg shadow-emerald-500/20 active:scale-98 transition-all"
-              >
-                <span>📲 กดเชื่อมต่อ LINE Bot ใน 1 คลิก (แนะนำ)</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  handleShareBoardInvite(createdBatchForLine);
-                  setCreatedBatchForLine(null);
-                }}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 text-white font-black py-3 px-4 text-xs shadow-md active:scale-98 transition-all cursor-pointer"
-              >
-                <Share2 className="h-4 w-4" />
-                <span>📢 แชร์ชวนเพื่อนเข้ากลุ่ม LINE (Share with Friends)</span>
-              </button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href={`/order/${createdBatchForLine.id}/leader`}
-                  onClick={() => setCreatedBatchForLine(null)}
-                  className="inline-flex items-center justify-center rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-950 font-bold py-2.5 px-3 text-xs transition-colors"
-                >
-                  👑 หน้าจัดการตี้
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setCreatedBatchForLine(null)}
-                  className="rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-3 text-xs transition-colors"
-                >
-                  ไว้ทีหลัง / ปิด
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

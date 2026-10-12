@@ -88,17 +88,31 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   // Host Identification (stored locally for party initiator)
   const [isHost, setIsHost] = useState(false);
 
+  // New Board Guidance Modal
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
+
   // Manual Refresh state (No background polling to preserve Firestore quota)
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
 
-  // 1. Initial load on mount
+  // 1. Initial load on mount & new board prompt detection
   useEffect(() => {
     fetchBatch(false);
     const now = new Date();
     setLastRefreshedAt(
       now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
     );
+
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("new_board") === "1" || sp.get("created") === "1") {
+        setShowNewBoardModal(true);
+        try {
+          confetti({ particleCount: 70, spread: 70, origin: { y: 0.5 } });
+        } catch (e) {}
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
   }, [batchId]);
 
   // 2. Load cached Line ID, Phone & Host state
@@ -526,6 +540,38 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
     alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+  };
+
+  const handleShareBoard = async () => {
+    if (!batch) return;
+    const locName = batch.buildingName || "ตึก M4";
+    const shopName = batch.shop?.name || "ร้านอาหาร";
+    const remainingText = batch.isMinMet
+      ? "ครบยอดส่งฟรีแล้ว 🎉"
+      : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี!`;
+    const shareUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : `https://veatec.vercel.app/order/${batch.id}`;
+    const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
+      `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
+      `⏰ ปิดรับเวลา ${batch.cutoffTime} น. (${remainingText})\n\n` +
+      `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `VEATEC - สั่งข้าวตี้ ${shopName}`,
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch (e) {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("คัดลอกข้อความและลิงก์ชวนเพื่อนเข้าตี้แล้ว! สามารถส่งในกลุ่ม LINE ได้เลย");
+    } catch (e) {
+      alert("ไม่สามารถคัดลอกลิงก์ได้");
+    }
   };
 
   if (!batch) {
@@ -1121,6 +1167,86 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 alt="Full Transfer Slip"
                 className="max-h-[70vh] w-auto object-contain rounded"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: New Board Created Guidance */}
+      {showNewBoardModal && batch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-purple-100 space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowNewBoardModal(false)}
+              className="absolute top-4 right-4 rounded-xl p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="text-center space-y-2 pt-1">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 shadow-inner">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h3 className="text-lg font-black text-slate-900">
+                เปิดกระดานสั่งข้าวสำเร็จแล้ว!
+              </h3>
+              <p className="text-xs text-slate-600">
+                ร้าน <strong className="text-purple-900">{batch.shop?.name}</strong> • ปิดรับเวลา <strong className="text-purple-900">{batch.cutoffTime} น.</strong>
+              </p>
+            </div>
+
+            {/* Little button guidance callout */}
+            <div className="rounded-2xl border-2 border-purple-200 bg-purple-50/80 p-4 text-center space-y-2.5">
+              <p className="text-xs font-bold text-purple-950">
+                💡 คลิกปุ่มเล็ก ๆ นี้เพื่อจัดการกระดาน:
+              </p>
+              <div>
+                <Link
+                  href={`/order/${batchId}/leader`}
+                  onClick={() => setShowNewBoardModal(false)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-3 py-1.5 text-xs font-extrabold shadow-xs transition-transform active:scale-95"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-purple-700" />
+                  <span>จัดการกระดาน ↗</span>
+                </Link>
+              </div>
+              <p className="text-xs leading-relaxed text-purple-900">
+                คลิกปุ่มเล็ก ๆ นี้ <strong>&ldquo;จัดการกระดาน ↗&rdquo;</strong> ที่แถบหัวหน้าตี้ด้านบน เพื่อปิดรับออเดอร์, ดูยอดรวม หรือสร้างใบสรุปออเดอร์ (Manifest) ส่งร้าน
+              </p>
+              <p className="text-[11px] text-purple-700/80 font-medium">
+                (Click this little button to manage the board anytime)
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleShareBoard}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 text-white font-black py-3 px-4 text-xs shadow-md active:scale-98 transition-all cursor-pointer"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>📢 แชร์ชวนเพื่อนเข้าตี้ (Share Invite)</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href={`/order/${batchId}/leader`}
+                  onClick={() => setShowNewBoardModal(false)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-purple-200 bg-purple-100 hover:bg-purple-200 text-purple-950 font-bold py-2.5 px-3 text-xs transition-colors"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-purple-700" />
+                  <span>หน้าจัดการตี้</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowNewBoardModal(false)}
+                  className="rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-3 text-xs transition-colors"
+                >
+                  เข้าใจแล้ว / ปิด
+                </button>
+              </div>
             </div>
           </div>
         </div>
