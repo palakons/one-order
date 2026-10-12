@@ -1820,10 +1820,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <span className="text-2xl">🎉</span>
                         <div>
                           <h4 className="font-black text-sm text-emerald-950">
-                            {lang === "en" ? "Order Added to Whiteboard!" : lang === "cn" ? "点餐成功！已加入白板" : "ลงชื่อบนไวท์บอร์ดสำเร็จแล้ว!"}
+                            {lang === "en" ? "Order Added!" : lang === "cn" ? "点餐成功！" : "สั่งอาหารสำเร็จ!"}
                           </h4>
                           <p className="text-xs text-emerald-800 font-semibold mt-0.5">
-                            หมายเลขกล่องของคุณคือ: <span className="font-mono text-purple-950 bg-white px-2 py-0.5 rounded border border-emerald-300 font-black text-xs">#{submittedOrderNotice.orderNumber} {submittedOrderNotice.boxLabel}</span>
+                            กล่องของคุณ: <span className="font-mono text-purple-950 bg-white px-2 py-0.5 rounded border border-emerald-300 font-black text-xs">#{submittedOrderNotice.orderNumber} {submittedOrderNotice.boxLabel}</span>
                           </p>
                         </div>
                       </div>
@@ -1842,10 +1842,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3 py-1 rounded-lg transition-colors shadow-2xs"
                       >
                         <ShoppingBag className="h-3 w-3" />
-                        <span>ไปที่หน้า &apos;กล่องของฉัน&apos;</span>
+                        <span>กล่องของฉัน</span>
                       </Link>
                       <span className="text-[10px] text-emerald-700">
-                        หรือพิมพ์เบอร์โทรใน LINE Bot (@473ekpei) เพื่อเช็คสถานะออเดอร์
+                        หรือพิมพ์เบอร์ใน LINE Bot (@473ekpei) เพื่อเช็คสถานะ
                       </span>
                     </div>
                   </div>
@@ -2184,7 +2184,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                             className="mt-1.5 inline-flex items-center justify-center gap-1 w-full rounded-lg bg-purple-900 hover:bg-purple-800 text-white py-1.5 px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
                           >
                             <Download className="h-3 w-3" />
-                            <span>แตะเพื่อดาวน์โหลด QR</span>
+                            <span>โหลด QR ร้าน</span>
                           </button>
                         </div>
                       );
@@ -2265,7 +2265,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     ) : (
                       <>
                         <Plus className="h-4 w-4" />
-                        <span>{lang === "en" ? "Add order to this board" : lang === "cn" ? "加入本单白板" : "เพิ่มออเดอร์ลงกระดานนี้"}</span>
+                        <span>{t.submitToWhiteboard}</span>
                       </>
                     )}
                   </button>

@@ -337,7 +337,7 @@ export default function MyOrdersClient() {
                         </span>
                         <div>
                           <p className="text-xs sm:text-sm font-black leading-tight">
-                            อาหารมาส่งถึงโต๊ะแล้ว! กรุณามารับกล่องของคุณ 🎉
+                            อาหารส่งถึงโต๊ะแล้ว มารับได้เลย 🎉
                           </p>
                           <p className="text-[11px] text-purple-200">
                             วางไว้ที่จุดรับของ {loc?.name} ({loc?.deskDetail})
@@ -401,8 +401,8 @@ export default function MyOrdersClient() {
                     <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
                       <div className="grid grid-cols-2 gap-2 text-center">
                         {[
-                          { step: 1, label: "1. สั่งซื้อ & เตรียมอาหาร" },
-                          { step: 2, label: `2. วางที่โต๊ะ ${loc?.shortCode || "จุดรับของ"} แล้ว 🎉` },
+                          { step: 1, label: "1. กำลังเตรียมอาหาร" },
+                          { step: 2, label: `2. วางที่โต๊ะแล้ว 🎉` },
                         ].map((s) => {
                           const isDone = statusInfo.step >= s.step;
                           const isCurrent = statusInfo.step === s.step;
@@ -443,13 +443,13 @@ export default function MyOrdersClient() {
                       <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-3 space-y-1">
                         <div className="text-[10px] font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          <span>ป้ายติดหน้ากล่อง (Box Label)</span>
+                          <span>ป้ายหน้ากล่อง</span>
                         </div>
                         <div className="font-mono text-xs font-black text-gray-900 bg-white px-2 py-1.5 rounded-lg border border-purple-200 break-all">
                           {ord.boxLabel || `[${loc?.shortCode || "V"}] ${ord.customerName}`}
                         </div>
                         <p className="text-[10px] text-gray-500">
-                          ร้านจะเขียนป้ายนี้บนกล่องข้าว มองหาชื่อนี้เมื่อไปรับ
+                          มองหาชื่อนี้บนกล่องข้าวเมื่อไปรับ
                         </p>
                       </div>
 
@@ -458,7 +458,7 @@ export default function MyOrdersClient() {
                         <div className="flex items-center justify-between">
                           <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-purple-700" />
-                            <span>จุดรับอาหาร (Campus Desk)</span>
+                            <span>จุดรับอาหาร</span>
                           </div>
                           {loc?.mapUrl && (
                             <a
@@ -487,7 +487,7 @@ export default function MyOrdersClient() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
                             <Camera className="h-4 w-4 text-emerald-700" />
-                            <span>รูปถ่ายจุดวางอาหารจากร้านค้า</span>
+                            <span>รูปถ่ายจุดวางอาหาร</span>
                           </span>
                           <button
                             type="button"
@@ -499,7 +499,7 @@ export default function MyOrdersClient() {
                             }
                             className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline flex items-center gap-0.5"
                           >
-                            <span>ดูรูปขยายใหญ่</span>
+                            <span>ดูรูปเต็ม</span>
                             <Eye className="h-3 w-3" />
                           </button>
                         </div>
@@ -519,7 +519,7 @@ export default function MyOrdersClient() {
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-2.5">
                             <span className="text-[11px] text-white font-medium flex items-center gap-1">
-                              <Eye className="h-3.5 w-3.5" /> แตะเพื่อดูรูปหลักฐานเต็มจอ
+                              <Eye className="h-3.5 w-3.5" /> แตะดูรูปเต็มจอ
                             </span>
                           </div>
                         </div>

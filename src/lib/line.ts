@@ -286,8 +286,8 @@ export async function sendDeliveryAnnouncement(
     `ร้าน: ${shopName} (${orderCount} กล่อง)\n` +
     `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n` +
     (dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : "") +
-    (orderListText ? `\n📋 รายชื่อกล่องที่มาส่ง:\n${orderListText}\n` : "") +
-    `\n📸 ดูรูปถ่ายหลักฐาน & รับอาหารของคุณ:\n${deliveryUrl}\n\n` +
+    (orderListText ? `\n📋 กล่องที่มาส่ง:\n${orderListText}\n` : "") +
+    `\n📸 ดูรูปหลักฐาน & รับอาหาร:\n${deliveryUrl}\n\n` +
     `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
 
   // Build flex contents for orders list (limit up to 12 items to stay well within Flex message limits)
@@ -385,7 +385,7 @@ export async function sendDeliveryAnnouncement(
                 contents: [
                   {
                     type: "text",
-                    text: "📋 รายการกล่องที่มาส่ง:",
+                    text: "📋 กล่องที่มาส่ง:",
                     size: "xs",
                     weight: "bold",
                     color: "#1e1b4b",
@@ -407,7 +407,7 @@ export async function sendDeliveryAnnouncement(
           color: "#059669",
           action: {
             type: "uri",
-            label: "📸 ดูรูปหลักฐาน & รายชื่อกล่อง",
+            label: "📸 ดูรูปหลักฐาน & ออเดอร์",
             uri: deliveryUrl,
           },
         },

@@ -618,12 +618,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 {loggingIn ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>กำลังตรวจสอบสิทธิ์...</span>
+                    <span>กำลังเข้าสู่ระบบ...</span>
                   </>
                 ) : (
                   <>
                     <Key className="h-4 w-4" />
-                    <span>เข้าสู่ระบบแผงควบคุมหัวหน้าตี้</span>
+                    <span>เข้าสู่ระบบหัวหน้าตี้</span>
                   </>
                 )}
               </button>
@@ -647,7 +647,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-purple-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>← กลับไปหน้าไวท์บอร์ด</span>
+            <span>← กลับหน้าไวท์บอร์ด</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -667,7 +667,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               )}
             </button>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-black">
-              <span>👑 LEADER CONTROL PANEL</span>
+              <span>👑 หัวหน้าตี้</span>
             </span>
             <button
               type="button"
@@ -704,7 +704,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   title="โทรติดต่อร้านค้า"
                 >
                   <Phone className="h-3.5 w-3.5 text-emerald-700" />
-                  <span>📞 โทรสั่งร้าน ({batch.shop.phone})</span>
+                  <span>📞 โทร ({batch.shop.phone})</span>
                 </a>
               )}
 
@@ -724,7 +724,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 type="button"
                 onClick={handleShareBoardInvite}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
-                title="แชร์ลิงก์ชวนเพื่อนเข้าตี้"
+                title="แชร์ชวนเพื่อน"
               >
                 <Share2 className="h-3.5 w-3.5 text-purple-700" />
                 <span>📢 แชร์ชวนเพื่อน</span>
@@ -739,7 +739,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <span className="text-gray-700 flex items-center gap-1.5">
                   <ShoppingBag className="h-4 w-4 text-purple-900" />
                   <span>
-                    ยอดสั่งตอนนี้: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+                    ยอดสั่ง: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
                     <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
                   </span>
                 </span>
@@ -756,12 +756,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   title="สลับเป็นโหมดรับเองหน้าร้าน"
                 >
                   <span className="text-xs">🚶</span>
-                  <span>{isSelfPickup ? "✓ รับเองหน้าร้าน" : "เปลี่ยนไปรับเอง"}</span>
+                  <span>{isSelfPickup ? "✓ รับเอง" : "รับเองหน้าร้าน"}</span>
                 </button>
               </div>
 
               <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
-                {batch.isMinMet ? "🎉 ครบยอดส่งฟรีแล้ว!" : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี`}
+                {batch.isMinMet ? "✓ ครบยอดส่งฟรี" : `ขาดอีก ฿${batch.amountRemaining}`}
               </span>
             </div>
 
@@ -791,7 +791,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
                 >
                   <Lock className="h-3.5 w-3.5 text-rose-600" />
-                  <span>ปิดรับออเดอร์ก่อนเวลา</span>
+                  <span>ปิดรับออเดอร์</span>
                 </button>
               ) : batch.status === "CLOSED" ? (
                 <button
@@ -801,7 +801,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <Unlock className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>เปิดรับออเดอร์ต่อ</span>
+                  <span>เปิดรับออเดอร์</span>
                 </button>
               ) : null}
             </div>
@@ -835,35 +835,35 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     : "SLIPS PENDING"}
                 </span>
                 <span className="text-xs text-purple-200">
-                  {activeOrders.length} กล่องบนกระดาน
+                  {activeOrders.length} กล่อง
                 </span>
                 {isSelfPickup && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
-                    🚶 รับเองหน้าร้าน
+                    🚶 รับเอง
                   </span>
                 )}
               </div>
               <h2 className="text-lg sm:text-xl font-black mt-1">
                 {batch.status === "COMPLETED"
-                  ? "อาหารวางไว้ที่โต๊ะแล้ว! (COMPLETED) 🎉"
+                  ? "อาหารส่งถึงโต๊ะแล้ว 🎉"
                   : batch.status === "ORDERED"
-                  ? "ส่งเข้าครัวร้านแล้ว (ORDERED) 🍳"
+                  ? "ส่งร้านแล้ว 🍳"
                   : allSlipsVerified
                   ? isSelfPickup
-                    ? "สลิปครบ 100% แล้ว พร้อมส่งร้านแบบรับเองหน้าร้าน! 🚶"
-                    : "สลิปครบ 100% แล้ว พร้อมส่งออเดอร์ให้ร้าน! 🎉"
-                  : `รอแนบสลิปให้ครบก่อนส่งร้าน (${missingSlipOrders.length} กล่องยังไม่แนบสลิป)`}
+                    ? "สลิปครบแล้ว พร้อมส่งร้าน (รับเอง)"
+                    : "สลิปครบแล้ว พร้อมส่งร้าน"
+                  : `รอสลิป (${missingSlipOrders.length} กล่อง)`}
               </h2>
               <p className="text-xs text-purple-200 mt-0.5">
                 {batch.status === "COMPLETED"
-                  ? "ส่งรูปถ่ายหลักฐานและแจ้งเตือนเข้ากลุ่ม LINE เรียบร้อยแล้ว สมาชิกสามารถมารับกล่องของตนเองได้เลย"
+                  ? "แจ้งเตือนเข้า LINE แล้ว สมาชิกลงมารับอาหารได้เลย"
                   : batch.status === "ORDERED"
-                  ? "ร้านกำลังทำอาหาร เมื่ออาหารมาส่งถึงจุดรับของ ให้กดปุ่มถ่ายรูปโต๊ะวางอาหารเพื่อแจ้งทุกคนในกลุ่ม LINE"
-                  : "รวบรวมสลิปให้ครบ แล้วกดรวมส่งร้านเพื่อสร้างรูปใบสรุปและส่งเข้าไลน์ร้าน"}
+                  ? "ร้านกำลังทำอาหาร เมื่อมาส่งแล้วกดถ่ายรูปเพื่อแจ้งใน LINE"
+                  : "รวบรวมสลิปให้ครบ แล้วกดส่งร้านเพื่อส่งใบสรุป"}
               </p>
               {!allSlipsVerified && missingSlipOrders.length > 0 && batch.status === "OPEN" && (
                 <div className="mt-2 text-xs text-amber-200 bg-white/10 p-2.5 rounded-xl border border-white/15">
-                  <span>ยังขาดสลิปจาก: </span>
+                  <span>ขาดสลิป: </span>
                   <strong>
                     {missingSlipOrders
                       .map((o) => `${o.customerLineId || o.customerName} (${o.customerPhone || "ไม่มีเบอร์"})`)
@@ -883,7 +883,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   title="ส่งให้ร้านอาหารเรียบร้อยแล้ว"
                 >
                   <Check className="h-4 w-4 text-emerald-400" />
-                  <span>🚀 ส่งร้านแล้ว (Sent)</span>
+                  <span>🚀 ส่งร้านแล้ว</span>
                 </button>
               ) : (
                 <button
@@ -893,7 +893,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-6 py-3.5 text-base shadow-lg active:scale-95 transition-all w-full sm:w-auto"
                 >
                   <Send className="h-5 w-5" />
-                  <span>🚀 รวมส่งร้าน (Send to Shop)</span>
+                  <span>🚀 รวมส่งร้าน</span>
                 </button>
               )}
 
@@ -905,7 +905,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 py-3.5 text-sm sm:text-base shadow-xl active:scale-95 transition-all w-full sm:w-auto ring-4 ring-emerald-400/30"
                 >
                   <Camera className="h-5 w-5" />
-                  <span>📸 อาหารมาส่งแล้ว — ถ่ายรูปวางโต๊ะ (Mark Delivered)</span>
+                  <span>📸 ถ่ายรูปวางโต๊ะ (ส่งถึงแล้ว)</span>
                 </button>
               )}
 
@@ -931,7 +931,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     href={`/delivery/${batch.id}`}
                     className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold px-4 py-3 text-sm transition-all"
                   >
-                    <span>หน้าสำหรับลูกตี้ ↗</span>
+                    <span>หน้าลูกตี้ ↗</span>
                   </Link>
                 </div>
               )}
@@ -944,7 +944,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-black text-gray-900">
-                📋 รายชื่อลูกตี้และออเดอร์ทั้งหมด ({activeOrders.length} กล่อง)
+                📋 ออเดอร์ทั้งหมด ({activeOrders.length} กล่อง)
               </h2>
             </div>
           </div>
@@ -952,7 +952,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           {activeOrders.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
               <ShoppingBag className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-              <p className="text-sm font-semibold">ยังไม่มีใครลงชื่อสั่งอาหารในกระดานนี้</p>
+              <p className="text-sm font-semibold">ยังไม่มีออเดอร์ในกระดานนี้</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -1066,7 +1066,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl text-center space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="font-bold text-sm text-gray-900">QR พร้อมเพย์ร้านค้า</h3>
+              <h3 className="font-bold text-sm text-gray-900">QR พร้อมเพย์ร้าน</h3>
               <button
                 type="button"
                 onClick={() => setShowPromptPayModal(false)}
@@ -1099,11 +1099,11 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(batch.shop.promptpayNumber || "");
-                  alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+                  alert("คัดลอกเลขพร้อมเพย์แล้ว");
                 }}
                 className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
               >
-                คัดลอกหมายเลขพร้อมเพย์
+                คัดลอกเลขพร้อมเพย์
               </button>
             )}
           </div>
@@ -1144,8 +1144,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <Send className="h-4 w-4" />
                 </span>
                 <div>
-                  <h3 className="font-black text-sm text-gray-900">สรุปออเดอร์ส่งร้าน (Send to Shop)</h3>
-                  <p className="text-[11px] text-gray-500">สร้างภาพสรุปยาวใบเดียว ฝังสลิปครบทุกกล่อง</p>
+                  <h3 className="font-black text-sm text-gray-900">สรุปออเดอร์ส่งร้าน</h3>
+                  <p className="text-[11px] text-gray-500">ใบสรุปยาวพร้อมสลิปทุกกล่อง</p>
                 </div>
               </div>
               <button
@@ -1163,7 +1163,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <div className="flex flex-col items-center justify-center p-12 space-y-3 bg-gray-50 rounded-2xl border border-gray-200">
                   <div className="h-8 w-8 animate-spin rounded-full border-3 border-purple-900 border-t-transparent" />
                   <span className="text-xs font-black text-purple-900">
-                    กำลังสร้างภาพสรุปยาวใบเดียว (รวมสลิปทุกกล่อง)...
+                    กำลังสร้างใบสรุปยาว...
                   </span>
                   <span className="text-[11px] text-gray-400">ใช้เวลาประมาณ 1-2 วินาที</span>
                 </div>
@@ -1172,7 +1172,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>
-                      สร้างภาพยาวสำเร็จ! (มีรายการอาหาร จุดส่ง {buildingName} และสลิปทุกใบในรูปเดียว)
+                      สร้างภาพยาวสำเร็จ! (รวมรายการและสลิปครบ)
                     </span>
                   </div>
 
@@ -1188,7 +1188,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   {/* Brief Text Preview Box */}
                   <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-gray-700">
-                      <span>ข้อความสรุปสำหรับส่งในแชต:</span>
+                      <span>ข้อความสรุป:</span>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1220,7 +1220,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     className="w-full sm:flex-1 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] py-3 text-sm font-black text-white shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all"
                   >
                     <Share2 className="h-4 w-4" />
-                    <span>แชร์เข้า LINE ร้านทันที</span>
+                    <span>ส่งเข้า LINE ร้าน</span>
                   </button>
 
                   <a
@@ -1240,7 +1240,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     className="w-full rounded-2xl bg-purple-900 hover:bg-purple-800 text-white py-2.5 text-xs font-black shadow transition-colors flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <span>✅ ยืนยันว่าส่งให้ร้านแล้ว (เปลี่ยนสถานะเป็น ส่งร้านแล้ว)</span>
+                    <span>✅ ยืนยันส่งร้านแล้ว</span>
                   </button>
                 )}
               </div>
@@ -1277,7 +1277,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <Camera className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base">ถ่ายรูปจุดวางอาหาร (Delivery Evidence)</h3>
+                  <h3 className="font-black text-base">ถ่ายรูปวางโต๊ะ</h3>
                   <p className="text-xs text-emerald-200">โต๊ะวางอาหารชั้น 1 {batch?.buildingName || "ตึก M4"}</p>
                 </div>
               </div>
@@ -1299,7 +1299,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 text-xs text-emerald-950 flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
                 <span>
-                  ถ่ายรูปกล่องข้าวทั้งหมดที่วางบนโต๊ะรับของ ระบบจะแจ้งเตือนเข้า <strong>กลุ่ม LINE</strong> พร้อมส่งรูปหลักฐานให้ลูกตี้ทุกคนทราบทันที 🎉
+                  ถ่ายรูปอาหารที่วางบนโต๊ะ ระบบจะแจ้งเตือนเข้า <strong>LINE</strong> ทันที 🎉
                 </span>
               </div>
 
@@ -1339,8 +1339,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2">
                       <Camera className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-bold text-gray-900">ถ่ายรูปด้วยกล้อง</span>
-                    <span className="text-[10px] text-emerald-700 mt-0.5">เปิดกล้องทันที</span>
+                    <span className="text-xs font-bold text-gray-900">ถ่ายรูป</span>
+                    <span className="text-[10px] text-emerald-700 mt-0.5">เปิดกล้อง</span>
                   </div>
 
                   <div
@@ -1350,8 +1350,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-200 text-gray-600 mb-2">
                       <ShoppingBag className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-bold text-gray-900">เลือกจากอัลบั้ม</span>
-                    <span className="text-[10px] text-gray-500 mt-0.5">รูปในเครื่อง</span>
+                    <span className="text-xs font-bold text-gray-900">เลือกรูป</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">จากเครื่อง</span>
                   </div>
                 </div>
               )}
@@ -1371,10 +1371,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <Check className="h-5 w-5" />
                   <span>
                     {uploadingDelivery
-                      ? "กำลังบันทึกและแจ้งเตือนกลุ่ม LINE..."
+                      ? "กำลังบันทึกและแจ้งเตือน LINE..."
                       : compressingDeliveryPhoto
-                      ? "กำลังเตรียมรูปถ่าย..."
-                      : "✅ ยืนยันส่งอาหารทันที (แจ้งเตือนกลุ่ม LINE)"}
+                      ? "กำลังเตรียมรูป..."
+                      : "✅ ยืนยันส่งอาหาร (แจ้งใน LINE)"}
                   </span>
                 </button>
 
@@ -1384,7 +1384,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   onClick={() => handleDeliverySubmit(false)}
                   className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
                 >
-                  ส่งอาหารแล้ว (ไม่แนบรูปถ่าย)
+                  ส่งแล้ว (ไม่แนบรูป)
                 </button>
               </div>
             </div>

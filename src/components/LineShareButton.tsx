@@ -47,7 +47,7 @@ ${Object.entries(buildingCounts)
   .map(([bldg, count]) => `• ${bldg}: ${count} กล่อง`)
   .join("\n")}
 ${dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : ""}
-📸 ดูรูปถ่ายจุดวางอาหาร & รายชื่อกล่องของคุณ:
+📸 ดูรูปจุดวางอาหาร & ออเดอร์:
 ${manifestUrl}
 
 ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`
@@ -94,7 +94,7 @@ ${manifestUrl}`;
         }`}
       >
         <MessageSquare className="h-4 w-4" />
-        <span>{isCompleted ? "แจ้ง LINE: อาหารส่งถึงโต๊ะแล้ว 🛵" : "ส่งออเดอร์ให้ร้านผ่าน LINE"}</span>
+        <span>{isCompleted ? "แจ้งเตือนใน LINE 🛵" : "ส่งร้านผ่าน LINE"}</span>
         <ExternalLink className="h-3.5 w-3.5 opacity-80" />
       </a>
 
@@ -107,12 +107,12 @@ ${manifestUrl}`;
         {copied ? (
           <>
             <Check className="h-4 w-4 text-emerald-600" />
-            <span className="text-emerald-700">Copied to Clipboard!</span>
+            <span className="text-emerald-700">คัดลอกแล้ว!</span>
           </>
         ) : (
           <>
             <Copy className="h-4 w-4 text-gray-500" />
-            <span>Copy Manifest Text</span>
+            <span>คัดลอกข้อความสรุป</span>
           </>
         )}
       </button>

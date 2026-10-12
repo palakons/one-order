@@ -371,7 +371,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
             >
               <Copy className="h-4 w-4 text-emerald-600" />
-              <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE ร้าน"}</span>
+              <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE"}</span>
             </button>
             <LineShareButton batch={batch} />
             <button
@@ -379,7 +379,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               <Printer className="h-4 w-4" />
-              <span>พิมพ์ใบรายการ</span>
+              <span>พิมพ์</span>
             </button>
           </div>
         </div>
@@ -391,13 +391,13 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider backdrop-blur-xs">
                   <Truck className="h-3.5 w-3.5" />
-                  <span>1-Click Delivery Update</span>
+                  <span>Delivery Update</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black">
-                  อาหารมาส่งถึงโต๊ะตึก M4 แล้วใช่ไหม?
+                  อาหารมาส่งถึงโต๊ะแล้วใช่ไหม?
                 </h2>
                 <p className="text-xs sm:text-sm text-emerald-100 max-w-xl">
-                  วางกล่องอาหารบนโต๊ะ Delivery แล้วแตะถ่ายรูป 1 ครั้ง เพื่อแจ้งเตือนทุกคนทันที!
+                  วางอาหารบนโต๊ะรับของแล้วแตะถ่ายรูป 1 ครั้งเพื่อแจ้งเตือนทุกคนทันที!
                 </p>
               </div>
 
@@ -408,20 +408,20 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm sm:text-base font-black text-emerald-900 shadow-lg hover:bg-emerald-50 active:scale-95 transition-all"
                 >
                   <Camera className="h-5 w-5 text-emerald-600" />
-                  <span>📸 ถ่ายรูปส่งอาหาร (Delivered)</span>
+                  <span>📸 ถ่ายรูปส่งอาหาร</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm("ยืนยันว่าอาหารส่งถึงโต๊ะ M4 เรียบร้อยแล้ว (ไม่แนบรูปถ่าย)?")) {
+                    if (confirm("ยืนยันว่าอาหารส่งถึงโต๊ะเรียบร้อยแล้ว (ไม่แนบรูปถ่าย)?")) {
                       handleDeliverySubmit(false);
                     }
                   }}
                   className="inline-flex items-center justify-center rounded-2xl bg-emerald-800/60 border border-emerald-400/40 px-3.5 py-3.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors"
                   title="ส่งอาหารเรียบร้อยโดยไม่แนบรูปถ่าย"
                 >
-                  <span>ส่งแล้ว (ไม่ถ่ายรูป)</span>
+                  <span>ส่งแล้ว (ไม่แนบรูป)</span>
                 </button>
 
                 <button
@@ -445,15 +445,15 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 </div>
                 <div>
                   <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                    ✓ นำส่งถึงโต๊ะตึกเรียนแล้ว (Delivered)
+                    ✓ ส่งถึงโต๊ะแล้ว
                   </div>
                   <h2 className="text-lg sm:text-xl font-black text-emerald-950 mt-0.5">
-                    อาหารส่งถึงจุดรับข้าวประจำตึกเรียบร้อยแล้ว
+                    อาหารส่งถึงจุดรับข้าวเรียบร้อยแล้ว
                   </h2>
                   <p className="text-xs text-emerald-800">
                     {batch.deliveredAt
                       ? `ส่งเมื่อเวลา ${new Date(batch.deliveredAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} น.`
-                      : "ส่งถึงโต๊ะตึกเรียนแล้ว"}
+                      : "ส่งถึงโต๊ะแล้ว"}
                   </p>
                 </div>
               </div>
@@ -491,7 +491,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 <div className="text-xs font-bold text-emerald-900 mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Camera className="h-3.5 w-3.5 text-emerald-700" />
-                    <span>ภาพถ่ายหลักฐานการวางส่งที่โต๊ะ (Food Drop-off Photo):</span>
+                    <span>รูปถ่ายจุดวางอาหาร:</span>
                   </div>
                   <button
                     type="button"
@@ -714,7 +714,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 }`}
               >
                 <Package className="h-3.5 w-3.5" />
-                <span>แยกตามกล่อง ({batch.orders.length} กล่อง)</span>
+                <span>แยกกล่อง ({batch.orders.length})</span>
               </button>
               <button
                 type="button"
@@ -726,7 +726,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                <span>รวมตามคนสั่ง ({customerList.length} คน)</span>
+                <span>รวมตามคนสั่ง ({customerList.length})</span>
               </button>
             </div>
           </div>
@@ -735,7 +735,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           {viewMode === "order" && (
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-500">
-                แสดง {batch.orders.length} กล่อง สำหรับจัดอาหารและเขียนเบอร์กล่อง:
+                รายการ {batch.orders.length} กล่อง สำหรับจัดอาหาร:
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {batch.orders.map((ord) => {
@@ -960,14 +960,14 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-gray-900">
-                3. ตรวจสอบสลิปโอนเงินเข้าบัญชีร้าน (Payment Slips)
+                3. สลิปโอนเงินเข้าบัญชีร้าน
               </h2>
               <p className="text-xs text-gray-500">
-                แตะที่รูปเพื่อดูสลิปขนาดเต็ม และตรวจสอบยอดเงินเข้ากับแอปธนาคารของร้าน
+                แตะดูสลิปขนาดเต็มเพื่อตรวจสอบยอด
               </p>
             </div>
             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-              {batch.orders.length} สลิปโอนเงิน
+              {batch.orders.length} สลิป
             </span>
           </div>
 

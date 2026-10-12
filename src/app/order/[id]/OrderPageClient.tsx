@@ -665,7 +665,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </span>
               </span>
               <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
-                {batch.isMinMet ? "🎉 ครบยอดส่งฟรีแล้ว!" : `ขาดอีก ฿${batch.amountRemaining} เพื่อส่งฟรี`}
+                {batch.isMinMet ? "✓ ครบยอดส่งฟรี" : `ขาดอีก ฿${batch.amountRemaining}`}
               </span>
             </div>
 
@@ -705,7 +705,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <Link
                   href={`/order/${batchId}/leader`}
                   className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
-                  title="แผงจัดการกระดาน (สำหรับหัวหน้าตี้)"
+                  title="จัดการกระดาน"
                 >
                   <SlidersHorizontal className="h-3 w-3 text-purple-700" />
                   <span>จัดการกระดาน ↗</span>
@@ -744,11 +744,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-black text-gray-900">
-                📋 รายชื่อบนไวท์บอร์ด (Live Orders List)
+                📋 ออเดอร์ทั้งหมด
               </h2>
-              <p className="text-xs text-gray-500">
-                ทุกคนเห็นรายการเดียวกันแบบเรียลไทม์ ตรวจสอบสลิปได้ทันที
-              </p>
             </div>
             <span className="text-xs font-black text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
               รวม {activeOrders.length} กล่อง
@@ -758,8 +755,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           {activeOrders.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-gray-400 space-y-2">
               <ShoppingBag className="mx-auto h-8 w-8 text-gray-300" />
-              <p className="text-sm font-semibold">ยังไม่มีใครลงชื่อบนกระดานนี้</p>
-              <p className="text-xs text-gray-400">เป็นคนแรกที่เปิดตี้ร้านนี้ได้เลยด้านล่าง!</p>
+              <p className="text-sm font-semibold">ยังไม่มีออเดอร์</p>
+              <p className="text-xs text-gray-400">สั่งคนแรกได้เลยด้านล่าง!</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -866,10 +863,10 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <span>สั่งอาหาร</span>
               </div>
               <h2 className="text-lg font-black text-gray-900 mt-1">
-                พิมพ์เมนูที่คุณอยากกิน แล้วแนบสลิปเพื่อขึ้นกระดาน
+                ระบุเมนูและแนบสลิป
               </h2>
               <p className="text-xs text-gray-500">
-                ร้านป้าทำอาหารตามสั่งได้ทุกอย่าง หรือแตะเลือกจากเมนูยอดนิยมด้านล่าง
+                พิมพ์เมนูตามสั่ง หรือเลือกเมนูแนะนำด้านล่าง
               </p>
             </div>
 
@@ -885,7 +882,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-gray-700">
-                    LINE ID หรือชื่อของคุณ <span className="text-rose-500">*</span>
+                    ชื่อ / LINE ID <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -898,7 +895,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                    <span>เบอร์โทรศัพท์ (ร้านโทรหาเมื่อมีปัญหา) <span className="text-rose-500">*</span></span>
+                    <span>เบอร์โทรศัพท์ <span className="text-rose-500">*</span></span>
                     <span className="text-[10px] text-gray-400 font-normal">กรณีของหมด</span>
                   </label>
                   <input
@@ -916,12 +913,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               {/* Row 2: Dish Name & Quick Popular Chips */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700">
-                  เมนูที่ต้องการสั่ง <span className="text-rose-500">*</span>
+                  รายการอาหาร <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="พิมพ์เมนูตามใจชอบ เช่น ข้าวกะเพราหมูกรอบ ไข่ดาวไม่สุก"
+                  placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาว"
                   value={dishName}
                   onChange={(e) => setDishName(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
@@ -952,7 +949,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-gray-700">
-                    ราคาอาหาร (฿) <span className="text-rose-500">*</span>
+                    ราคา (฿) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -965,7 +962,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-700">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                  <label className="text-xs font-bold text-gray-700">หมายเหตุ (ถ้ามี)</label>
                   <input
                     type="text"
                     placeholder="เช่น ไม่ใส่ผักชี, เผ็ดน้อย"
@@ -981,13 +978,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 {/* Card 1: Total */}
                 <div className="rounded-xl bg-purple-950 text-white p-3.5 flex flex-col justify-between shadow-xs min-h-[110px]">
                   <div className="text-[11px] text-purple-200 font-medium">
-                    ยอดโอนรวมทั้งหมด
+                    ยอดโอนรวม
                   </div>
                   <div className="my-1 text-2xl font-mono font-black text-amber-300">
                     ฿{dishPrice ? parseFloat(dishPrice) || 0 : 0}
                   </div>
                   <div className="text-[10px] text-purple-300 leading-tight">
-                    โอนตรงเข้าบัญชีพร้อมเพย์ร้านค้า
+                    โอนเข้าพร้อมเพย์ร้าน
                   </div>
                 </div>
 
@@ -1013,7 +1010,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg bg-white border border-purple-300 hover:bg-purple-100 text-purple-950 py-1.5 px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
                   >
                     <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                    <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+                    <span>💳 ดู QR ร้าน</span>
                   </button>
                 </div>
 
@@ -1022,9 +1019,9 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
                       <CreditCard className="h-3.5 w-3.5 text-purple-900" />
-                      <span>แนบสลิปโอนเงิน <span className="text-rose-500">*</span></span>
+                      <span>แนบสลิป <span className="text-rose-500">*</span></span>
                     </label>
-                    <span className="text-[10px] text-slate-500 font-medium">ตรวจสลิปอัตโนมัติ</span>
+                    <span className="text-[10px] text-slate-500 font-medium">ตรวจสลิปออโต้</span>
                   </div>
 
                   <input
@@ -1087,12 +1084,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 {submittingOrder ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>กำลังบันทึกลงไวท์บอร์ด...</span>
+                    <span>กำลังบันทึก...</span>
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4" />
-                    <span>เพิ่มออเดอร์ลงกระดานนี้</span>
+                    <span>เพิ่มลงกระดาน</span>
                   </>
                 )}
               </button>
@@ -1100,7 +1097,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         ) : (
           <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-center text-xs font-bold text-rose-800">
-            🔴 รอบสั่งอาหารนี้ปิดรับแล้ว (หมดเวลา Cutoff)
+            🔴 ปิดรับออเดอร์แล้ว
           </div>
         )}
       </main>
@@ -1110,7 +1107,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl text-center space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="font-bold text-sm text-gray-900">QR พร้อมเพย์ร้านค้า</h3>
+              <h3 className="font-bold text-sm text-gray-900">QR พร้อมเพย์ร้าน</h3>
               <button
                 type="button"
                 onClick={() => setShowPromptPayModal(false)}
@@ -1143,11 +1140,11 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(batch.shop.promptpayNumber || "");
-                  alert("คัดลอกเบอร์พร้อมเพย์แล้ว!");
+                  alert("คัดลอกเลขพร้อมเพย์แล้ว");
                 }}
                 className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
               >
-                คัดลอกหมายเลขพร้อมเพย์
+                คัดลอกเลขพร้อมเพย์
               </button>
             )}
           </div>
@@ -1195,17 +1192,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <span className="text-3xl">🎉</span>
               </div>
               <h3 className="text-lg font-black text-slate-900">
-                เปิดกระดานสั่งข้าวสำเร็จแล้ว!
+                เปิดตี้สำเร็จ!
               </h3>
               <p className="text-xs text-slate-600">
-                ร้าน <strong className="text-purple-900">{batch.shop?.name}</strong> • ปิดรับเวลา <strong className="text-purple-900">{batch.cutoffTime} น.</strong>
+                ร้าน <strong className="text-purple-900">{batch.shop?.name}</strong> • ปิดรับ <strong className="text-purple-900">{batch.cutoffTime} น.</strong>
               </p>
             </div>
 
             {/* Little button guidance callout */}
             <div className="rounded-2xl border-2 border-purple-200 bg-purple-50/80 p-4 text-center space-y-2.5">
               <p className="text-xs font-bold text-purple-950">
-                💡 คลิกปุ่มเล็ก ๆ นี้เพื่อจัดการกระดาน:
+                💡 จัดการกระดานได้ที่นี่:
               </p>
               <div>
                 <Link
@@ -1218,10 +1215,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </Link>
               </div>
               <p className="text-xs leading-relaxed text-purple-900">
-                คลิกปุ่มเล็ก ๆ นี้ <strong>&ldquo;จัดการกระดาน ↗&rdquo;</strong> ที่แถบหัวหน้าตี้ด้านบน เพื่อปิดรับออเดอร์, ดูยอดรวม หรือสร้างใบสรุปออเดอร์ (Manifest) ส่งร้าน
-              </p>
-              <p className="text-[11px] text-purple-700/80 font-medium">
-                (Click this little button to manage the board anytime)
+                กด <strong>&ldquo;จัดการกระดาน ↗&rdquo;</strong> เพื่อปิดรับออเดอร์ หรือสรุปส่งร้าน
               </p>
             </div>
 
@@ -1233,7 +1227,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 text-white font-black py-3 px-4 text-xs shadow-md active:scale-98 transition-all cursor-pointer"
               >
                 <Share2 className="h-4 w-4" />
-                <span>📢 แชร์ชวนเพื่อนเข้าตี้ (Share Invite)</span>
+                <span>📢 แชร์ชวนเพื่อน</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1250,7 +1244,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   onClick={() => setShowNewBoardModal(false)}
                   className="rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-3 text-xs transition-colors"
                 >
-                  เข้าใจแล้ว / ปิด
+                  ปิด
                 </button>
               </div>
             </div>

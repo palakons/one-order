@@ -2052,7 +2052,7 @@ export default function AdminClient({
             }`}
           >
             <Store className="h-4 w-4" />
-            <span>จัดการร้านอาหาร ({shops.length})</span>
+            <span>ร้านอาหาร ({shops.length})</span>
           </button>
 
           <button
@@ -2067,7 +2067,7 @@ export default function AdminClient({
             }`}
           >
             <MapPin className="h-4 w-4" />
-            <span>จุดส่งอาหาร ({locations.length})</span>
+            <span>จุดส่ง ({locations.length})</span>
           </button>
 
           <button
@@ -2079,7 +2079,7 @@ export default function AdminClient({
             }`}
           >
             <Layers className="h-4 w-4" />
-            <span>กระดานออเดอร์ ({batches.length})</span>
+            <span>กระดาน ({batches.length})</span>
           </button>
 
           <button
@@ -2106,7 +2106,7 @@ export default function AdminClient({
             }`}
           >
             <Sparkles className="h-4 w-4 text-amber-500" />
-            <span>เมนูยอดฮิตที่สั่งบ่อย ({frequentlyOrderedDishes.length})</span>
+            <span>เมนูสั่งบ่อย ({frequentlyOrderedDishes.length})</span>
           </button>
         </div>
 
@@ -2119,10 +2119,10 @@ export default function AdminClient({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Store className="h-5 w-5 text-purple-700" />
-                  <span>ร้านอาหารในระบบ ({shops.length} ร้าน)</span>
+                  <span>ร้านอาหาร ({shops.length})</span>
                 </h2>
                 <p className="text-xs text-gray-500">
-                  เพิ่ม ลบ แก้ไขข้อมูลร้าน เบอร์โทร พร้อมเพย์ และรูปภาพเมนู
+                  จัดการข้อมูลร้าน เบอร์โทร และ QR พร้อมเพย์
                 </p>
               </div>
 
@@ -2132,7 +2132,7 @@ export default function AdminClient({
                 className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-purple-800 transition-colors cursor-pointer self-start sm:self-center"
               >
                 <Plus className="h-4 w-4" />
-                <span>เพิ่มร้านอาหารใหม่</span>
+                <span>เพิ่มร้านอาหาร</span>
               </button>
             </div>
 
@@ -2172,10 +2172,10 @@ export default function AdminClient({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-purple-700" />
-                  <span>จุดส่งอาหารและโต๊ะรับ Delivery ({locations.length} จุด)</span>
+                  <span>จุดส่งอาหาร ({locations.length})</span>
                 </h2>
                 <p className="text-xs text-gray-500">
-                  เพิ่ม ลบ แก้ไขตำแหน่งโต๊ะวางอาหารประจำตึก และเปลี่ยนภาพประกอบ
+                  จัดการโต๊ะวางอาหารประจำตึกและรูปถ่าย
                 </p>
               </div>
 
@@ -2186,7 +2186,7 @@ export default function AdminClient({
                   className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-purple-800 transition-colors cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>เพิ่มจุดส่งใหม่</span>
+                  <span>เพิ่มจุดส่ง</span>
                 </button>
                 <button
                   type="button"
@@ -2334,9 +2334,9 @@ export default function AdminClient({
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">กระดานออเดอร์ทั้งหมด ({batches.length})</h2>
+                <h2 className="text-lg font-bold text-gray-900">กระดานออเดอร์ ({batches.length})</h2>
                 <p className="text-xs text-gray-500">
-                  ตรวจสอบและติดตามสถานะรอบอาหาร (การเปิดรอบใหม่ดำเนินการผ่านหน้าหลัก Digital Whiteboard)
+                  ติดตามสถานะรอบสั่งอาหาร
                 </p>
               </div>
 
@@ -2345,7 +2345,7 @@ export default function AdminClient({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-2xs self-start sm:self-center cursor-pointer"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span>รีเฟรชข้อมูล</span>
+                <span>รีเฟรช</span>
               </button>
             </div>
 
@@ -2500,10 +2500,10 @@ export default function AdminClient({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-purple-700" />
-                  <span>เมนูยอดฮิตที่ถูกสั่งบ่อยที่สุดแยกตามร้าน ({filteredFrequentDishes.length} เมนู)</span>
+                  <span>เมนูสั่งบ่อย ({filteredFrequentDishes.length})</span>
                 </h2>
                 <p className="text-xs text-gray-500">
-                  วิเคราะห์จากประวัติการสั่งอาหารจริง เพื่อนำมาตั้งเป็น &ldquo;เมนูแนะนำของร้าน&rdquo; (กดเพิ่มได้ทันที ให้ลูกค้าแตะเลือกในกระดาน)
+                  เมนูยอดฮิตจากประวัติสั่งจริง เพิ่มเป็นเมนูแนะนำร้านได้ทันที
                 </p>
               </div>
 
@@ -2530,7 +2530,7 @@ export default function AdminClient({
               <Sparkles className="h-5 w-5 text-purple-700 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-bold">
-                  💡 ที่มาของ &ldquo;แตะเลือกเมนูแนะนำของร้าน&rdquo; บนกระดาน:
+                  💡 เมนูแนะนำของร้าน:
                 </p>
                 <p className="text-slate-600 leading-relaxed">
                   แถบปุ่มด่วนบนหน้ากระดานดึงมาจาก <strong>menuItems</strong> ในข้อมูลร้านค้า โดยระบบจะนำเมนูที่ตั้งไว้มาแสดงให้ลูกค้ากดเพื่อกรอกชื่อและราคาอัตโนมัติ คุณสามารถดูเมนูที่คนสั่งบ่อยที่สุดด้านล่าง และกดปุ่ม <strong>&ldquo;➕ เพิ่มเป็นเมนูแนะนำ&rdquo;</strong> เพื่อเพิ่มเข้าหน้าร้านได้ทันทีโดยไม่ต้องพิมพ์เอง!

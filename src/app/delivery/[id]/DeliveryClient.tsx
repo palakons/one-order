@@ -114,9 +114,9 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-800 flex items-center gap-1.5">
                   <Camera className="h-4 w-4 text-emerald-600" />
-                  <span>รูปถ่ายหลักฐานบนโต๊ะ{buildingName}:</span>
+                  <span>รูปถ่ายบนโต๊ะ {buildingName}:</span>
                 </span>
-                <span className="text-[11px] text-gray-500">ตรวจสอบตำแหน่งกล่องของคุณ</span>
+                <span className="text-[11px] text-gray-500">ดูตำแหน่งกล่อง</span>
               </div>
 
               <div className="relative rounded-2xl border-2 border-emerald-500/80 overflow-hidden bg-gray-900 shadow-inner max-h-96 flex items-center justify-center">
@@ -129,7 +129,7 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500 text-xs">
-              ยังไม่มีรูปถ่ายหลักฐานจุดส่ง
+              ยังไม่มีรูปถ่ายจุดส่ง
             </div>
           )}
         </div>
@@ -140,10 +140,10 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Package className="h-5 w-5 text-emerald-600" />
-                <span>รายชื่อกล่องอาหาร ({batch.orders.length} กล่อง)</span>
+                <span>กล่องอาหารทั้งหมด ({batch.orders.length} กล่อง)</span>
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                ตรวจสอบหมายเลขกล่องของคุณแล้วไปหยิบที่โต๊ะ M4 ได้เลยครับ
+                ตรวจเลขกล่องแล้วรับที่โต๊ะ M4 ได้เลย
               </p>
             </div>
 
