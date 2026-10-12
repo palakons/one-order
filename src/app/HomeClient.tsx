@@ -50,6 +50,7 @@ import {
   ChevronDown,
   RefreshCw,
   Sparkles,
+  QrCode,
 } from "lucide-react";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
@@ -157,6 +158,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return batches.find((b) => b.id === activeBatchId) || currentGroupBatches[0] || batches[0] || null;
   }, [batches, activeBatchId, currentGroupBatches]);
 
+  const selectBatch = (id: string) => {
+    setActiveBatchId(id);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("batch", id);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
+
   const handleSelectGroup = (group: BoardGroup) => {
     setActiveGroup(group);
     let targetBatches: BatchWithDetails[] = [];
@@ -166,16 +176,42 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     else if (group === "DELETED") targetBatches = deletedBatches;
 
     if (targetBatches.length > 0 && !targetBatches.some((b) => b.id === activeBatchId)) {
-      setActiveBatchId(targetBatches[0].id);
+      selectBatch(targetBatches[0].id);
     }
   };
+
+  // Deep-linking from ?batch=id in URL query
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlBatchId = params.get("batch");
+      if (urlBatchId && batches.length > 0) {
+        const found = batches.find((b) => b.id === urlBatchId);
+        if (found) {
+          setActiveBatchId(urlBatchId);
+          if (found.isDeleted) {
+            setActiveGroup("DELETED");
+          } else if (found.status !== "OPEN" || getTimeRemaining(found.cutoffTime, found.date).isExpired) {
+            const diff = getDaysDifference(found.date, getBangkokDate());
+            if (diff === 0) setActiveGroup("CLOSED_TODAY");
+            else setActiveGroup("ARCHIVED");
+          } else {
+            setActiveGroup("OPENING");
+          }
+          setTimeout(() => {
+            document.getElementById("board-pane")?.scrollIntoView({ behavior: "smooth" });
+          }, 150);
+        }
+      }
+    }
+  }, [batches]);
 
   // Auto-switch to activeBatchId if missing from currentGroupBatches
   useEffect(() => {
     if (currentGroupBatches.length > 0) {
       const exists = currentGroupBatches.some((b) => b.id === activeBatchId);
       if (!exists) {
-        setActiveBatchId(currentGroupBatches[0].id);
+        selectBatch(currentGroupBatches[0].id);
       }
     }
   }, [currentGroupBatches, activeBatchId]);
@@ -876,11 +912,16 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ส่งเข้าครัวร้านแล้ว");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์และส่งเข้าครัวร้านแล้ว 🍳");
         setShowSendModal(false);
-        await fetchBatches();
+        setActiveGroup("CLOSED_TODAY");
+        await fetchBatches(true);
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาด");
       }
-    } catch (e) {}
+    } catch (e) {
+      alert("ไม่สามารถบันทึกสถานะได้");
+    }
   };
 
   // Share to LINE
@@ -1106,7 +1147,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   <button
                     key={b.id}
                     type="button"
-                    onClick={() => setActiveBatchId(b.id)}
+                    onClick={() => selectBatch(b.id)}
                     className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
                       isActive
                         ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
@@ -1285,7 +1326,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             </div>
           </div>
         ) : activeBatch ? (
-          <div className="space-y-2.5 sm:space-y-3">
+          <div id="board-pane" className="space-y-2.5 sm:space-y-3">
             {/* 2. Order Pane Header: 3 Squeezed Cards in 1 Row (Shop, Drop-off, Leader) */}
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Card 1: Shop */}
@@ -1748,13 +1789,35 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
                   {/* Field 3: Multiple Menu Items List */}
                   <div className="space-y-2.5 pt-1 border-t border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-800">
-                        {t.orderItemsTitle} <span className="text-rose-500">*</span>
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        {totalItemBoxes} {t.boxesCount}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-2">
+                          <span>{t.orderItemsTitle}</span>
+                          <span className="text-rose-500">*</span>
+                          {activeShopMapUrl && (
+                            <a
+                              href={activeShopMapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 text-[10px] font-bold transition-colors"
+                              title="เปิดดูเมนูและรูปอาหารบน Google Maps"
+                            >
+                              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                              <span>{lang === "en" ? "View Menu on Maps ↗" : lang === "cn" ? "在地图查看菜单 ↗" : "เปิดดูเมนูบน Google Maps ↗"}</span>
+                            </a>
+                          )}
+                        </label>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {totalItemBoxes} {t.boxesCount}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 italic">
+                        {lang === "en"
+                          ? "ℹ️ Displayed menu is for reference, please make sure correctness."
+                          : lang === "cn"
+                          ? "ℹ️ 所示菜单仅供参考，请向餐厅确认准确性。"
+                          : "ℹ️ เมนูและราคาที่แสดงใช้สำหรับอ้างอิงเบื้องต้น โปรดตรวจสอบความถูกต้องกับร้านค้า"}
+                      </p>
                     </div>
 
                     {/* Quick Pick Menu Items Chips */}
@@ -1954,30 +2017,72 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     </div>
 
                     {/* Card 2: Display QR */}
-                    <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 sm:p-3.5 flex flex-col justify-between shadow-2xs">
-                      <div className="flex items-center justify-between gap-1 text-[11px] font-bold text-purple-950">
-                        <span className="flex items-center gap-1.5">
-                          <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                          <span>QR พร้อมเพย์ร้าน</span>
-                        </span>
-                      </div>
-                      <div className="my-1 text-[11px] text-purple-950 font-bold truncate">
-                        {activeBatch.shop.promptpayAccountName || activeBatch.shop.name}
-                        {activeBatch.shop.promptpayNumber && (
-                          <span className="block text-[10px] font-mono text-purple-800 font-semibold mt-0.5">
-                            {activeBatch.shop.promptpayNumber}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowPromptPayModal(true)}
-                        className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg bg-white border border-purple-300 hover:bg-purple-100 text-purple-950 py-1.5 px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
-                      >
-                        <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                        <span>💳 ดู QR พร้อมเพย์ร้าน</span>
-                      </button>
-                    </div>
+                    {(() => {
+                      const shopQrUrl =
+                        activeBatch.shop.promptpayQrUrl ||
+                        (activeBatch.shop.promptpayNumber
+                          ? `https://promptpay.io/${activeBatch.shop.promptpayNumber.replace(/\D/g, "")}.png`
+                          : null);
+
+                      const handleDownloadQr = () => {
+                        if (shopQrUrl) {
+                          const a = document.createElement("a");
+                          a.href = shopQrUrl;
+                          a.download = `PromptPay-${activeBatch.shop.name}.png`;
+                          a.target = "_blank";
+                          a.click();
+                        } else {
+                          setShowPromptPayModal(true);
+                        }
+                      };
+
+                      return (
+                        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-2.5 sm:p-3 flex flex-col justify-between items-center text-center shadow-2xs">
+                          <div className="w-full flex items-center justify-between gap-1 text-[11px] font-bold text-purple-950 mb-0.5">
+                            <span className="flex items-center gap-1.5">
+                              <QrCode className="h-3.5 w-3.5 text-purple-700" />
+                              <span>QR พร้อมเพย์ร้าน</span>
+                            </span>
+                          </div>
+
+                          {shopQrUrl ? (
+                            <button
+                              type="button"
+                              onClick={handleDownloadQr}
+                              className="group relative my-1 h-20 w-20 rounded-lg bg-white p-1 border border-purple-200 shadow-2xs hover:scale-105 transition-transform cursor-pointer flex items-center justify-center shrink-0"
+                              title="แตะเพื่อดาวน์โหลด QR"
+                            >
+                              <img
+                                src={shopQrUrl}
+                                alt="PromptPay QR"
+                                className="h-full w-full object-contain"
+                              />
+                              <div className="absolute inset-0 bg-purple-900/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                                <Download className="h-4 w-4 text-purple-900" />
+                              </div>
+                            </button>
+                          ) : null}
+
+                          <div className="text-[10px] text-purple-950 font-bold truncate w-full">
+                            {activeBatch.shop.promptpayAccountName || activeBatch.shop.name}
+                          </div>
+                          {activeBatch.shop.promptpayNumber && (
+                            <div className="text-[10px] font-mono text-purple-800 font-semibold">
+                              {activeBatch.shop.promptpayNumber}
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleDownloadQr}
+                            className="mt-1.5 inline-flex items-center justify-center gap-1 w-full rounded-lg bg-purple-900 hover:bg-purple-800 text-white py-1.5 px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span>แตะเพื่อดาวน์โหลด QR</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* Card 3: Upload Slip */}
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-3.5 flex flex-col justify-between shadow-2xs space-y-1.5">

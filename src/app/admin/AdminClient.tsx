@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   BatchWithDetails,
@@ -48,6 +48,7 @@ import {
   Server,
   ChevronDown,
   Maximize2,
+  ShoppingBag,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -335,8 +336,10 @@ export default function AdminClient({
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "shops" | "desks" | "batches" | "suggestions"
+    "shops" | "desks" | "batches" | "suggestions" | "frequently_ordered"
   >("shops");
+  const [frequentShopFilter, setFrequentShopFilter] = useState<string>("all");
+  const [addingMenuItemShopId, setAddingMenuItemShopId] = useState<string | null>(null);
 
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
@@ -950,7 +953,122 @@ export default function AdminClient({
   };
 
   // -------------------------------------------------------------
-  // Drop-off Locations CRUD Handlers
+  // Frequently Ordered Dishes Analytics & Shop Menu Quick-Add
+  // -------------------------------------------------------------
+  const frequentlyOrderedDishes = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        shopId: string;
+        shopName: string;
+        dishName: string;
+        orderCount: number;
+        totalQuantity: number;
+        totalRevenue: number;
+        latestPrice: number;
+      }
+    >();
+
+    batches.forEach((b) => {
+      const shop = shops.find((s) => s.id === b.shopId) || b.shop;
+      const shopId = shop?.id || b.shopId || "unknown";
+      const shopName = shop?.name || "ร้านอาหาร";
+
+      (b.orders || []).forEach((ord) => {
+        if (ord.deletedAt) return;
+        (ord.items || []).forEach((it) => {
+          const rawName = (it.name || "").trim();
+          if (!rawName) return;
+          const key = `${shopId}:::${rawName.toLowerCase()}`;
+          const existing = map.get(key);
+          const qty = it.quantity || 1;
+          const price = it.price || 0;
+
+          if (existing) {
+            existing.orderCount += 1;
+            existing.totalQuantity += qty;
+            existing.totalRevenue += price * qty;
+            if (price > 0) existing.latestPrice = price;
+          } else {
+            map.set(key, {
+              shopId,
+              shopName,
+              dishName: rawName,
+              orderCount: 1,
+              totalQuantity: qty,
+              totalRevenue: price * qty,
+              latestPrice: price,
+            });
+          }
+        });
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [batches, shops]);
+
+  const filteredFrequentDishes = useMemo(() => {
+    if (frequentShopFilter === "all") return frequentlyOrderedDishes;
+    return frequentlyOrderedDishes.filter((d) => d.shopId === frequentShopFilter);
+  }, [frequentlyOrderedDishes, frequentShopFilter]);
+
+  const handleAddDishToShopMenu = async (dish: {
+    name: string;
+    price: number;
+    shopId: string;
+    shopName: string;
+  }) => {
+    const targetShop = shops.find((s) => s.id === dish.shopId);
+    if (!targetShop) return;
+
+    if (
+      targetShop.menuItems?.some(
+        (m) => m.name.trim().toLowerCase() === dish.name.trim().toLowerCase()
+      )
+    ) {
+      alert(`เมนู "${dish.name}" มีอยู่ในร้าน "${targetShop.name}" อยู่แล้ว`);
+      return;
+    }
+
+    const updatedMenuItems = [
+      ...(targetShop.menuItems || []),
+      {
+        id: `dish-${Date.now()}`,
+        name: dish.name,
+        price: dish.price,
+        popular: true,
+      },
+    ];
+
+    setAddingMenuItemShopId(dish.shopId + dish.name);
+    try {
+      const res = await fetch("/api/shops", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...targetShop,
+          menuItems: updatedMenuItems,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShops((prev) =>
+          prev.map((s) => (s.id === dish.shopId ? { ...s, menuItems: updatedMenuItems } : s))
+        );
+        alert(
+          `เพิ่มเมนู "${dish.name}" เข้าเป็นเมนูแนะนำของร้าน "${targetShop.name}" เรียบร้อยแล้ว!\nเมนูนี้จะขึ้นใน "แตะเลือกเมนูแนะนำของร้าน" บนหน้ากระดานให้ลูกค้ากดเลือกได้ทันที`
+        );
+      } else {
+        alert(data.error || "บันทึกไม่สำเร็จ");
+      }
+    } catch (e) {
+      alert("เกิดข้อผิดพลาดในการบันทึก");
+    } finally {
+      setAddingMenuItemShopId(null);
+    }
+  };
+
+
   // -------------------------------------------------------------
   const handleOpenAddLocation = () => {
     setEditingLocationId(null);
@@ -1959,6 +2077,18 @@ export default function AdminClient({
             <MessageSquareHeart className="h-4 w-4" />
             <span>ข้อเสนอแนะ ({suggestions.length})</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("frequently_ordered")}
+            className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === "frequently_ordered"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span>เมนูยอดฮิตที่สั่งบ่อย ({frequentlyOrderedDishes.length})</span>
+          </button>
         </div>
 
         {/* ========================================================= */}
@@ -2337,6 +2467,156 @@ export default function AdminClient({
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 5: FREQUENTLY ORDERED DISHES */}
+        {/* ========================================================= */}
+        {activeTab === "frequently_ordered" && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-700" />
+                  <span>เมนูยอดฮิตที่ถูกสั่งบ่อยที่สุดแยกตามร้าน ({filteredFrequentDishes.length} เมนู)</span>
+                </h2>
+                <p className="text-xs text-gray-500">
+                  วิเคราะห์จากประวัติการสั่งอาหารจริง เพื่อนำมาตั้งเป็น &ldquo;เมนูแนะนำของร้าน&rdquo; (กดเพิ่มได้ทันที ให้ลูกค้าแตะเลือกในกระดาน)
+                </p>
+              </div>
+
+              {/* Shop Filter Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-600 shrink-0">เลือกร้าน:</span>
+                <select
+                  value={frequentShopFilter}
+                  onChange={(e) => setFrequentShopFilter(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 shadow-2xs focus:border-purple-500"
+                >
+                  <option value="all">ทุกร้านค้า (รวมทั้งหมด)</option>
+                  {shops.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Quick explanation banner */}
+            <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-4 text-xs text-purple-950 flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-purple-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold">
+                  💡 ที่มาของ &ldquo;แตะเลือกเมนูแนะนำของร้าน&rdquo; บนกระดาน:
+                </p>
+                <p className="text-slate-600 leading-relaxed">
+                  แถบปุ่มด่วนบนหน้ากระดานดึงมาจาก <strong>menuItems</strong> ในข้อมูลร้านค้า โดยระบบจะนำเมนูที่ตั้งไว้มาแสดงให้ลูกค้ากดเพื่อกรอกชื่อและราคาอัตโนมัติ คุณสามารถดูเมนูที่คนสั่งบ่อยที่สุดด้านล่าง และกดปุ่ม <strong>&ldquo;➕ เพิ่มเป็นเมนูแนะนำ&rdquo;</strong> เพื่อเพิ่มเข้าหน้าร้านได้ทันทีโดยไม่ต้องพิมพ์เอง!
+                </p>
+              </div>
+            </div>
+
+            {/* Dishes Grid */}
+            {filteredFrequentDishes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500 space-y-2">
+                <ShoppingBag className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="text-sm font-bold">ยังไม่มีประวัติการสั่งอาหารสำหรับร้านที่เลือก</p>
+                <p className="text-xs text-gray-400">เมื่อมีคำสั่งซื้อเข้ามาในระบบ รายการเมนูและจำนวนกล่องจะปรากฏที่นี่</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {filteredFrequentDishes.map((dish, idx) => {
+                  const targetShop = shops.find((s) => s.id === dish.shopId);
+                  const isAlreadyInMenu = targetShop?.menuItems?.some(
+                    (m) => m.name.trim().toLowerCase() === dish.dishName.trim().toLowerCase()
+                  );
+                  const isAdding = addingMenuItemShopId === dish.shopId + dish.dishName;
+
+                  return (
+                    <div
+                      key={`${dish.shopId}-${dish.dishName}-${idx}`}
+                      className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
+                    >
+                      <div className="space-y-2">
+                        {/* Rank & Shop Tag */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black ${
+                              idx === 0
+                                ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                : idx === 1
+                                ? "bg-slate-200 text-slate-800"
+                                : idx === 2
+                                ? "bg-orange-100 text-orange-900"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            #{idx + 1}
+                          </span>
+                          <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 truncate">
+                            {dish.shopName}
+                          </span>
+                        </div>
+
+                        {/* Dish Name */}
+                        <div>
+                          <h3 className="font-black text-sm text-gray-900 line-clamp-2" title={dish.dishName}>
+                            {dish.dishName}
+                          </h3>
+                          <div className="text-xs font-mono font-bold text-orange-600 mt-0.5">
+                            ฿{dish.latestPrice} / กล่อง
+                          </div>
+                        </div>
+
+                        {/* Order Stats */}
+                        <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-gray-50 text-xs border border-gray-100">
+                          <div>
+                            <span className="text-[10px] text-gray-500 block">จำนวนที่สั่ง:</span>
+                            <span className="font-black text-gray-900 font-mono text-sm">
+                              {dish.totalQuantity} <span className="text-xs font-normal text-gray-500">กล่อง</span>
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-gray-500 block">ยอดขายรวม:</span>
+                            <span className="font-black text-emerald-700 font-mono text-sm">
+                              ฿{dish.totalRevenue.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                        {isAlreadyInMenu ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>อยู่ในเมนูแนะนำแล้ว</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isAdding}
+                            onClick={() =>
+                              handleAddDishToShopMenu({
+                                name: dish.dishName,
+                                price: dish.latestPrice,
+                                shopId: dish.shopId,
+                                shopName: dish.shopName,
+                              })
+                            }
+                            className="inline-flex items-center gap-1.5 w-full justify-center rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-3 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98 disabled:opacity-50"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>{isAdding ? "กำลังบันทึก..." : "➕ เพิ่มเป็นเมนูแนะนำร้าน"}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

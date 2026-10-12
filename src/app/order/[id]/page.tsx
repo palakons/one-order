@@ -1,22 +1,16 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { getBatchById } from "@/lib/store";
-import OrderPageClient from "./OrderPageClient";
+import { redirect } from "next/navigation";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-async function OrderPageLoader({ params }: Props) {
+async function OrderRedirect({ params }: Props): Promise<null> {
   await connection();
   const { id } = await params;
-  try {
-    const initialBatch = await getBatchById(id);
-    return <OrderPageClient batchId={id} initialBatch={initialBatch || null} />;
-  } catch (err) {
-    console.error("OrderPageLoader error:", err);
-    return <OrderPageClient batchId={id} initialBatch={null} />;
-  }
+  redirect(`/?batch=${id}`);
+  return null;
 }
 
 export default function OrderPage({ params }: Props) {
@@ -24,11 +18,11 @@ export default function OrderPage({ params }: Props) {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500 font-medium">
-          Loading order...
+          กำลังเปิดกระดานออเดอร์...
         </div>
       }
     >
-      <OrderPageLoader params={params} />
+      <OrderRedirect params={params} />
     </Suspense>
   );
 }

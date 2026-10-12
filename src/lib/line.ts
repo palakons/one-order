@@ -233,31 +233,90 @@ export async function sendDeliveryAnnouncement(
   const shopName = batch.shop.name;
   const bldgName = batch.buildingName || "ตึก M4";
   const dropOffMap = getDropOffMapUrl(batch);
-  const orderCount = (batch.orders || []).filter((o) => !o.deletedAt).length;
+  const activeOrders = (batch.orders || []).filter((o) => !o.deletedAt);
+  const orderCount = activeOrders.length;
   const deliveryUrl = `${appUrl}/delivery/${batch.id}`;
 
   const altText = `🛵 [VEATEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! (${shopName} ${orderCount} กล่อง) ✨`;
+
+  // Format list of orders for text and flex
+  const orderListText = activeOrders
+    .map((ord, idx) => {
+      const num = ord.orderNumber || idx + 1;
+      const userTag = ord.customerLineId ? `@${ord.customerLineId.replace(/^@/, "")}` : ord.customerName;
+      const itemsSummary = (ord.items || [])
+        .map((it) => `${it.name}${it.quantity > 1 ? ` x${it.quantity}` : ""}`)
+        .join(", ");
+      return `#${String(num).padStart(2, "0")} ${userTag}: ${itemsSummary}`;
+    })
+    .join("\n");
 
   const fallbackText =
     `🛵 [VEATEC @ VISTEC] อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨\n` +
     `ร้าน: ${shopName} (${orderCount} กล่อง)\n` +
     `📍 วางไว้ที่โต๊ะรับอาหารชั้น 1 ${bldgName} เรียบร้อยแล้ว\n` +
     (dropOffMap ? `🗺️ แผนที่จุดส่ง: ${dropOffMap}\n` : "") +
-    `\n📸 ดูรูปถ่ายหลักฐาน & รายชื่อกล่องของคุณ:\n${deliveryUrl}\n\n` +
+    (orderListText ? `\n📋 รายชื่อกล่องที่มาส่ง:\n${orderListText}\n` : "") +
+    `\n📸 ดูรูปถ่ายหลักฐาน & รับอาหารของคุณ:\n${deliveryUrl}\n\n` +
     `ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`;
+
+  // Build flex contents for orders list (limit up to 12 items to stay well within Flex message limits)
+  const orderFlexItems: any[] = [];
+  const displayLimit = 12;
+  const slicedOrders = activeOrders.slice(0, displayLimit);
+  slicedOrders.forEach((ord, idx) => {
+    const num = ord.orderNumber || idx + 1;
+    const userTag = ord.customerLineId ? `@${ord.customerLineId.replace(/^@/, "")}` : ord.customerName;
+    const itemsSummary = (ord.items || [])
+      .map((it) => `${it.name}${it.quantity > 1 ? ` x${it.quantity}` : ""}`)
+      .join(", ");
+    orderFlexItems.push({
+      type: "box",
+      layout: "baseline",
+      spacing: "sm",
+      contents: [
+        {
+          type: "text",
+          text: `#${String(num).padStart(2, "0")}`,
+          color: "#7c3aed",
+          weight: "bold",
+          size: "xxs",
+          flex: 1,
+        },
+        {
+          type: "text",
+          text: `${userTag}: ${itemsSummary}`,
+          color: "#334155",
+          size: "xxs",
+          flex: 8,
+          wrap: true,
+        },
+      ],
+    });
+  });
+
+  if (activeOrders.length > displayLimit) {
+    orderFlexItems.push({
+      type: "text",
+      text: `... และอีก ${activeOrders.length - displayLimit} รายการ (แตะปุ่มด้านล่างเพื่อดูทั้งหมด)`,
+      size: "xxs",
+      color: "#94a3b8",
+      wrap: true,
+    });
+  }
 
   const flexBubble: any = {
     type: "bubble",
     body: {
       type: "box",
       layout: "vertical",
-      spacing: "md",
+      spacing: "sm",
       contents: [
         {
           type: "text",
           text: `🛵 อาหารมาส่งถึงโต๊ะ${bldgName} แล้วครับ! ✨`,
           weight: "bold",
-          size: "lg",
+          size: "md",
           color: "#1e1b4b",
           wrap: true,
         },
@@ -282,6 +341,30 @@ export async function sendDeliveryAnnouncement(
             },
           ],
         },
+        ...(orderFlexItems.length > 0
+          ? [
+              {
+                type: "separator",
+                margin: "md",
+              },
+              {
+                type: "box",
+                layout: "vertical",
+                margin: "md",
+                spacing: "xs",
+                contents: [
+                  {
+                    type: "text",
+                    text: "📋 รายการกล่องที่มาส่ง:",
+                    size: "xs",
+                    weight: "bold",
+                    color: "#1e1b4b",
+                  },
+                  ...orderFlexItems,
+                ],
+              },
+            ]
+          : []),
       ],
     },
     footer: {

@@ -107,6 +107,17 @@ export async function generateOneLongManifestImage(
   const location = getLocationForBatch(batch);
   const dropOffMapUrl = isSelfPickup ? (batch.shop.gmapUrl || "") : getDropOffMapUrl(batch);
   let mapQrImage: HTMLImageElement | null = null;
+  let dropOffPhotoImage: HTMLImageElement | null = null;
+
+  // Preload Delivery Point Table Photo
+  const photoUrlToLoad = isSelfPickup ? batch.shop.menuImageUrl : location.photoUrl;
+  if (photoUrlToLoad) {
+    try {
+      dropOffPhotoImage = await loadSlipImage(photoUrlToLoad);
+    } catch (err) {
+      console.warn("Delivery desk photo load notice:", err);
+    }
+  }
 
   if (dropOffMapUrl) {
     try {
@@ -126,7 +137,7 @@ export async function generateOneLongManifestImage(
 
   // 3. Compute dynamic canvas height
   const headerHeight = 145;
-  const destCardHeight = 155;
+  const destCardHeight = 160;
   let totalHeight = 0;
   totalHeight += headerHeight;
   totalHeight += 20; // Spacing
@@ -261,17 +272,51 @@ export async function generateOneLongManifestImage(
   ctx.fillStyle = "#0284c7";
   ctx.font = "bold 12px sans-serif";
   ctx.fillText(
-    `🗺️ พิกัด Google Maps: สแกน QR Code ด้านขวาเพื่อนําทางไปยังจุดส่ง ➔`,
+    `🗺️ จุดส่งอาหาร: ดูรูปโต๊ะรับอาหารจริง & สแกนแผนที่นำทางด้านขวา ➔`,
     padding + 16,
-    destCardY + 138
+    destCardY + 142
   );
 
-  // Right Side: High-Contrast QR Code Box
-  const qrBoxWidth = 118;
-  const qrBoxHeight = 132;
+  // Right Side: Delivery Point Desk Photo Box & High-Contrast QR Code Box
+  const qrBoxWidth = 112;
+  const qrBoxHeight = 136;
   const qrBoxX = padding + contentWidth - qrBoxWidth - 14;
-  const qrBoxY = destCardY + 11;
+  const qrBoxY = destCardY + 12;
 
+  const photoBoxWidth = 132;
+  const photoBoxHeight = 136;
+  const photoBoxX = qrBoxX - photoBoxWidth - 10;
+  const photoBoxY = destCardY + 12;
+
+  // 1. Draw Desk Photo Box
+  ctx.fillStyle = "#f8fafc";
+  drawRoundRect(ctx, photoBoxX, photoBoxY, photoBoxWidth, photoBoxHeight, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  if (dropOffPhotoImage) {
+    ctx.save();
+    drawRoundRect(ctx, photoBoxX + 6, photoBoxY + 6, photoBoxWidth - 12, 98, 8);
+    ctx.clip();
+    ctx.drawImage(dropOffPhotoImage, photoBoxX + 6, photoBoxY + 6, photoBoxWidth - 12, 98);
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#334155";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("📸 โต๊ะส่งอาหารจริง", photoBoxX + photoBoxWidth / 2, photoBoxY + 124);
+  } else {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("📸 ภาพจุดส่ง", photoBoxX + photoBoxWidth / 2, photoBoxY + 66);
+    ctx.font = "10px sans-serif";
+    ctx.fillText(location.name || "Delivery Desk", photoBoxX + photoBoxWidth / 2, photoBoxY + 84);
+  }
+
+  // 2. Draw QR Code Box
   ctx.fillStyle = "#f8fafc";
   drawRoundRect(ctx, qrBoxX, qrBoxY, qrBoxWidth, qrBoxHeight, 12);
   ctx.fill();
@@ -281,11 +326,11 @@ export async function generateOneLongManifestImage(
 
   if (mapQrImage) {
     // Draw 96x96 QR Code inside
-    ctx.drawImage(mapQrImage, qrBoxX + 11, qrBoxY + 10, 96, 96);
+    ctx.drawImage(mapQrImage, qrBoxX + 8, qrBoxY + 8, 96, 96);
     ctx.textAlign = "center";
     ctx.fillStyle = "#581c87";
     ctx.font = "bold 11px sans-serif";
-    ctx.fillText("สแกนแผนที่ 🗺️", qrBoxX + qrBoxWidth / 2, qrBoxY + 122);
+    ctx.fillText("สแกนแผนที่ 🗺️", qrBoxX + qrBoxWidth / 2, qrBoxY + 124);
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#94a3b8";

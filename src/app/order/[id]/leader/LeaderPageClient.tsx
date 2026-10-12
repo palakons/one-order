@@ -354,8 +354,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ส่งเข้าครัวร้านแล้ว");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์และส่งเข้าครัวร้านแล้ว 🍳");
         setShowSendModal(false);
+        if (data.batch) setBatch(data.batch);
         await fetchBatch();
       } else {
         alert(data.error || "เกิดข้อผิดพลาด");
