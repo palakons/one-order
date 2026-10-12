@@ -33,6 +33,10 @@ import {
   LogOut,
   RefreshCw,
   Camera,
+  ChefHat,
+  ArrowRight,
+  Bell,
+  FileText,
 } from "lucide-react";
 
 interface Props {
@@ -541,6 +545,14 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     activeOrders.every((o) => Boolean(o.slipImageUrl || o.isSlipVerified));
   const missingSlipOrders = activeOrders.filter((o) => !o.slipImageUrl && !o.isSlipVerified);
 
+  // Chronological 3-Phase mapping
+  const currentPhase: 1 | 2 | 3 =
+    batch.status === "COMPLETED"
+      ? 3
+      : batch.status === "ORDERED" || batch.status === "DELIVERING"
+      ? 2
+      : 1;
+
   // VIEW 1: Login Form if not authenticated
   if (!isAuthenticated) {
     return (
@@ -681,26 +693,26 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
-        {/* 1. Leader Mission Control Header Card (Compact & Space-saving) */}
-        <div className="rounded-2xl border border-purple-200 bg-white p-3 sm:p-4 shadow-xs space-y-2">
+        {/* 1. Shop Info & Goal Bar (Ultra-compact & Space-saving) */}
+        <div className="rounded-2xl border border-purple-200 bg-white p-3 sm:p-3.5 shadow-2xs space-y-2">
+          {/* Row 1: Shop Name, Drop-off Location & Quick Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            {/* Top row: Shop Name and Drop-off Location */}
             <div className="flex flex-wrap items-baseline gap-2">
-              <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+              <h1 className="text-base sm:text-lg font-black text-gray-950 tracking-tight">
                 {batch.shop.name}
               </h1>
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
                 <MapPin className="h-3 w-3 text-purple-700 shrink-0" />
                 <span>{buildingName} ชั้น 1</span>
               </span>
             </div>
 
-            {/* Quick Actions (Call Shop, LINE Shop, Share with Friends) */}
+            {/* Quick Contacts: Phone, LINE, QR, Share */}
             <div className="flex items-center gap-1.5 flex-wrap">
               {batch.shop.phone && (
                 <a
                   href={`tel:${batch.shop.phone}`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
                   title="โทรติดต่อร้านค้า"
                 >
                   <Phone className="h-3 w-3 text-emerald-700" />
@@ -713,38 +725,49 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
                   title="เปิด LINE ร้าน"
                 >
                   <span>💬 LINE ร้าน</span>
                 </a>
               )}
 
+              {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPromptPayModal(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+                  title="ดู QR พร้อมเพย์ร้านค้า"
+                >
+                  <CreditCard className="h-3 w-3 text-purple-700" />
+                  <span>QR ร้าน</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleShareBoardInvite}
-                className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
                 title="แชร์ชวนเพื่อน"
               >
                 <Share2 className="h-3 w-3 text-purple-700" />
-                <span>📢 ชวนเพื่อน</span>
+                <span>ชวนเพื่อน</span>
               </button>
             </div>
           </div>
 
-          {/* Delivery Goal & Progress */}
+          {/* Row 2: Target Progress & Self-pickup toggle */}
           <div className="pt-1.5 border-t border-gray-100 space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-xs font-bold">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-700 flex items-center gap-1">
                   <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
                   <span>
-                    ยอดสั่ง: <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong>/฿{batch.targetMinAmount}
+                    ยอดรวม: <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong>/฿{batch.targetMinAmount}
                     <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
                   </span>
                 </span>
 
-                {/* Small button next to order amount bar for self-pickup */}
                 <button
                   type="button"
                   onClick={handleToggleSelfPickup}
@@ -756,7 +779,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   title="สลับเป็นโหมดรับเองหน้าร้าน"
                 >
                   <span>🚶</span>
-                  <span>{isSelfPickup ? "รับเอง" : "เปลี่ยนไปรับเอง"}</span>
+                  <span>{isSelfPickup ? "รับเองหน้าร้าน" : "เปลี่ยนไปรับเอง"}</span>
                 </button>
               </div>
 
@@ -765,7 +788,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               </span>
             </div>
 
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
               <div
                 className={`h-full transition-all duration-500 ${
                   batch.isMinMet
@@ -801,143 +824,353 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <Unlock className="h-3 w-3 text-emerald-600" />
-                  <span>เปิดรับออเดอร์</span>
+                  <span>เปิดรับต่อ</span>
                 </button>
-              ) : null}
+              ) : (
+                <span className="text-[11px] font-bold text-slate-500">
+                  {batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : ""}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* 3. Send to Shop & Delivery Control Bar */}
-        <div className={`rounded-2xl border-2 p-3 sm:p-4 text-white shadow-md space-y-2.5 transition-all ${
-          batch.status === "COMPLETED"
-            ? "border-emerald-300 bg-emerald-950"
-            : batch.status === "ORDERED"
-            ? "border-purple-300 bg-slate-900"
-            : "border-purple-200 bg-purple-900"
-        }`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  batch.status === "COMPLETED"
-                    ? "bg-emerald-500 text-white"
-                    : batch.status === "ORDERED"
-                    ? "bg-purple-600 text-white"
-                    : "bg-white/20 text-white"
-                }`}>
-                  {batch.status === "COMPLETED"
-                    ? "DELIVERED 🎉"
-                    : batch.status === "ORDERED"
-                    ? "ORDERED (กำลังปรุง)"
-                    : allSlipsVerified
-                    ? "READY TO SEND"
-                    : "SLIPS PENDING"}
-                </span>
-                <span className="text-xs text-purple-200">
-                  {activeOrders.length} กล่อง
-                </span>
-                {isSelfPickup && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
-                    🚶 รับเอง
-                  </span>
-                )}
+        {/* 2. Chronological 3-Phase Stepper */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            {/* Step 1 */}
+            <div
+              className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl transition-all ${
+                currentPhase === 1
+                  ? "bg-purple-100 text-purple-950 ring-2 ring-purple-600/30 font-black shadow-2xs"
+                  : currentPhase > 1
+                  ? "bg-emerald-50 text-emerald-900 font-bold"
+                  : "bg-slate-50 text-slate-400 font-medium"
+              }`}
+            >
+              <span
+                className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[11px] sm:text-xs font-mono font-bold shrink-0 ${
+                  currentPhase > 1
+                    ? "bg-emerald-600 text-white"
+                    : currentPhase === 1
+                    ? "bg-purple-900 text-white animate-pulse"
+                    : "bg-slate-200 text-slate-500"
+                }`}
+              >
+                {currentPhase > 1 ? "✓" : "1"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs truncate font-black">1. รับออเดอร์</p>
+                <p className="text-[10px] text-slate-500 truncate hidden sm:block">ชวนเพื่อน & ตรวจสลิป</p>
               </div>
-              <h2 className="text-base sm:text-lg font-black mt-1">
-                {batch.status === "COMPLETED"
-                  ? "อาหารส่งถึงโต๊ะแล้ว 🎉"
-                  : batch.status === "ORDERED"
-                  ? "ส่งร้านแล้ว 🍳"
-                  : allSlipsVerified
-                  ? isSelfPickup
-                    ? "สลิปครบแล้ว พร้อมส่งร้าน (รับเอง)"
-                    : "สลิปครบแล้ว พร้อมส่งร้าน"
-                  : `รอสลิป (${missingSlipOrders.length} กล่อง)`}
-              </h2>
-              <p className="text-xs text-purple-200 mt-0.5">
-                {batch.status === "COMPLETED"
-                  ? "แจ้งเตือนเข้า LINE แล้ว สมาชิกลงมารับอาหารได้เลย"
-                  : batch.status === "ORDERED"
-                  ? "ร้านกำลังทำอาหาร เมื่อมาส่งแล้วกดถ่ายรูปเพื่อแจ้งใน LINE"
-                  : "รวบรวมสลิปให้ครบ แล้วกดส่งร้านเพื่อส่งใบสรุป"}
-              </p>
-              {!allSlipsVerified && missingSlipOrders.length > 0 && batch.status === "OPEN" && (
-                <div className="mt-2 text-xs text-amber-200 bg-white/10 p-2 rounded-xl border border-white/15">
-                  <span>ขาดสลิป: </span>
-                  <strong>
-                    {missingSlipOrders
-                      .map((o) => `${o.customerLineId || o.customerName} (${o.customerPhone || "ไม่มีเบอร์"})`)
-                      .join(", ")}
-                  </strong>
-                </div>
-              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {/* Send to Shop Button: Active when OPEN, Greyed out when ORDERED or COMPLETED */}
-              {batch.status === "ORDERED" || batch.status === "COMPLETED" ? (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 text-slate-400 font-bold px-3.5 py-2 text-xs cursor-not-allowed border border-slate-700"
-                  title="ส่งให้ร้านอาหารเรียบร้อยแล้ว"
-                >
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>🚀 ส่งร้านแล้ว</span>
-                </button>
-              ) : (
+            {/* Step 2 */}
+            <div
+              className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl transition-all ${
+                currentPhase === 2
+                  ? "bg-amber-100 text-amber-950 ring-2 ring-amber-500/40 font-black shadow-2xs"
+                  : currentPhase > 2
+                  ? "bg-emerald-50 text-emerald-900 font-bold"
+                  : "bg-slate-50 text-slate-400 font-medium"
+              }`}
+            >
+              <span
+                className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[11px] sm:text-xs font-mono font-bold shrink-0 ${
+                  currentPhase > 2
+                    ? "bg-emerald-600 text-white"
+                    : currentPhase === 2
+                    ? "bg-amber-600 text-white animate-pulse"
+                    : "bg-slate-200 text-slate-500"
+                }`}
+              >
+                {currentPhase > 2 ? "✓" : "2"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs truncate font-black">2. สั่งร้านเข้าครัว</p>
+                <p className="text-[10px] text-slate-500 truncate hidden sm:block">ส่งสรุปยาว & รอทำ</p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div
+              className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl transition-all ${
+                currentPhase === 3
+                  ? "bg-emerald-100 text-emerald-950 ring-2 ring-emerald-500/40 font-black shadow-2xs"
+                  : "bg-slate-50 text-slate-400 font-medium"
+              }`}
+            >
+              <span
+                className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[11px] sm:text-xs font-mono font-bold shrink-0 ${
+                  currentPhase === 3
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-200 text-slate-500"
+                }`}
+              >
+                {currentPhase === 3 ? "🎉" : "3"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs truncate font-black">3. ส่งถึงโต๊ะแล้ว</p>
+                <p className="text-[10px] text-slate-500 truncate hidden sm:block">ถ่ายรูปวางโต๊ะ & เตือน</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Phase Hero Action Card: Adaptive to current chronological stage */}
+        {currentPhase === 1 && (
+          <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-900 to-indigo-950 p-3.5 sm:p-4 text-white shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white">
+                    PHASE 1 • รับออเดอร์
+                  </span>
+                  {allSlipsVerified ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-full bg-emerald-400 text-emerald-950">
+                      ✓ สลิปครบ 100%
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-amber-950">
+                      ⏳ รอสลิป ({missingSlipOrders.length} กล่อง)
+                    </span>
+                  )}
+                  {isSelfPickup && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
+                      🚶 รับเอง
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-base sm:text-lg font-black tracking-tight">
+                  {allSlipsVerified
+                    ? "สลิปครบแล้ว! พร้อมส่งร้านเข้าครัว 🍳"
+                    : `กำลังรวบรวมออเดอร์ (ขาดสลิป ${missingSlipOrders.length} กล่อง)`}
+                </h2>
+                <p className="text-xs text-purple-200">
+                  {allSlipsVerified
+                    ? "กดปุ่มเพื่อสร้างใบสรุปยาว (One Long Manifest) และส่งเข้า LINE ร้านอาหาร"
+                    : "ตรวจสอบสลิปของสมาชิก หรือแชร์ชวนเพื่อนเพิ่มก่อนปิดตี้"}
+                </p>
+              </div>
+
+              {/* Primary Action Button */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleOpenSendModal}
                   disabled={activeOrders.length === 0}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-4 py-2 text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-98 transition-all w-full sm:w-auto cursor-pointer"
                 >
-                  <Send className="h-4 w-4" />
-                  <span>🚀 รวมส่งร้าน</span>
+                  <ChefHat className="h-4 w-4" />
+                  <span>🍳 ส่งร้านเข้าครัว (สร้างใบสรุปยาว)</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
-              )}
+              </div>
+            </div>
 
-              {/* Delivered Button: Active after ordered */}
-              {batch.status === "ORDERED" && (
+            {/* Missing Slips Warning Banner */}
+            {!allSlipsVerified && missingSlipOrders.length > 0 && (
+              <div className="text-xs text-amber-100 bg-black/25 p-2.5 rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-bold text-amber-300">⏳ ขาดสลิป ({missingSlipOrders.length} กล่อง): </span>
+                  <span>
+                    {missingSlipOrders
+                      .map((o) => `${o.customerLineId ? `@${o.customerLineId}` : o.customerName}${o.customerPhone ? ` (${o.customerPhone})` : ""}`)
+                      .join(", ")}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleShareBoardInvite}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg shrink-0 cursor-pointer self-start sm:self-auto"
+                >
+                  <Share2 className="h-3 w-3" />
+                  <span>ทวงสลิป / ชวนเพื่อน</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentPhase === 2 && (
+          <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-slate-900 to-amber-950 p-3.5 sm:p-4 text-white shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                    PHASE 2 • กำลังปรุงอาหาร
+                  </span>
+                  <span className="text-xs text-amber-200">
+                    {activeOrders.length} กล่อง
+                  </span>
+                  {isSelfPickup && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-400 text-purple-950 px-2 py-0.5 rounded-full">
+                      🚶 รับเอง
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-base sm:text-lg font-black tracking-tight">
+                  ร้านกำลังทำอาหาร 🍳
+                </h2>
+                <p className="text-xs text-amber-100">
+                  {isSelfPickup
+                    ? "ออเดอร์ส่งเข้าครัวแล้ว รอเวลาแล้วไปรับที่ร้านได้เลย"
+                    : `ออเดอร์ส่งเข้าครัวแล้ว เมื่ออาหารมาส่งที่โต๊ะ ${buildingName} ชั้น 1 ให้กดถ่ายรูปวางโต๊ะ`}
+                </p>
+              </div>
+
+              {/* Primary Action Button */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowDeliveryModal(true)}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-4 py-2 text-xs sm:text-sm shadow-lg active:scale-95 transition-all w-full sm:w-auto ring-2 ring-emerald-400/30"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-lg active:scale-98 transition-all w-full sm:w-auto ring-2 ring-emerald-400/40 cursor-pointer"
                 >
                   <Camera className="h-4 w-4" />
-                  <span>📸 ถ่ายรูปวางโต๊ะ</span>
+                  <span>📸 อาหารมาส่งแล้ว: ถ่ายรูปวางโต๊ะ</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
+              </div>
+            </div>
+
+            {/* Quick helper toolbar for Phase 2 */}
+            <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-amber-200 text-[11px] font-bold mr-1">เครื่องมือติดต่อ:</span>
+
+              {batch.shop.phone && (
+                <a
+                  href={`tel:${batch.shop.phone}`}
+                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors"
+                >
+                  <Phone className="h-3 w-3 text-emerald-400" />
+                  <span>โทรหาร้าน ({batch.shop.phone})</span>
+                </a>
               )}
 
-              {/* View Photo Button if already delivered */}
-              {batch.status === "COMPLETED" && (
-                <div className="flex items-center gap-2">
-                  {batch.deliveryPhotoUrl && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedPhoto({
-                          url: batch.deliveryPhotoUrl!,
-                          title: `หลักฐานการวางอาหาร - ร้าน ${batch.shop.name}`,
-                        })
-                      }
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3.5 py-2 text-xs shadow-md transition-all"
-                    >
-                      <Camera className="h-3.5 w-3.5" />
-                      <span>ดูรูปถ่ายที่โต๊ะ</span>
-                    </button>
-                  )}
-                  <Link
-                    href={`/delivery/${batch.id}`}
-                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold px-3 py-2 text-xs transition-all"
-                  >
-                    <span>หน้าลูกตี้ ↗</span>
-                  </Link>
-                </div>
+              {batch.shop.lineId && (
+                <a
+                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors"
+                >
+                  <span>💬 LINE ร้าน</span>
+                </a>
               )}
+
+              <button
+                type="button"
+                onClick={handleOpenSendModal}
+                className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                title="เปิดดูใบสรุปยาวอีกครั้ง"
+              >
+                <FileText className="h-3 w-3 text-amber-300" />
+                <span>ดูใบสรุปยาว</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={sendingLineReminder}
+                onClick={handleSendLineReminder}
+                className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 disabled:opacity-50 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                title="ส่งข้อความแจ้งสถานะเข้า LINE กลุ่ม"
+              >
+                <Bell className={`h-3 w-3 text-purple-300 ${sendingLineReminder ? "animate-spin" : ""}`} />
+                <span>{sendingLineReminder ? "กำลังส่ง..." : "แจ้งเตือนใน LINE"}</span>
+              </button>
             </div>
           </div>
-        </div>
+        )}
+
+        {currentPhase === 3 && (
+          <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-950 to-teal-950 p-3.5 sm:p-4 text-white shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500 text-white">
+                    PHASE 3 • อาหารส่งถึงโต๊ะแล้ว 🎉
+                  </span>
+                  <span className="text-xs text-emerald-200">
+                    {activeOrders.length} กล่อง
+                  </span>
+                </div>
+
+                <h2 className="text-base sm:text-lg font-black tracking-tight">
+                  จัดส่งเรียบร้อยแล้ว สมาชิกลงมารับอาหารได้เลย 🎉
+                </h2>
+                <p className="text-xs text-emerald-200">
+                  ระบบแจ้งเตือนเข้ากลุ่ม LINE แล้ว วางอาหารที่โต๊ะ {buildingName} ชั้น 1
+                </p>
+              </div>
+
+              {/* Action Buttons: Customer view link + Photo view */}
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <Link
+                  href={`/delivery/${batch.id}`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white text-emerald-950 hover:bg-emerald-50 font-black px-3.5 py-2 text-xs sm:text-sm shadow-md transition-all"
+                >
+                  <span>📱 ดูหน้าลูกตี้</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(true)}
+                  className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold px-3 py-2 text-xs transition-all cursor-pointer"
+                  title="ถ่ายรูปใหม่หรืออัปเดตรูปหลักฐาน"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>ถ่ายใหม่</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Proof Photo & Quick Actions in Phase 3 */}
+            <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                {batch.deliveryPhotoUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedPhoto({
+                        url: batch.deliveryPhotoUrl!,
+                        title: `หลักฐานการวางอาหาร - ร้าน ${batch.shop.name}`,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-white px-2.5 py-1 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Eye className="h-3 w-3" />
+                    <span>ดูรูปถ่ายที่โต๊ะ</span>
+                  </button>
+                ) : (
+                  <span className="text-emerald-300 text-[11px]">(ไม่มีรูปถ่ายแนบ)</span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleOpenSendModal}
+                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer text-xs"
+                >
+                  <FileText className="h-3 w-3" />
+                  <span>ดูใบสรุปยาว</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                disabled={sendingLineReminder}
+                onClick={handleSendLineReminder}
+                className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 disabled:opacity-50 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer text-xs"
+                title="ส่งแจ้งเตือนซ้ำเข้า LINE กลุ่ม"
+              >
+                <Bell className={`h-3 w-3 ${sendingLineReminder ? "animate-spin" : ""}`} />
+                <span>{sendingLineReminder ? "กำลังส่ง..." : "แจ้งเตือน LINE อีกครั้ง"}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 4. Leader Order Directory (with phone numbers and cancellation) */}
         <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-3">
