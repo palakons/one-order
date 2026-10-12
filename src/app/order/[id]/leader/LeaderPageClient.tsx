@@ -963,95 +963,97 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 return (
                   <div
                     key={ord.id}
-                    className="py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-purple-50/30 rounded-xl px-2 sm:px-3 transition-colors"
+                    className="p-3 sm:p-3.5 hover:bg-purple-50/30 rounded-xl transition-colors space-y-2"
                   >
-                    <div className="flex-1 min-w-0">
-                      {/* 1. BIG PROMINENT Food Item(s) ON TOP */}
-                      <div className="space-y-1">
-                        {ord.items.map((it, idx) => (
-                          <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
-                            <span className="text-lg sm:text-xl font-black text-gray-950 tracking-tight">
-                              {it.quantity > 1 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black bg-purple-100 text-purple-900 mr-1.5 align-middle">
-                                  {it.quantity}x
-                                </span>
-                              )}
-                              {it.name}
-                            </span>
-                            {it.customNote && (
-                              <span className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.5">
-                                {it.customNote}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* 2. Person, Tel, Transferred go BELOW Menu */}
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-gray-500 pt-1.5">
-                        <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-gray-900 text-white shrink-0">
-                          #{ord.orderNumber}
-                        </span>
-                        <span className="font-bold text-sm text-gray-800 truncate max-w-[150px] sm:max-w-[220px]">
-                          {lineName}
-                        </span>
-
-                        {/* Leader can see customer phone with click to call */}
-                        {ord.customerPhone && (
-                          <a
-                            href={`tel:${ord.customerPhone}`}
-                            className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-xs font-mono font-bold hover:bg-purple-100 transition-colors"
-                            title="แตะเพื่อโทรหาลูกตี้"
-                          >
-                            <Phone className="h-3 w-3 text-purple-700" />
-                            <span>{ord.customerPhone}</span>
-                          </a>
-                        )}
-
-                        <span className="text-gray-300">•</span>
-                        {hasSlip ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold">
-                            <span>⏳ รอสลิป</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Price, Slip View & Cancel Actions */}
-                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-1 sm:pt-0">
-                      <span className="font-mono font-black text-lg sm:text-xl text-orange-600">
-                        ฿{ord.totalAmount}
+                    {/* Row 1: [#1] @น้องวัว (dark gray) [📞 0123456789] */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-gray-900 text-white shrink-0">
+                        #{ord.orderNumber}
+                      </span>
+                      <span className="font-semibold text-xs text-gray-600 truncate max-w-[150px] sm:max-w-[220px]">
+                        {lineName}
                       </span>
 
-                      {ord.slipImageUrl && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedSlip({
-                              url: ord.slipImageUrl,
-                              title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
-                            })
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-purple-50 hover:border-purple-300 transition-colors shadow-2xs"
+                      {/* Leader can see customer phone with click to call */}
+                      {ord.customerPhone && (
+                        <a
+                          href={`tel:${ord.customerPhone}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-900 border border-purple-200/80 px-2 py-0.5 text-[11px] font-mono font-semibold hover:bg-purple-100 transition-colors shrink-0"
+                          title="แตะเพื่อโทรหาลูกตี้"
                         >
-                          <Eye className="h-3 w-3 text-purple-700" />
-                          <span>ดูสลิป</span>
-                        </button>
+                          <Phone className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                          <span>{ord.customerPhone}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Row 2: Numbered Menu Items */}
+                    <div className="space-y-1 pl-0.5">
+                      {ord.items.map((it, idx) => (
+                        <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                          <span className="text-sm sm:text-base font-black text-gray-950">
+                            <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
+                            {it.quantity > 1 && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
+                                {it.quantity}x
+                              </span>
+                            )}
+                            {it.name}
+                          </span>
+                          {it.customNote && (
+                            <span className="text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.2">
+                              {it.customNote}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Row 3: [โอนแล้ว (KTB)]   ฿95 [ดูสลิป] [🗑️] */}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      {/* Left: Transfer status */}
+                      {hasSlip ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                          <span>⏳ รอสลิป</span>
+                        </span>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
-                        className="p-1 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="ยกเลิกออเดอร์นี้"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {/* Right: Price + View Slip + Cancel */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono font-black text-base text-orange-600">
+                          ฿{ord.totalAmount}
+                        </span>
+
+                        {ord.slipImageUrl && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedSlip({
+                                url: ord.slipImageUrl,
+                                title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-white px-2 py-1 text-xs font-bold text-purple-900 hover:bg-purple-50 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <Eye className="h-3 w-3 text-purple-700" />
+                            <span>ดูสลิป</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                          className="p-1 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="ยกเลิกออเดอร์นี้"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

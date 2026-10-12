@@ -537,6 +537,7 @@ export default function MyOrdersClient() {
                           <div key={idx} className="flex items-start justify-between text-xs">
                             <div className="flex-1 pr-2">
                               <span className="font-semibold text-gray-800">
+                                <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
                                 {it.name} <span className="font-bold text-purple-900">x{it.quantity}</span>
                               </span>
                               {it.customNote && (

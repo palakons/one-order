@@ -1875,83 +1875,93 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
                       const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
                       return (
-                        <div key={ord.id} className="p-3.5 hover:bg-slate-50/80 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              {/* 1. BIG PROMINENT Food Item(s) ON TOP */}
-                              <div className="space-y-1">
-                                {ord.items.map((it, idx) => (
-                                  <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
-                                    <span className="text-lg font-black text-slate-950">
-                                      {it.quantity > 1 && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
-                                          {it.quantity}x
-                                        </span>
-                                      )}
-                                      {it.name}
-                                    </span>
-                                    {it.customNote && (
-                                      <span className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.5">
-                                        {it.customNote}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                        <div key={ord.id} className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors space-y-2">
+                          {/* Row 1: [#1] @น้องวัว (dark gray) [📞 0123456789] */}
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-slate-900 text-white shrink-0">
+                              #{ord.orderNumber}
+                            </span>
+                            <span className="font-semibold text-xs text-slate-600 truncate max-w-[150px]">
+                              {lineName}
+                            </span>
+                            {ord.customerPhone && (
+                              <a
+                                href={`tel:${ord.customerPhone}`}
+                                className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-900 border border-purple-200/80 px-2 py-0.5 text-[11px] font-mono font-semibold hover:bg-purple-100 transition-colors shrink-0"
+                                title={`โทรหา ${lineName}`}
+                              >
+                                <Phone className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                                <span>{ord.customerPhone}</span>
+                              </a>
+                            )}
+                          </div>
 
-                              {/* 2. Person & Transfer Status go BELOW Menu */}
-                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 pt-1.5">
-                                <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-slate-900 text-white shrink-0">
-                                  #{ord.orderNumber}
+                          {/* Row 2: Numbered Menu Items */}
+                          <div className="space-y-1 pl-0.5">
+                            {ord.items.map((it, idx) => (
+                              <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                                <span className="text-sm sm:text-base font-black text-slate-950">
+                                  <span className="text-slate-500 font-bold mr-1">{idx + 1}.</span>
+                                  {it.quantity > 1 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
+                                      {it.quantity}x
+                                    </span>
+                                  )}
+                                  {it.name}
                                 </span>
-                                <span className="font-bold text-sm text-slate-800 truncate max-w-[150px]">
-                                  {lineName}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                {hasSlip ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold">
-                                    <span>⏳ รอสลิป</span>
+                                {it.customNote && (
+                                  <span className="text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.2">
+                                    {it.customNote}
                                   </span>
                                 )}
                               </div>
-                            </div>
+                            ))}
+                          </div>
 
-                            <div className="text-right shrink-0">
-                              <span className="font-mono font-black text-base text-orange-600 block">
+                          {/* Row 3: [โอนแล้ว (KTB)]   ฿95 [ดูสลิป] [🗑️] */}
+                          <div className="flex items-center justify-between gap-2 pt-0.5">
+                            {/* Left: Transfer status */}
+                            {hasSlip ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                                <span>⏳ รอสลิป</span>
+                              </span>
+                            )}
+
+                            {/* Right: Price + View Slip + Cancel */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono font-black text-base text-orange-600">
                                 ฿{ord.totalAmount}
                               </span>
-                              <div className="flex items-center gap-2 mt-1.5 justify-end">
-                                {hasSlip && ord.slipImageUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setSelectedSlip({
-                                        url: ord.slipImageUrl,
-                                        title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
-                                      })
-                                    }
-                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                    <span>{t.viewSlip}</span>
-                                  </button>
-                                )}
-                                {isHost && activeBatch.status === "OPEN" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
-                                    className="text-slate-300 hover:text-rose-600 p-1"
-                                    title={t.cancelOrderTitle}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
+                              {hasSlip && ord.slipImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedSlip({
+                                      url: ord.slipImageUrl,
+                                      title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-lg bg-white text-purple-900 border border-purple-200 px-2 py-1 text-xs font-bold hover:bg-purple-50 transition-colors shadow-2xs cursor-pointer"
+                                >
+                                  <Eye className="h-3 w-3 text-purple-700" />
+                                  <span>{t.viewSlip}</span>
+                                </button>
+                              )}
+                              {isHost && activeBatch.status === "OPEN" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                                  className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
+                                  title={t.cancelOrderTitle}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1980,10 +1990,22 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                             <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="py-3 px-3 text-slate-900 align-top">
                                 <div className="flex flex-col gap-1">
-                                  <span className="font-bold text-xs text-slate-800 truncate max-w-[130px] block">{lineName}</span>
-                                  <span className="font-mono font-bold text-[11px] text-purple-900 bg-purple-100 px-1.5 py-0.5 rounded w-fit">
-                                    #{ord.orderNumber}
-                                  </span>
+                                  <span className="font-semibold text-xs text-slate-600 truncate max-w-[130px] block">{lineName}</span>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span className="font-mono font-bold text-[11px] text-purple-900 bg-purple-100 px-1.5 py-0.5 rounded w-fit">
+                                      #{ord.orderNumber}
+                                    </span>
+                                    {ord.customerPhone && (
+                                      <a
+                                        href={`tel:${ord.customerPhone}`}
+                                        className="inline-flex items-center gap-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 px-1 py-0.2 text-[10px] font-mono font-semibold hover:bg-purple-100 transition-colors"
+                                        title={`โทรหา ${lineName}`}
+                                      >
+                                        <Phone className="h-2 w-2 text-purple-700" />
+                                        <span>{ord.customerPhone}</span>
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                               <td className="py-3 px-3 text-slate-800 align-top">
@@ -1991,6 +2013,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                                   {ord.items.map((it, idx) => (
                                     <div key={idx} className="flex items-baseline gap-1.5 flex-wrap">
                                       <span className="font-bold text-sm sm:text-base text-slate-950">
+                                        <span className="text-slate-500 font-bold mr-1">{idx + 1}.</span>
                                         {it.quantity > 1 ? (
                                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
                                             {it.quantity}x

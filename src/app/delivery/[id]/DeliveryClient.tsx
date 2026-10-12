@@ -188,7 +188,9 @@ export default function DeliveryClient({ initialBatch, batchId }: Props) {
                       {ord.items.map((it, idx) => (
                         <div key={idx} className="flex justify-between text-xs">
                           <span>
-                            {it.quantity}x {it.name}
+                            <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
+                            {it.quantity > 1 && <span className="font-bold text-purple-900 mr-1">{it.quantity}x</span>}
+                            {it.name}
                             {it.customNote && (
                               <span className="text-amber-800 text-[11px] italic"> ({it.customNote})</span>
                             )}
