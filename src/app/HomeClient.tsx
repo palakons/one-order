@@ -296,6 +296,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
   // 1. Initial load on mount
   useEffect(() => {
+    // Instant cache hydration from localStorage for 0ms visual load
+    try {
+      const cached = localStorage.getItem("veatec_cached_batches");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBatches((prev) => (prev.length === 0 ? parsed : prev));
+        }
+      }
+    } catch (e) {}
+
     fetchBatches(false);
     fetchLocations();
     const now = new Date();
@@ -333,6 +344,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       const data = await resBatches.json();
       if (data.success && Array.isArray(data.batches)) {
         setBatches(data.batches);
+        try {
+          localStorage.setItem("veatec_cached_batches", JSON.stringify(data.batches));
+        } catch (e) {}
         const now = new Date();
         setLastRefreshedAt(
           now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })

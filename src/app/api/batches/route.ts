@@ -11,7 +11,16 @@ export async function GET(request: Request) {
     const sanitize = role !== "shop" && role !== "host";
     const batches = await getBatches(sanitize, forceFresh);
 
-    return NextResponse.json({ success: true, batches });
+    return NextResponse.json(
+      { success: true, batches },
+      {
+        headers: {
+          "Cache-Control": forceFresh
+            ? "no-store, max-age=0"
+            : "public, s-maxage=3, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (error) {
     console.error("Failed to fetch batches:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch batches" }, { status: 500 });

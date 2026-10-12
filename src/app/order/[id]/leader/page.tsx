@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { getBatchById } from "@/lib/store";
 import LeaderPageClient from "./LeaderPageClient";
 
@@ -8,7 +7,6 @@ interface Props {
 }
 
 async function LeaderPageLoader({ params }: Props) {
-  await connection();
   const { id } = await params;
   try {
     // Unsanitized batch for leader role so phone numbers and full order details are accessible

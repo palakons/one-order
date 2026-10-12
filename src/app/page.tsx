@@ -1,10 +1,8 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { getBatches, getDeliveryLocations } from "@/lib/store";
 import HomeClient from "./HomeClient";
 
 async function HomeDataLoader() {
-  await connection();
   try {
     const [batches, locations] = await Promise.all([
       getBatches(false),
