@@ -89,9 +89,15 @@ export async function PATCH(
         if (updated.deliveryPhotoUrl) {
           if (updated.deliveryPhotoUrl.startsWith("https://")) {
             photoUrlForLine = updated.deliveryPhotoUrl;
-          } else if (!updated.deliveryPhotoUrl.startsWith("http://")) {
+          } else if (updated.deliveryPhotoUrl.startsWith("/")) {
+            photoUrlForLine = `${baseUrl}${updated.deliveryPhotoUrl}`;
+          } else if (updated.deliveryPhotoUrl.startsWith("data:image/")) {
+            photoUrlForLine = `${baseUrl}/api/batches/${updated.id}/photo`;
+          } else {
             photoUrlForLine = `${baseUrl}/api/batches/${updated.id}/photo`;
           }
+        } else if (updated.deliveryPhotoPath) {
+          photoUrlForLine = `${baseUrl}/api/images/${updated.deliveryPhotoPath.replace(/^\/+/, "")}`;
         }
 
         // Send exactly 1 card to the LINE group (Flex message with embedded photo or clean single text message)

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatchById } from "@/lib/store";
 import { getLocationForBatch, getDropOffMapUrl } from "@/lib/locations";
+import { getImageFromStorage } from "@/lib/storage";
 import QRCode from "qrcode";
 import sharp from "sharp";
 
@@ -170,33 +171,83 @@ export async function GET(
     }
 
     // 2. Default: Delivery Evidence Photo
-    if (!batch.deliveryPhotoUrl) {
+    if (!batch.deliveryPhotoUrl && !batch.deliveryPhotoPath) {
       return new NextResponse("Delivery photo not found", { status: 404 });
     }
 
-    const photo = batch.deliveryPhotoUrl;
+    const photo = batch.deliveryPhotoUrl || "";
 
+    // A. Check storage files first (path in deliveryPhotoPath or URL like /api/images/...)
+    if (batch.deliveryPhotoPath || photo.startsWith("/api/images/")) {
+      const storagePath = batch.deliveryPhotoPath || photo.replace(/^\/api\/images\//, "").replace(/^\/+/, "");
+      const file = await getImageFromStorage(storagePath);
+      if (file) {
+        return new NextResponse(new Uint8Array(file.buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": file.mimeType || "image/jpeg",
+            "Content-Length": file.buffer.length.toString(),
+            "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200",
+          },
+        });
+      }
+    }
+
+    // B. Base64 Data URL
+    if (photo.startsWith("data:")) {
+      const matches = photo.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+      if (matches) {
+        const mimeType = matches[1] || "image/jpeg";
+        const base64Data = matches[2];
+        const buffer = Buffer.from(base64Data, "base64");
+        return new NextResponse(new Uint8Array(buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Length": buffer.length.toString(),
+            "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200",
+          },
+        });
+      }
+    }
+
+    // C. External or full HTTP/HTTPS URL: proxy bytes so LINE doesn't fail on redirects
     if (photo.startsWith("http://") || photo.startsWith("https://")) {
+      try {
+        const remoteRes = await fetch(photo, { signal: AbortSignal.timeout(5000) });
+        if (remoteRes.ok) {
+          const ab = await remoteRes.arrayBuffer();
+          return new NextResponse(new Uint8Array(ab), {
+            status: 200,
+            headers: {
+              "Content-Type": remoteRes.headers.get("content-type") || "image/jpeg",
+              "Content-Length": ab.byteLength.toString(),
+              "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+          });
+        }
+      } catch (proxyErr) {
+        console.warn("Failed to proxy remote delivery photo:", proxyErr);
+      }
       return NextResponse.redirect(photo);
     }
 
-    const matches = photo.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
-    if (!matches) {
-      return new NextResponse("Invalid image format", { status: 400 });
+    // D. Direct storage lookup fallback
+    if (photo) {
+      const fallbackFile = await getImageFromStorage(photo);
+      if (fallbackFile) {
+        return new NextResponse(new Uint8Array(fallbackFile.buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": fallbackFile.mimeType || "image/jpeg",
+            "Content-Length": fallbackFile.buffer.length.toString(),
+            "Cache-Control": "public, max-age=86400, s-maxage=86400",
+          },
+        });
+      }
     }
 
-    const mimeType = matches[1] || "image/jpeg";
-    const base64Data = matches[2];
-    const buffer = Buffer.from(base64Data, "base64");
-
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Length": buffer.length.toString(),
-        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200",
-      },
-    });
+    return new NextResponse("Delivery photo not found", { status: 404 });
   } catch (err: any) {
     console.error("Photo endpoint error:", err);
     return new NextResponse("Internal server error", { status: 500 });

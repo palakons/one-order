@@ -39,7 +39,8 @@ export async function pushLineFlexOrText(
   altText: string,
   flexBubble: any,
   fallbackText: string,
-  customTargetId?: string
+  customTargetId?: string,
+  extraImageUrl?: string
 ): Promise<boolean> {
   const token =
     process.env.LINE_CHANNEL_ACCESS_TOKEN ||
@@ -82,8 +83,18 @@ export async function pushLineFlexOrText(
         console.log(`LINE Push Flex succeeded for target ${targetId}`);
         anySuccess = true;
       } else {
-        console.warn(`LINE Push Flex failed for ${targetId}, falling back to single text message:`, data);
-        // 2. Fallback to 1 clean text message
+        console.warn(`LINE Push Flex failed for ${targetId}, falling back to message with image/text:`, data);
+        // 2. Fallback: If extraImageUrl is available and valid HTTPS, send image message + text message
+        const fallbackMessages: any[] = [];
+        if (extraImageUrl && extraImageUrl.startsWith("https://")) {
+          fallbackMessages.push({
+            type: "image",
+            originalContentUrl: extraImageUrl,
+            previewImageUrl: extraImageUrl,
+          });
+        }
+        fallbackMessages.push({ type: "text", text: fallbackText });
+
         const fallbackRes = await fetch("https://api.line.me/v2/bot/message/push", {
           method: "POST",
           headers: {
@@ -92,16 +103,35 @@ export async function pushLineFlexOrText(
           },
           body: JSON.stringify({
             to: targetId,
-            messages: [{ type: "text", text: fallbackText }],
+            messages: fallbackMessages,
           }),
           signal: AbortSignal.timeout(8000),
         });
         const fallbackData = await fallbackRes.json().catch(() => ({}));
         if (fallbackRes.ok) {
-          console.log(`LINE Push text fallback succeeded for ${targetId}`);
+          console.log(`LINE Push fallback succeeded for ${targetId}`);
           anySuccess = true;
         } else {
-          console.error(`LINE Push text fallback error for ${targetId}:`, fallbackData);
+          console.error(`LINE Push fallback error for ${targetId}:`, fallbackData);
+          // If image message caused fallback to fail, retry with text only
+          if (fallbackMessages.length > 1) {
+            const textOnlyRes = await fetch("https://api.line.me/v2/bot/message/push", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                to: targetId,
+                messages: [{ type: "text", text: fallbackText }],
+              }),
+              signal: AbortSignal.timeout(8000),
+            });
+            if (textOnlyRes.ok) {
+              console.log(`LINE Push text-only emergency fallback succeeded for ${targetId}`);
+              anySuccess = true;
+            }
+          }
         }
       }
     } catch (err) {
@@ -400,7 +430,7 @@ export async function sendDeliveryAnnouncement(
     };
   }
 
-  return pushLineFlexOrText(altText, flexBubble, fallbackText);
+  return pushLineFlexOrText(altText, flexBubble, fallbackText, undefined, photoUrl);
 }
 
 export async function pushLineMessage(
