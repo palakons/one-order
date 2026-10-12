@@ -1290,29 +1290,18 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Card 1: Shop */}
               <div
-                className={`rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between transition-all cursor-pointer hover:border-purple-300 hover:shadow-xs ${
-                  isShopExpanded ? "border-purple-300 bg-purple-50/20 ring-1 ring-purple-200" : ""
-                }`}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest("a, button")) return;
-                  setIsShopExpanded((prev) => !prev);
-                }}
+                className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
                   <span className="flex items-center gap-1 text-purple-900 shrink-0">
                     <Store className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-700 shrink-0" />
                     <span className="truncate">{t.shop}</span>
                   </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center gap-0.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-1 py-0.2 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs cursor-pointer shrink-0"
-                    title={t.viewShopPromptPay}
-                  >
-                    <CreditCard className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                    <span>{lang === "en" ? "QR" : lang === "cn" ? "收款码" : "QR ร้าน"}</span>
-                  </button>
+                  {(activeShopInfo?.cuisine || activeBatch.shop.cuisine) && (
+                    <span className="rounded bg-purple-50 text-purple-900 px-1 py-0.2 text-[9px] sm:text-[10px] font-bold shrink-0 truncate max-w-[90px]">
+                      {activeShopInfo?.cuisine || activeBatch.shop.cuisine}
+                    </span>
+                  )}
                 </div>
 
                 <div className="my-0.5">
@@ -1324,37 +1313,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </h3>
                 </div>
 
-                {/* Open Map to see menu - ALWAYS prominently visible on the shop card! */}
-                <div>
-                  <a
-                    href={activeShopMapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1 w-full rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs truncate"
-                    title={t.viewMenuMaps}
-                  >
-                    <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-rose-500 shrink-0" />
-                    <span className="truncate">{t.viewMenuMaps}</span>
-                  </a>
+                <div className="text-[9px] sm:text-[10px] text-slate-500 truncate" title={activeShopInfo?.description || activeBatch.shop.description || ""}>
+                  {activeShopInfo?.description || activeBatch.shop.description || (lang === "en" ? "Restaurant" : "ร้านอาหาร")}
                 </div>
-
-                {/* When expanded: show shop details */}
-                {isShopExpanded && (
-                  <div className="pt-1.5 mt-1 border-t border-purple-100 text-[9px] sm:text-[10px] text-slate-500 animate-fadeIn space-y-1">
-                    {(activeShopInfo?.description || activeBatch.shop.description) && (
-                      <p className="line-clamp-2">{activeShopInfo?.description || activeBatch.shop.description}</p>
-                    )}
-                    <a
-                      href={activeShopMapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-rose-700 font-bold hover:underline"
-                    >
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span>{t.viewMenuMaps} ↗</span>
-                    </a>
-                  </div>
-                )}
               </div>
 
               {/* Card 2: Drop off location */}
@@ -1481,7 +1442,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   <span className="text-slate-800 flex items-center gap-1.5">
                     <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
                     <span>
-                      {t.currentTotal}: <strong className="text-sm font-black text-slate-950 font-mono">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
+                      <strong className="text-sm font-black text-slate-950 font-mono">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
                     </span>
                     <span className="text-slate-400 font-normal">({totalBoxesInBatch} {t.boxesCount})</span>
                   </span>
@@ -1514,11 +1475,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-800 flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-purple-900" />
-                    <span>
-                      {lang === "en" ? "Time Left:" : lang === "cn" ? "剩余时间:" : "เวลาที่เหลือ:"}{" "}
-                      <strong className="text-sm font-black text-slate-950 font-mono">
-                        {timeInfo?.text}
-                      </strong>
+                    <span className="text-sm font-black text-slate-950 font-mono">
+                      {timeInfo?.text}
                     </span>
                     <span className="text-slate-500 font-normal text-[11px]">
                       (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""})
@@ -1562,7 +1520,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
                 <div className="flex items-center gap-2">
                   <h3 className="font-black text-sm text-slate-950">
-                    {t.boardTitle} {activeShopInfo?.name || activeBatch.shop.name}
+                    {t.boardTitle}
                   </h3>
                   <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
                     {totalBoxesInBatch} {t.boxesCount}
@@ -1684,16 +1642,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       +
                     </span>
                     <h3 className="font-black text-sm sm:text-base text-slate-950">
-                      {t.formTitle} {activeShopInfo?.name || activeBatch.shop.name}
+                      {lang === "en" ? "Order Food" : lang === "cn" ? "点餐" : "สั่งอาหาร"}
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="text-xs font-bold text-purple-900 hover:underline"
-                  >
-                    {t.viewShopPromptPay}
-                  </button>
                 </div>
 
                 {submittedOrderNotice && (
@@ -1982,95 +1933,118 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     </button>
                   </div>
 
-                  {/* Order Total & Single QR Payment Reminder */}
-                  <div className="rounded-xl bg-purple-950 text-white p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
-                    <div>
-                      <div className="text-[11px] text-purple-200 font-medium">
-                        {t.totalTransferAmount}
-                      </div>
-                      <div className="text-xl sm:text-2xl font-mono font-black text-amber-300">
-                        ฿{calculatedTotal}
-                        <span className="text-xs font-normal text-purple-200 ml-2">
+                  {/* 3 Bottom Cards: Total, Display QR, Upload Slip */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                    {/* Card 1: Total */}
+                    <div className="rounded-xl bg-purple-950 text-white p-3 sm:p-3.5 flex flex-col justify-between shadow-xs">
+                      <div className="text-[11px] text-purple-200 font-medium flex items-center justify-between">
+                        <span>{t.totalTransferAmount}</span>
+                        <span className="text-[10px] text-purple-300">
                           ({totalItemBoxes} {t.boxesCount})
                         </span>
                       </div>
-                    </div>
-                    <div className="text-[11px] text-purple-200 bg-white/10 rounded-lg px-2.5 py-1.5 max-w-xs leading-relaxed">
-                      <span>{t.oneQrNotice}</span>
-                    </div>
-                  </div>
-
-                  {/* Subtle Guideline Disclosure Banner */}
-                  <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 p-2.5 text-[11px] text-amber-900 flex items-start gap-2 leading-relaxed">
-                    <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                    <span>{t.qrGuidelineNotice}</span>
-                  </div>
-
-                  {/* Field 5: Slip Upload with BOT QR Verification */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
-                        <CreditCard className="h-3.5 w-3.5 text-purple-900" />
-                        <span>{t.slipLabel} <span className="text-rose-500">*</span></span>
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-medium">{t.slipScanAuto}</span>
-                    </div>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      required
-                      accept="image/jpeg,image/png,image/webp,image/heic,image/*"
-                      onChange={handleSlipFileChange}
-                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-900 file:text-white hover:file:bg-purple-800 cursor-pointer"
-                    />
-
-                    {scanningSlip && (
-                      <div className="text-[11px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
-                        <span>{t.slipScanning}</span>
+                      <div className="my-1.5">
+                        <span className="text-xl sm:text-2xl font-mono font-black text-amber-300">
+                          ฿{calculatedTotal}
+                        </span>
                       </div>
-                    )}
+                      <div className="text-[10px] text-purple-300 leading-tight">
+                        {t.oneQrNotice}
+                      </div>
+                    </div>
 
-                    {slipVerification && (
-                      <div
-                        className={`rounded-lg p-2.5 text-[11px] font-bold flex items-center gap-2 ${
-                          slipVerification.isValid
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : "bg-blue-50 text-blue-900 border border-blue-200"
-                        }`}
+                    {/* Card 2: Display QR */}
+                    <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 sm:p-3.5 flex flex-col justify-between shadow-2xs">
+                      <div className="flex items-center justify-between gap-1 text-[11px] font-bold text-purple-950">
+                        <span className="flex items-center gap-1.5">
+                          <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                          <span>QR พร้อมเพย์ร้าน</span>
+                        </span>
+                      </div>
+                      <div className="my-1 text-[11px] text-purple-950 font-bold truncate">
+                        {activeBatch.shop.promptpayAccountName || activeBatch.shop.name}
+                        {activeBatch.shop.promptpayNumber && (
+                          <span className="block text-[10px] font-mono text-purple-800 font-semibold mt-0.5">
+                            {activeBatch.shop.promptpayNumber}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPromptPayModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg bg-white border border-purple-300 hover:bg-purple-100 text-purple-950 py-1.5 px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
                       >
-                        <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
-                        <div className="space-y-0.5">
-                          {slipVerification.isValid ? (
-                            <>
-                              <div>
-                                {t.slipVerified} <strong>{slipVerification.bankName}</strong>
-                              </div>
-                              {slipVerification.transRef && (
-                                <div className="text-[10px] font-mono text-emerald-800">
-                                  {t.slipRef} {slipVerification.transRef}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div>{t.slipAttached}</div>
-                              <div className="text-[10px] font-normal text-blue-800">
-                                {slipVerification.note || t.slipNote}
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                        <span>💳 ดู QR พร้อมเพย์ร้าน</span>
+                      </button>
+                    </div>
+
+                    {/* Card 3: Upload Slip */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-3.5 flex flex-col justify-between shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
+                          <CreditCard className="h-3.5 w-3.5 text-purple-900" />
+                          <span>{t.slipLabel} <span className="text-rose-500">*</span></span>
+                        </label>
+                        <span className="text-[10px] text-slate-500 font-medium">{t.slipScanAuto}</span>
                       </div>
-                    )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        required
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+                        onChange={handleSlipFileChange}
+                        className="block w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-purple-900 file:text-white hover:file:bg-purple-800 cursor-pointer"
+                      />
+
+                      {scanningSlip && (
+                        <div className="text-[10px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5">
+                          <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
+                          <span>{t.slipScanning}</span>
+                        </div>
+                      )}
+
+                      {slipVerification && (
+                        <div
+                          className={`rounded-lg p-1.5 text-[10px] font-bold flex items-center gap-1.5 ${
+                            slipVerification.isValid
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                              : "bg-blue-50 text-blue-900 border border-blue-200"
+                          }`}
+                        >
+                          <CheckCircle2 className={`h-3 w-3 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
+                          <div className="space-y-0.2 truncate text-[10px]">
+                            {slipVerification.isValid ? (
+                              <>
+                                <div className="truncate">
+                                  {t.slipVerified} <strong>{slipVerification.bankName}</strong>
+                                </div>
+                                {slipVerification.transRef && (
+                                  <div className="font-mono text-emerald-800 truncate">
+                                    {t.slipRef} {slipVerification.transRef}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div>{t.slipAttached}</div>
+                                <div className="font-normal text-blue-800 truncate">
+                                  {slipVerification.note || t.slipNote}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={submittingOrder || !slipPreview}
-                    className="w-full rounded-xl bg-purple-900 py-3 text-xs sm:text-sm font-black text-white hover:bg-purple-800 disabled:opacity-50 active:scale-99 transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                    className="w-full rounded-xl bg-purple-900 py-3 text-xs sm:text-sm font-black text-white hover:bg-purple-800 disabled:opacity-50 active:scale-99 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     {submittingOrder ? (
                       <>
@@ -2080,7 +2054,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     ) : (
                       <>
                         <Plus className="h-4 w-4" />
-                        <span>{t.submitToWhiteboard}</span>
+                        <span>{lang === "en" ? "Add order to this board" : lang === "cn" ? "加入本单白板" : "เพิ่มออเดอร์ลงกระดานนี้"}</span>
                       </>
                     )}
                   </button>
