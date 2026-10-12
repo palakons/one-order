@@ -868,25 +868,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </div>
             )}
 
-            {/* Menu helper box inside order form */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-2xl border border-rose-200 bg-rose-50/60 px-3.5 py-2.5 text-xs">
-              <div className="flex items-center gap-2 text-slate-700 min-w-0">
-                <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
-                <span className="font-medium text-xs truncate">
-                  ยังไม่แน่ใจว่าจะสั่งอะไร? ดูรูปเมนูและราคาจริงจากร้านบน Google Maps ได้ที่นี่:
-                </span>
-              </div>
-              <a
-                href={batchShopMapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-900 hover:underline text-xs shrink-0"
-              >
-                <span>เปิดดูเมนูบน Google Maps ↗</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </div>
-
             <form onSubmit={handleAddToWhiteboard} className="space-y-4">
               {/* Row 1: LINE ID & Phone Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

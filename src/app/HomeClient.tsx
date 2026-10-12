@@ -1760,25 +1760,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </div>
                 )}
 
-                {/* Helpful Menu Helper Box */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2 text-slate-700 min-w-0">
-                    <MapPin className="h-3.5 w-3.5 text-rose-600 shrink-0" />
-                    <span className="font-medium text-[11px] sm:text-xs truncate">
-                      {t.orderFormMenuHint}
-                    </span>
-                  </div>
-                  <a
-                    href={activeShopMapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-900 hover:underline text-[11px] sm:text-xs shrink-0"
-                  >
-                    <span>{t.openMenuHintBtn}</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-
                 <form onSubmit={handleAddToWhiteboard} className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Field 1: LINE ID */}
