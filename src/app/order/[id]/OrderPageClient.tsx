@@ -604,7 +604,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 space-y-5">
+      <main className="mx-auto max-w-4xl px-3 py-3 sm:px-6 sm:py-4 space-y-3 sm:space-y-3.5">
         {/* Top Navigation & Back */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
@@ -632,45 +632,45 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               )}
             </button>
 
-            <div className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-900 px-3 py-1 text-xs font-black">
+            <div className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-900 px-2.5 py-0.5 text-xs font-black">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>LIVE DIGITAL WHITEBOARD</span>
             </div>
           </div>
         </div>
 
-        {/* 1. Header Card: Shop Info, Google Maps & PromptPay QR */}
-        <div className="rounded-3xl border border-purple-200/80 bg-white p-5 sm:p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        {/* 1. Header Card: Shop Info, Google Maps & PromptPay QR (Compact) */}
+        <div className="rounded-2xl border border-purple-200/80 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md border border-purple-200">
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
                 <span>{batch.shop.cuisine}</span>
               </div>
-              <h1 className="mt-1.5 text-2xl sm:text-3xl font-black text-gray-900">
+              <h1 className="mt-1 text-xl sm:text-2xl font-black text-gray-900">
                 {batch.shop.name}
               </h1>
-              <p className="mt-1 text-xs text-gray-600 max-w-xl">
+              <p className="mt-0.5 text-xs text-gray-600 max-w-xl">
                 {batch.shop.description}
               </p>
             </div>
           </div>
 
           {/* Delivery Goal & Progress */}
-          <div className="pt-3 border-t border-gray-100 space-y-2">
+          <div className="pt-2 border-t border-gray-100 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-gray-700 flex items-center gap-1.5">
-                <ShoppingBag className="h-4 w-4 text-purple-900" />
+              <span className="text-gray-700 flex items-center gap-1">
+                <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
                 <span>
-                  <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+                  <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
                 </span>
               </span>
-              <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
+              <span className={`text-[11px] ${batch.isMinMet ? "text-emerald-700 font-bold" : "text-amber-700 font-semibold"}`}>
                 {batch.isMinMet ? "✓ ครบยอดส่งฟรี" : `ขาดอีก ฿${batch.amountRemaining}`}
               </span>
             </div>
 
             {/* Visual Bar */}
-            <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
+            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
               <div
                 className={`h-full transition-all duration-500 ${
                   batch.isMinMet
@@ -682,21 +682,21 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             </div>
 
             {/* Time & Destination Badges */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-              <span className="flex items-center gap-1.5 font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
-                <Clock className="h-3.5 w-3.5 text-purple-900" />
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5 text-[11px]">
+              <span className="flex items-center gap-1 font-semibold text-gray-700 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                <Clock className="h-3 w-3 text-purple-900" />
                 <span>{timeInfo.text} (Cutoff: {batch.cutoffTime} น.)</span>
               </span>
-              <span className="flex items-center gap-1.5 font-bold text-emerald-900 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
-                <MapPin className="h-3.5 w-3.5 text-emerald-700" />
+              <span className="flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                <MapPin className="h-3 w-3 text-emerald-700" />
                 <span>จุดส่ง: {buildingName} ชั้น 1</span>
               </span>
             </div>
 
             {/* Leader Contact Card */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50/80 border border-purple-200 px-3.5 py-2 text-xs">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base">👑</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50/80 border border-purple-200 px-3 py-1.5 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-sm">👑</span>
                 <span className="font-bold text-purple-950">
                   หัวหน้าตี้: <span className="font-extrabold text-purple-900">{leaderLine}</span>
                 </span>
@@ -704,7 +704,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 {/* Subtle Board Managing Button */}
                 <Link
                   href={`/order/${batchId}/leader`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
+                  className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
                   title="จัดการกระดาน"
                 >
                   <SlidersHorizontal className="h-3 w-3 text-purple-700" />
@@ -712,12 +712,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </Link>
 
                 {batch.status === "ORDERED" && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
                     🚀 ส่งร้านแล้ว
                   </span>
                 )}
                 {batch.isSelfPickup && batch.status !== "ORDERED" && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
                     🚶 รับเอง
                   </span>
                 )}
@@ -726,10 +726,10 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               {leaderPhone ? (
                 <a
                   href={`tel:${leaderPhone}`}
-                  className="flex items-center gap-1.5 font-bold text-purple-900 hover:text-purple-700 bg-white px-2.5 py-1 rounded-lg border border-purple-200 shadow-2xs transition-colors"
+                  className="flex items-center gap-1 font-bold text-purple-900 hover:text-purple-700 bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs transition-colors text-xs"
                   title="โทรหาหัวหน้าตี้"
                 >
-                  <Phone className="h-3.5 w-3.5 text-purple-700" />
+                  <Phone className="h-3 w-3 text-purple-700" />
                   <span>โทร: {leaderPhone}</span>
                 </a>
               ) : (
@@ -740,8 +740,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* 2. The Digital Whiteboard List */}
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
             <div>
               <h2 className="text-base font-black text-gray-900">
                 📋 ออเดอร์ทั้งหมด
@@ -856,13 +856,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
         {/* 4. The 1-Screen Order Input Form (Force Transfer) */}
         {!isBatchClosed ? (
-          <div className="rounded-3xl border-2 border-purple-400/80 bg-white p-5 sm:p-6 shadow-md space-y-4">
+          <div className="rounded-2xl border-2 border-purple-400/80 bg-white p-3.5 sm:p-4.5 shadow-md space-y-3">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">
-                <Plus className="h-3.5 w-3.5" />
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
+                <Plus className="h-3 w-3" />
                 <span>สั่งอาหาร</span>
               </div>
-              <h2 className="text-lg font-black text-gray-900 mt-1">
+              <h2 className="text-base sm:text-lg font-black text-gray-900 mt-0.5">
                 ระบุเมนูและแนบสลิป
               </h2>
               <p className="text-xs text-gray-500">

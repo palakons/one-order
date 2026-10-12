@@ -337,9 +337,9 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
         className="hidden"
       />
 
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6">
+      <div className="mx-auto max-w-5xl px-3 py-3.5 sm:px-6 sm:py-4 space-y-3 sm:space-y-4">
         {/* Top Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-orange-600"
@@ -354,10 +354,10 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
               type="button"
               onClick={() => fetchBatch(true)}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs disabled:opacity-60 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs disabled:opacity-60 cursor-pointer"
               title="กดเพื่ออัปเดตข้อมูลและออเดอร์ล่าสุด"
             >
-              <RefreshCw className={`h-4 w-4 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 text-purple-700 ${isRefreshing ? "animate-spin" : ""}`} />
               <span>รีเฟรช</span>
               {lastRefreshedAt && (
                 <span className="text-[11px] text-gray-400 font-mono font-normal">
@@ -368,17 +368,17 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
             <button
               type="button"
               onClick={handleCopyCookingSummary}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
             >
-              <Copy className="h-4 w-4 text-emerald-600" />
-              <span>{copiedSummary ? "✓ คัดลอกสำเร็จ!" : "คัดลอกสรุปส่ง LINE"}</span>
+              <Copy className="h-3.5 w-3.5 text-emerald-600" />
+              <span>{copiedSummary ? "✓ คัดลอกแล้ว!" : "คัดลอกสรุปส่ง LINE"}</span>
             </button>
             <LineShareButton batch={batch} />
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-3.5 w-3.5" />
               <span>พิมพ์</span>
             </button>
           </div>
@@ -386,17 +386,17 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
         {/* 1-Tap Quick Delivery Hero Card (When not yet completed) */}
         {batch.status !== "COMPLETED" ? (
-          <div className="rounded-3xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-5 sm:p-6 text-white shadow-xl shadow-emerald-900/15 animate-in fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider backdrop-blur-xs">
-                  <Truck className="h-3.5 w-3.5" />
+          <div className="rounded-2xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-3.5 sm:p-4.5 text-white shadow-md animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider backdrop-blur-xs">
+                  <Truck className="h-3 w-3" />
                   <span>Delivery Update</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black">
+                <h2 className="text-lg sm:text-xl font-black">
                   อาหารมาส่งถึงโต๊ะแล้วใช่ไหม?
                 </h2>
-                <p className="text-xs sm:text-sm text-emerald-100 max-w-xl">
+                <p className="text-xs text-emerald-100 max-w-xl">
                   วางอาหารบนโต๊ะรับของแล้วแตะถ่ายรูป 1 ครั้งเพื่อแจ้งเตือนทุกคนทันที!
                 </p>
               </div>
@@ -405,9 +405,9 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 <button
                   type="button"
                   onClick={() => cameraInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm sm:text-base font-black text-emerald-900 shadow-lg hover:bg-emerald-50 active:scale-95 transition-all"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-emerald-900 shadow-md hover:bg-emerald-50 active:scale-95 transition-all"
                 >
-                  <Camera className="h-5 w-5 text-emerald-600" />
+                  <Camera className="h-4 w-4 text-emerald-600" />
                   <span>📸 ถ่ายรูปส่งอาหาร</span>
                 </button>
 
@@ -437,17 +437,17 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
           </div>
         ) : (
           /* Delivered Evidence Banner (if completed) */
-          <div className="rounded-3xl border-2 border-emerald-500 bg-emerald-50/90 p-5 sm:p-6 shadow-sm animate-in fade-in">
+          <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 p-3.5 sm:p-4.5 shadow-sm animate-in fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shrink-0">
-                  <CheckCircle2 className="h-7 w-7" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shrink-0">
+                  <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
                     ✓ ส่งถึงโต๊ะแล้ว
                   </div>
-                  <h2 className="text-lg sm:text-xl font-black text-emerald-950 mt-0.5">
+                  <h2 className="text-base sm:text-lg font-black text-emerald-950 mt-0.5">
                     อาหารส่งถึงจุดรับข้าวเรียบร้อยแล้ว
                   </h2>
                   <p className="text-xs text-emerald-800">
@@ -530,7 +530,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
 
         {/* Big Delivery Decision Banner */}
         <div
-          className={`rounded-3xl border p-6 sm:p-7 shadow-sm transition-all ${
+          className={`rounded-2xl border p-3.5 sm:p-5 shadow-xs transition-all ${
             batch.isMinMet
               ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50/50"
               : "border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50/50"
@@ -620,7 +620,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* Section 1: Kitchen Cooking Sheet */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-700 shrink-0">
@@ -691,7 +691,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
         </section>
 
         {/* Section 2: Box Labels & Packaging Guide with Toggle */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-gray-100 pb-4">
             <div>
               <h2 className="text-base sm:text-lg font-black text-gray-900">
@@ -956,7 +956,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
         </section>
 
         {/* Section 3: Transfer Slip Evidence Gallery */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-gray-900">

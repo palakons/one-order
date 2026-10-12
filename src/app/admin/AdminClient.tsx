@@ -1295,7 +1295,7 @@ export default function AdminClient({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+      <main className="mx-auto max-w-6xl px-3 py-3.5 sm:px-6 sm:py-4 space-y-3 sm:space-y-4">
         {/* Collapsible Firebase & Fallback Datastore Monitor Card */}
         <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all">
           {/* Header Bar / Collapsed Summary Bar */}

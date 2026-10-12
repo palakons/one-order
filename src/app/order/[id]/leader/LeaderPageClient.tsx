@@ -639,9 +639,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 space-y-5">
+      <main className="mx-auto max-w-4xl px-3 py-3 sm:px-6 sm:py-4 space-y-3 sm:space-y-3.5">
         {/* Top Navigation & Status */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href={`/order/${batchId}`}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-purple-900 transition-colors"
@@ -666,13 +666,13 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </span>
               )}
             </button>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-black">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5 text-xs font-black">
               <span>👑 หัวหน้าตี้</span>
             </span>
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-bold text-gray-600 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs font-bold text-gray-600 hover:text-rose-600 hover:bg-rose-50 transition-colors"
               title="ออกจากระบบหัวหน้าตี้"
             >
               <LogOut className="h-3 w-3" />
@@ -681,30 +681,30 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
-        {/* 1. Leader Mission Control Header Card */}
-        <div className="rounded-3xl border border-purple-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Top row: Shop Name and Drop-off Location dominant together */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+        {/* 1. Leader Mission Control Header Card (Compact & Space-saving) */}
+        <div className="rounded-2xl border border-purple-200 bg-white p-3 sm:p-4 shadow-xs space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            {/* Top row: Shop Name and Drop-off Location */}
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
                 {batch.shop.name}
               </h1>
-              <span className="inline-flex items-center gap-1.5 text-base sm:text-lg font-black text-purple-900 bg-purple-100/90 px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
-                <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-purple-700 shrink-0" />
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                <MapPin className="h-3 w-3 text-purple-700 shrink-0" />
                 <span>{buildingName} ชั้น 1</span>
               </span>
             </div>
 
             {/* Quick Actions (Call Shop, LINE Shop, Share with Friends) */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {batch.shop.phone && (
                 <a
                   href={`tel:${batch.shop.phone}`}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
                   title="โทรติดต่อร้านค้า"
                 >
-                  <Phone className="h-3.5 w-3.5 text-emerald-700" />
-                  <span>📞 โทร ({batch.shop.phone})</span>
+                  <Phone className="h-3 w-3 text-emerald-700" />
+                  <span>{batch.shop.phone}</span>
                 </a>
               )}
 
@@ -713,7 +713,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
                   title="เปิด LINE ร้าน"
                 >
                   <span>💬 LINE ร้าน</span>
@@ -723,23 +723,23 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               <button
                 type="button"
                 onClick={handleShareBoardInvite}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
                 title="แชร์ชวนเพื่อน"
               >
-                <Share2 className="h-3.5 w-3.5 text-purple-700" />
-                <span>📢 แชร์ชวนเพื่อน</span>
+                <Share2 className="h-3 w-3 text-purple-700" />
+                <span>📢 ชวนเพื่อน</span>
               </button>
             </div>
           </div>
 
           {/* Delivery Goal & Progress */}
-          <div className="pt-3 border-t border-gray-100 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-gray-700 flex items-center gap-1.5">
-                  <ShoppingBag className="h-4 w-4 text-purple-900" />
+          <div className="pt-1.5 border-t border-gray-100 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs font-bold">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-700 flex items-center gap-1">
+                  <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
                   <span>
-                    ยอดสั่ง: <strong className="text-purple-900 text-sm">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+                    ยอดสั่ง: <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong>/฿{batch.targetMinAmount}
                     <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
                   </span>
                 </span>
@@ -748,24 +748,24 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <button
                   type="button"
                   onClick={handleToggleSelfPickup}
-                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all border cursor-pointer ${
+                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold transition-all border cursor-pointer ${
                     isSelfPickup
                       ? "bg-amber-500 text-white border-amber-600 shadow-2xs"
                       : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
                   }`}
                   title="สลับเป็นโหมดรับเองหน้าร้าน"
                 >
-                  <span className="text-xs">🚶</span>
-                  <span>{isSelfPickup ? "✓ รับเอง" : "รับเองหน้าร้าน"}</span>
+                  <span>🚶</span>
+                  <span>{isSelfPickup ? "รับเอง" : "เปลี่ยนไปรับเอง"}</span>
                 </button>
               </div>
 
-              <span className={batch.isMinMet ? "text-emerald-700 font-black" : "text-amber-700"}>
+              <span className={`text-[11px] ${batch.isMinMet ? "text-emerald-700 font-bold" : "text-amber-700 font-semibold"}`}>
                 {batch.isMinMet ? "✓ ครบยอดส่งฟรี" : `ขาดอีก ฿${batch.amountRemaining}`}
               </span>
             </div>
 
-            <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
+            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
               <div
                 className={`h-full transition-all duration-500 ${
                   batch.isMinMet
@@ -776,9 +776,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <span className="flex items-center gap-1.5 font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
-                <Clock className="h-3.5 w-3.5 text-purple-900" />
+            <div className="flex items-center justify-between pt-0.5 text-[11px]">
+              <span className="flex items-center gap-1 font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                <Clock className="h-3 w-3 text-purple-900" />
                 <span>{timeInfo.text} (Cutoff: {batch.cutoffTime} น.)</span>
               </span>
 
@@ -788,9 +788,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   type="button"
                   disabled={updatingStatus}
                   onClick={() => handleToggleBoardStatus("CLOSED")}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
                 >
-                  <Lock className="h-3.5 w-3.5 text-rose-600" />
+                  <Lock className="h-3 w-3 text-rose-600" />
                   <span>ปิดรับออเดอร์</span>
                 </button>
               ) : batch.status === "CLOSED" ? (
@@ -798,9 +798,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   type="button"
                   disabled={updatingStatus}
                   onClick={() => handleToggleBoardStatus("OPEN")}
-                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
-                  <Unlock className="h-3.5 w-3.5 text-emerald-600" />
+                  <Unlock className="h-3 w-3 text-emerald-600" />
                   <span>เปิดรับออเดอร์</span>
                 </button>
               ) : null}
@@ -809,14 +809,14 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* 3. Send to Shop & Delivery Control Bar */}
-        <div className={`rounded-3xl border-2 p-5 sm:p-6 text-white shadow-md space-y-4 transition-all ${
+        <div className={`rounded-2xl border-2 p-3 sm:p-4 text-white shadow-md space-y-2.5 transition-all ${
           batch.status === "COMPLETED"
             ? "border-emerald-300 bg-emerald-950"
             : batch.status === "ORDERED"
             ? "border-purple-300 bg-slate-900"
             : "border-purple-200 bg-purple-900"
         }`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
@@ -843,7 +843,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   </span>
                 )}
               </div>
-              <h2 className="text-lg sm:text-xl font-black mt-1">
+              <h2 className="text-base sm:text-lg font-black mt-1">
                 {batch.status === "COMPLETED"
                   ? "อาหารส่งถึงโต๊ะแล้ว 🎉"
                   : batch.status === "ORDERED"
@@ -862,7 +862,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   : "รวบรวมสลิปให้ครบ แล้วกดส่งร้านเพื่อส่งใบสรุป"}
               </p>
               {!allSlipsVerified && missingSlipOrders.length > 0 && batch.status === "OPEN" && (
-                <div className="mt-2 text-xs text-amber-200 bg-white/10 p-2.5 rounded-xl border border-white/15">
+                <div className="mt-2 text-xs text-amber-200 bg-white/10 p-2 rounded-xl border border-white/15">
                   <span>ขาดสลิป: </span>
                   <strong>
                     {missingSlipOrders
@@ -873,13 +873,13 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               {/* Send to Shop Button: Active when OPEN, Greyed out when ORDERED or COMPLETED */}
               {batch.status === "ORDERED" || batch.status === "COMPLETED" ? (
                 <button
                   type="button"
                   disabled
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 text-slate-400 font-bold px-4 py-3 text-sm cursor-not-allowed border border-slate-700"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 text-slate-400 font-bold px-3.5 py-2 text-xs cursor-not-allowed border border-slate-700"
                   title="ส่งให้ร้านอาหารเรียบร้อยแล้ว"
                 >
                   <Check className="h-4 w-4 text-emerald-400" />
@@ -890,9 +890,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   type="button"
                   onClick={handleOpenSendModal}
                   disabled={activeOrders.length === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-6 py-3.5 text-base shadow-lg active:scale-95 transition-all w-full sm:w-auto"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-4 py-2 text-sm shadow-md active:scale-95 transition-all w-full sm:w-auto"
                 >
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4" />
                   <span>🚀 รวมส่งร้าน</span>
                 </button>
               )}
@@ -902,10 +902,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowDeliveryModal(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 py-3.5 text-sm sm:text-base shadow-xl active:scale-95 transition-all w-full sm:w-auto ring-4 ring-emerald-400/30"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-4 py-2 text-xs sm:text-sm shadow-lg active:scale-95 transition-all w-full sm:w-auto ring-2 ring-emerald-400/30"
                 >
-                  <Camera className="h-5 w-5" />
-                  <span>📸 ถ่ายรูปวางโต๊ะ (ส่งถึงแล้ว)</span>
+                  <Camera className="h-4 w-4" />
+                  <span>📸 ถ่ายรูปวางโต๊ะ</span>
                 </button>
               )}
 
@@ -921,15 +921,15 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                           title: `หลักฐานการวางอาหาร - ร้าน ${batch.shop.name}`,
                         })
                       }
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-3 text-sm shadow-md transition-all"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3.5 py-2 text-xs shadow-md transition-all"
                     >
-                      <Camera className="h-4 w-4" />
+                      <Camera className="h-3.5 w-3.5" />
                       <span>ดูรูปถ่ายที่โต๊ะ</span>
                     </button>
                   )}
                   <Link
                     href={`/delivery/${batch.id}`}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold px-4 py-3 text-sm transition-all"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold px-3 py-2 text-xs transition-all"
                   >
                     <span>หน้าลูกตี้ ↗</span>
                   </Link>
@@ -940,10 +940,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* 4. Leader Order Directory (with phone numbers and cancellation) */}
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
             <div>
-              <h2 className="text-base font-black text-gray-900">
+              <h2 className="text-sm sm:text-base font-black text-gray-900">
                 📋 ออเดอร์ทั้งหมด ({activeOrders.length} กล่อง)
               </h2>
             </div>
