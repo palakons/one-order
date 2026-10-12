@@ -1241,8 +1241,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
           {/* Level 2: Board Tabs / Filter for the active group */}
           {activeGroup === "ARCHIVED" ? (
-            currentGroupBatches.length > 0 && (
-              <div className="space-y-2 pt-1 pb-1">
+            <div className="space-y-2 pt-1 pb-1">
                 {/* 3 Dropdown Selects */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {/* Dropdown 1: Date */}
@@ -1405,7 +1404,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   )}
                 </div>
               </div>
-            )
           ) : (
             currentGroupBatches.length > 0 && (
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -1524,15 +1522,13 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         )}
 
         {/* Empty state if the active group has no boards */}
-        {currentGroupBatches.length === 0 ? (
+        {currentGroupBatches.length === 0 && activeGroup !== "ARCHIVED" ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center space-y-3">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
               {activeGroup === "OPENING" ? (
                 <Clock className="h-6 w-6 text-amber-600" />
               ) : activeGroup === "CLOSED_TODAY" ? (
                 <Clock className="h-6 w-6 text-slate-500" />
-              ) : activeGroup === "ARCHIVED" ? (
-                <Archive className="h-6 w-6 text-amber-600" />
               ) : (
                 <Trash2 className="h-6 w-6 text-rose-500" />
               )}
@@ -1542,8 +1538,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 ? t.noOpeningBoards
                 : activeGroup === "CLOSED_TODAY"
                 ? t.noClosedTodayBoards
-                : activeGroup === "ARCHIVED"
-                ? t.noArchived7DaysBoards
                 : t.noDeletedBoards}
             </h3>
             {lastRefreshedAt && (
