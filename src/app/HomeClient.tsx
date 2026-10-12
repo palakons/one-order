@@ -52,6 +52,7 @@ import {
   RefreshCw,
   Sparkles,
   QrCode,
+  Calendar,
 } from "lucide-react";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
@@ -155,9 +156,77 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   });
   const [showArchiveModal, setShowArchiveModal] = useState(false);
 
+  // 3-parameter filter state for Past 7 Days (Archived)
+  const [archivedFilterDate, setArchivedFilterDate] = useState<string>("ALL");
+  const [archivedFilterShop, setArchivedFilterShop] = useState<string>("ALL");
+  const [archivedFilterBuilding, setArchivedFilterBuilding] = useState<string>("ALL");
+  const [archivedSelectedBatchId, setArchivedSelectedBatchId] = useState<string | null>(null);
+
+  // Available filter options for Archived batches
+  const availableArchivedDates = useMemo(() => {
+    const datesMap = new Map<string, string>();
+    archivedBatches.forEach((b) => {
+      if (b.date && !datesMap.has(b.date)) {
+        const diff = getDaysDifference(b.date, todayStr);
+        let label = b.date;
+        if (diff === 1) {
+          label = lang === "en" ? `${b.date} (Yesterday)` : lang === "cn" ? `${b.date} (昨天)` : `${b.date} (เมื่อวาน)`;
+        }
+        datesMap.set(b.date, label);
+      }
+    });
+    return Array.from(datesMap.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([value, label]) => ({ value, label }));
+  }, [archivedBatches, todayStr, lang]);
+
+  const availableArchivedShops = useMemo(() => {
+    const shopsMap = new Map<string, string>();
+    archivedBatches.forEach((b) => {
+      const shopId = b.shop.id || b.shopId;
+      const shopName = b.shop.name;
+      if (shopId && !shopsMap.has(shopId)) {
+        shopsMap.set(shopId, shopName);
+      }
+    });
+    return Array.from(shopsMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [archivedBatches]);
+
+  const availableArchivedBuildings = useMemo(() => {
+    const buildingsSet = new Set<string>();
+    archivedBatches.forEach((b) => {
+      if (b.buildingName) buildingsSet.add(b.buildingName);
+    });
+    return Array.from(buildingsSet);
+  }, [archivedBatches]);
+
+  // Filtered archived batches based on the 3 parameters
+  const filteredArchivedBatches = useMemo(() => {
+    return archivedBatches.filter((b) => {
+      if (archivedFilterDate !== "ALL" && b.date !== archivedFilterDate) return false;
+      if (archivedFilterShop !== "ALL" && b.shop.id !== archivedFilterShop && b.shopId !== archivedFilterShop && b.shop.name !== archivedFilterShop) return false;
+      if (archivedFilterBuilding !== "ALL" && b.buildingName !== archivedFilterBuilding) return false;
+      return true;
+    });
+  }, [archivedBatches, archivedFilterDate, archivedFilterShop, archivedFilterBuilding]);
+
+  // If active archived batch is filtered out, clear selection
+  useEffect(() => {
+    if (activeGroup === "ARCHIVED" && archivedSelectedBatchId) {
+      const stillMatches = filteredArchivedBatches.some((b) => b.id === archivedSelectedBatchId);
+      if (!stillMatches) {
+        setArchivedSelectedBatchId(null);
+      }
+    }
+  }, [activeGroup, archivedSelectedBatchId, filteredArchivedBatches]);
+
   const activeBatch = useMemo(() => {
+    if (activeGroup === "ARCHIVED") {
+      if (!archivedSelectedBatchId) return null;
+      return archivedBatches.find((b) => b.id === archivedSelectedBatchId) || null;
+    }
     return batches.find((b) => b.id === activeBatchId) || currentGroupBatches[0] || batches[0] || null;
-  }, [batches, activeBatchId, currentGroupBatches]);
+  }, [batches, activeBatchId, currentGroupBatches, activeGroup, archivedSelectedBatchId, archivedBatches]);
 
   const selectBatch = (id: string) => {
     setActiveBatchId(id);
@@ -170,10 +239,13 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
   const handleSelectGroup = (group: BoardGroup) => {
     setActiveGroup(group);
+    if (group === "ARCHIVED") {
+      setArchivedSelectedBatchId(null);
+      return;
+    }
     let targetBatches: BatchWithDetails[] = [];
     if (group === "OPENING") targetBatches = openingBatches;
     else if (group === "CLOSED_TODAY") targetBatches = closedTodayBatches;
-    else if (group === "ARCHIVED") targetBatches = archivedBatches;
     else if (group === "DELETED") targetBatches = deletedBatches;
 
     if (targetBatches.length > 0 && !targetBatches.some((b) => b.id === activeBatchId)) {
@@ -194,8 +266,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             setActiveGroup("DELETED");
           } else if (found.status !== "OPEN" || getTimeRemaining(found.cutoffTime, found.date).isExpired) {
             const diff = getDaysDifference(found.date, getBangkokDate());
-            if (diff === 0) setActiveGroup("CLOSED_TODAY");
-            else setActiveGroup("ARCHIVED");
+            if (diff === 0) {
+              setActiveGroup("CLOSED_TODAY");
+            } else {
+              setActiveGroup("ARCHIVED");
+              setArchivedSelectedBatchId(urlBatchId);
+              setArchivedFilterDate(found.date);
+              setArchivedFilterShop(found.shop.id || found.shopId || "ALL");
+              setArchivedFilterBuilding(found.buildingName || "ALL");
+            }
           } else {
             setActiveGroup("OPENING");
           }
@@ -209,13 +288,14 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
   // Auto-switch to activeBatchId if missing from currentGroupBatches
   useEffect(() => {
+    if (activeGroup === "ARCHIVED") return; // For past 7 days, user picks first!
     if (currentGroupBatches.length > 0) {
       const exists = currentGroupBatches.some((b) => b.id === activeBatchId);
       if (!exists) {
         selectBatch(currentGroupBatches[0].id);
       }
     }
-  }, [currentGroupBatches, activeBatchId]);
+  }, [currentGroupBatches, activeBatchId, activeGroup]);
 
   // Modals state
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
@@ -1159,59 +1239,223 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             </button>
           </div>
 
-          {/* Level 2: Board Tabs for the active group */}
-          {currentGroupBatches.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {currentGroupBatches.map((b, idx) => {
-                const isActive = b.id === activeBatchId;
-                const isMet = b.currentTotalAmount >= b.targetMinAmount;
-                const bldgCode = b.buildingName
-                  ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
-                  : "M4";
-                const localizedShop = getShopLocalizedInfo(b.shop, lang);
+          {/* Level 2: Board Tabs / Filter for the active group */}
+          {activeGroup === "ARCHIVED" ? (
+            currentGroupBatches.length > 0 && (
+              <div className="space-y-2 pt-1 pb-1">
+                {/* 3 Dropdown Selects */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Dropdown 1: Date */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-purple-700" />
+                      <span>{lang === "en" ? "Date" : lang === "cn" ? "日期" : "วันที่"}</span>
+                    </label>
+                    <select
+                      value={archivedFilterDate}
+                      onChange={(e) => {
+                        setArchivedFilterDate(e.target.value);
+                      }}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-purple-600 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="ALL">
+                        {lang === "en" ? "All Dates (Past 7 Days)" : lang === "cn" ? "全部日期 (近7天)" : "ทุกวันที่ (ย้อนหลัง 7 วัน)"}
+                      </option>
+                      {availableArchivedDates.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => selectBatch(b.id)}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
-                      isActive
-                        ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
-                    }`}
-                  >
-                    <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
-                    <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
-                      {bldgCode}
+                  {/* Dropdown 2: Shop */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                      <Store className="h-3 w-3 text-purple-700" />
+                      <span>{lang === "en" ? "Shop" : lang === "cn" ? "餐厅" : "ร้านอาหาร"}</span>
+                    </label>
+                    <select
+                      value={archivedFilterShop}
+                      onChange={(e) => {
+                        setArchivedFilterShop(e.target.value);
+                      }}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-purple-600 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="ALL">
+                        {lang === "en" ? "All Shops" : lang === "cn" ? "全部餐厅" : "ทุกร้านอาหาร"}
+                      </option>
+                      {availableArchivedShops.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Dropdown 3: Building */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-purple-700" />
+                      <span>{lang === "en" ? "Building / Drop-off" : lang === "cn" ? "送餐楼宇" : "ตึก / จุดส่ง"}</span>
+                    </label>
+                    <select
+                      value={archivedFilterBuilding}
+                      onChange={(e) => {
+                        setArchivedFilterBuilding(e.target.value);
+                      }}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs focus:border-purple-600 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="ALL">
+                        {lang === "en" ? "All Buildings" : lang === "cn" ? "全部楼宇" : "ทุกตึก / จุดส่ง"}
+                      </option>
+                      {availableArchivedBuildings.map((bldg) => (
+                        <option key={bldg} value={bldg}>
+                          {getLocalizedBuildingName(bldg, lang)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Filter Results & Board Selection */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {lang === "en"
+                      ? `Matching boards (${filteredArchivedBatches.length}):`
+                      : lang === "cn"
+                      ? `匹配拼单 (${filteredArchivedBatches.length}):`
+                      : `กระดานที่ตรงเงื่อนไข (${filteredArchivedBatches.length}):`}
+                  </span>
+
+                  {filteredArchivedBatches.length === 0 ? (
+                    <span className="text-xs text-slate-400 italic">
+                      {lang === "en"
+                        ? "No boards match this filter"
+                        : lang === "cn"
+                        ? "无匹配拼单"
+                        : "ไม่พบกระดานที่ตรงกับเงื่อนไขที่เลือก"}
                     </span>
+                  ) : (
+                    filteredArchivedBatches.map((b) => {
+                      const isSelected = b.id === activeBatch?.id;
+                      const localizedShop = getShopLocalizedInfo(b.shop, lang);
+                      const bldgCode = b.buildingName
+                        ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
+                        : "M4";
+                      const totalBoxes = (b.orders || []).reduce(
+                        (sum, ord) => sum + (ord.items?.reduce((s, it) => s + (it.quantity || 1), 0) || 0),
+                        0
+                      );
 
-                    {/* Badge depending on group */}
-                    {b.isDeleted ? (
-                      <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
-                        {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => {
+                            selectBatch(b.id);
+                            setArchivedSelectedBatchId(b.id);
+                            setTimeout(() => {
+                              document.getElementById("board-pane")?.scrollIntoView({ behavior: "smooth" });
+                            }, 100);
+                          }}
+                          className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                            isSelected
+                              ? "bg-purple-900 border-purple-900 text-white shadow-xs ring-2 ring-purple-300"
+                              : "bg-white border-slate-300 text-slate-700 hover:bg-purple-50 hover:border-purple-300"
+                          }`}
+                        >
+                          <span>{localizedShop.name}</span>
+                          <span className={`rounded px-1 py-0.2 text-[10px] font-mono ${
+                            isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {bldgCode}
+                          </span>
+                          <span className={`rounded px-1.5 py-0.2 text-[10px] font-mono ${
+                            isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {b.date}
+                          </span>
+                          <span className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                            isSelected ? "bg-amber-400 text-slate-950" : "bg-amber-100 text-amber-900"
+                          }`}>
+                            {totalBoxes} {lang === "en" ? "boxes" : lang === "cn" ? "盒" : "กล่อง"}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+
+                  {activeBatch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setArchivedSelectedBatchId(null);
+                        if (typeof window !== "undefined") {
+                          const url = new URL(window.location.href);
+                          url.searchParams.delete("batch");
+                          window.history.replaceState({}, "", url.toString());
+                        }
+                      }}
+                      className="ml-auto text-[11px] font-bold text-rose-600 hover:text-rose-700 underline flex items-center gap-1 cursor-pointer py-1"
+                    >
+                      <X className="h-3 w-3" />
+                      <span>{lang === "en" ? "Close Board" : lang === "cn" ? "关闭拼单" : "ปิดดูกระดาน"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          ) : (
+            currentGroupBatches.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {currentGroupBatches.map((b, idx) => {
+                  const isActive = b.id === activeBatchId;
+                  const isMet = b.currentTotalAmount >= b.targetMinAmount;
+                  const bldgCode = b.buildingName
+                    ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
+                    : "M4";
+                  const localizedShop = getShopLocalizedInfo(b.shop, lang);
+
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => selectBatch(b.id)}
+                      className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                        isActive
+                          ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
+                      }`}
+                    >
+                      <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
+                      <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
+                        {bldgCode}
                       </span>
-                    ) : activeGroup === "ARCHIVED" ? (
-                      <span className="rounded bg-slate-200 text-slate-700 px-1.5 py-0.2 text-[10px] font-bold font-mono">
-                        {b.date}
-                      </span>
-                    ) : (
-                      <span
-                        className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold ${
-                          isMet
-                            ? "bg-emerald-600 text-white"
-                            : b.currentTotalAmount > 0
-                            ? "bg-amber-100 text-amber-900 border border-amber-300"
-                            : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+
+                      {/* Badge depending on group */}
+                      {b.isDeleted ? (
+                        <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
+                          {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
+                        </span>
+                      ) : (
+                        <span
+                          className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                            isMet
+                              ? "bg-emerald-600 text-white"
+                              : b.currentTotalAmount > 0
+                              ? "bg-amber-100 text-amber-900 border border-amber-300"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
 
@@ -1351,6 +1595,26 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 </button>
               )}
             </div>
+          </div>
+        ) : activeGroup === "ARCHIVED" && !activeBatch ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 sm:p-8 text-center space-y-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+              <Archive className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              {lang === "en"
+                ? "Select parameters above to view past board"
+                : lang === "cn"
+                ? "请选择上方条件查看往期拼单"
+                : "เลือกเงื่อนไขด้านบนเพื่อเปิดดูกระดานย้อนหลัง"}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              {lang === "en"
+                ? `Found ${filteredArchivedBatches.length} matching boards from the past 7 days. Tap any board button above to view.`
+                : lang === "cn"
+                ? `过去 7 天内找到 ${filteredArchivedBatches.length} 个拼单。点击上方任意按钮即可查看详情。`
+                : `พบกระดานย้อนหลัง 7 วันที่ตรงกับเงื่อนไข ${filteredArchivedBatches.length} กระดาน แตะปุ่มกระดานด้านบนเพื่อเปิดดู`}
+            </p>
           </div>
         ) : activeBatch ? (
           <div id="board-pane" className="space-y-2.5 sm:space-y-3">
