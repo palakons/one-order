@@ -1,6 +1,15 @@
-import fs from "fs/promises";
-import path from "path";
-import { Shop, Batch, Order, BatchWithDetails, BatchStatus, Suggestion } from "./types";
+import {
+  Shop,
+  Batch,
+  Order,
+  BatchWithDetails,
+  BatchStatus,
+  Suggestion,
+  StorageMetrics,
+  SystemStatus,
+  QuotaMetrics,
+  FirebaseSeverity,
+} from "./types";
 import { getLocationById, DeliveryLocation, CAMPUS_LOCATIONS } from "./locations";
 import { getBangkokDate, getDaysDifference } from "./utils";
 import { isFirebaseConfigured, db } from "./firebase";
@@ -34,15 +43,8 @@ export interface StoredMetrics {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __VEATEC_MEMORY_DB__: DatabaseSchema | undefined;
-  // eslint-disable-next-line no-var
   var __VEATEC_METRICS__: StoredMetrics | undefined;
 }
-
-const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const DATA_DIR = isServerless ? "/tmp" : path.join(process.cwd(), "src", "data");
-const DATA_FILE = path.join(DATA_DIR, "store.json");
-const METRICS_FILE = path.join(DATA_DIR, "metrics.json");
 
 export const MAX_DAILY_READS = 50000;
 export const MAX_DAILY_WRITES = 20000;
@@ -181,170 +183,12 @@ const SEED_DATA: DatabaseSchema = {
       ],
     },
   ],
-  batches: [
-    {
-      id: "batch-today-01",
-      shopId: "shop-pa-tai",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:15",
-      targetMinAmount: 200,
-      status: "OPEN",
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4",
-    },
-    {
-      id: "batch-today-02",
-      shopId: "shop-chao-rai",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:20",
-      targetMinAmount: 200,
-      status: "OPEN",
-      createdAt: new Date(Date.now() - 3000000).toISOString(),
-      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4",
-    },
-    {
-      id: "batch-today-03",
-      shopId: "shop-krua-mangmee",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:25",
-      targetMinAmount: 200,
-      status: "OPEN",
-      createdAt: new Date(Date.now() - 2400000).toISOString(),
-      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4",
-    },
-    {
-      id: "batch-today-04",
-      shopId: "shop-khun-som",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:30",
-      targetMinAmount: 200,
-      status: "OPEN",
-      createdAt: new Date(Date.now() - 1800000).toISOString(),
-      notes: "รอบส่งมื้อเที่ยง ส่งถึงโต๊ะรับของตึก M4",
-    },
-    {
-      id: "batch-today-05",
-      shopId: "shop-lins-tea",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:45",
-      targetMinAmount: 150,
-      status: "OPEN",
-      createdAt: new Date(Date.now() - 1200000).toISOString(),
-      notes: "รอบส่งเครื่องดื่มและกาแฟ ส่งถึงโต๊ะรับของตึก M4",
-    },
-    {
-      id: "batch-today-closed",
-      shopId: "shop-chao-rai",
-      date: new Date().toISOString().split("T")[0],
-      cutoffTime: "09:30",
-      targetMinAmount: 200,
-      status: "ORDERED",
-      createdAt: new Date(Date.now() - 4 * 3600000).toISOString(),
-      sentToShopAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-      notes: "รอบเช้าพิเศษ ปิดรอบส่งร้านเรียบร้อย",
-      buildingId: "loc-m4",
-      buildingName: "ตึก M4",
-    },
-    {
-      id: "batch-archived-01",
-      shopId: "shop-krua-mangmee",
-      date: new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0],
-      cutoffTime: "11:25",
-      targetMinAmount: 200,
-      status: "COMPLETED",
-      createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-      deliveredAt: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString(),
-      notes: "จัดส่งเรียบร้อยแล้ว",
-      buildingId: "loc-m4",
-      buildingName: "ตึก M4",
-    },
-    {
-      id: "batch-deleted-01",
-      shopId: "shop-khun-som",
-      date: new Date(Date.now() - 10 * 86400000).toISOString().split("T")[0],
-      cutoffTime: "11:30",
-      targetMinAmount: 200,
-      status: "COMPLETED",
-      createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
-      isDeleted: true,
-      deletedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-      buildingId: "loc-m4",
-      buildingName: "ตึก M4",
-    },
-  ],
-  orders: [
-    {
-      id: "ord-sample-1",
-      orderNumber: 1,
-      batchId: "batch-today-01",
-      customerName: "สมชาย (Somchai)",
-      customerPhone: "081-111-2222",
-      locationId: "loc-m4",
-      items: [
-        { id: "pt1", name: "ข้าวกะเพราหมูกรอบคั่วพริกแห้ง", price: 60, quantity: 1, customNote: "เผ็ดน้อย ไม่ใส่ถั่วฝักยาว" },
-        { id: "pt9", name: "ไข่ดาวฟูกรอบ", price: 10, quantity: 1, customNote: "ไข่แดงไม่สุก" },
-      ],
-      totalAmount: 70,
-      slipImageUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80",
-      createdAt: new Date(Date.now() - 1800000).toISOString(),
-      boxLabel: "#01 สมชาย (Somchai) - M4 Building [ข้าวกะเพราหมูกรอบ + ไข่ดาว]",
-    },
-    {
-      id: "ord-sample-2",
-      orderNumber: 2,
-      batchId: "batch-today-01",
-      customerName: "อลิสา (Alice)",
-      customerPhone: "089-333-4444",
-      locationId: "loc-m4",
-      items: [
-        { id: "pt2", name: "ข้าวหมูกระเทียมพริกไทยสด", price: 55, quantity: 1, customNote: "ขอพริกน้ำปลาเพิ่ม" },
-      ],
-      totalAmount: 55,
-      slipImageUrl: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
-      createdAt: new Date(Date.now() - 900000).toISOString(),
-      boxLabel: "#02 อลิสา (Alice) - M4 Building [ข้าวหมูกระเทียม]",
-    },
-  ],
+  batches: [],
+  orders: [],
 };
 
 // -------------------------------------------------------------
-// Local In-Memory & JSON File Helpers (Fallback when Firebase is not active)
-// -------------------------------------------------------------
-async function ensureDataFile(): Promise<DatabaseSchema> {
-  if (globalThis.__VEATEC_MEMORY_DB__) {
-    return globalThis.__VEATEC_MEMORY_DB__;
-  }
-
-  try {
-    const content = await fs.readFile(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(content) as DatabaseSchema;
-    globalThis.__VEATEC_MEMORY_DB__ = parsed;
-    return parsed;
-  } catch {
-    const initial = structuredClone(SEED_DATA);
-    globalThis.__VEATEC_MEMORY_DB__ = initial;
-    try {
-      await fs.mkdir(DATA_DIR, { recursive: true });
-      await fs.writeFile(DATA_FILE, JSON.stringify(initial, null, 2), "utf-8");
-    } catch {
-      // Read-only filesystem safe (Vercel serverless)
-    }
-    return initial;
-  }
-}
-
-async function writeData(data: DatabaseSchema): Promise<void> {
-  globalThis.__VEATEC_MEMORY_DB__ = data;
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch {
-    // Read-only filesystem safe (Vercel serverless)
-  }
-}
-
-// -------------------------------------------------------------
-// Firestore Helpers (Active when Firebase is configured)
+// Firestore Helpers
 // -------------------------------------------------------------
 function cleanForFirestore<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
@@ -369,58 +213,8 @@ async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
 }
 
 // -------------------------------------------------------------
-// System & Firebase Health Diagnostics & Quota Tracker
+// Quota & Health Diagnostics Tracker
 // -------------------------------------------------------------
-export type FirebaseSeverity = "normal" | "warning" | "interrupted";
-
-export interface QuotaMetrics {
-  readsToday: number;
-  writesToday: number;
-  deletesToday: number;
-  maxDailyReads: number;
-  maxDailyWrites: number;
-  maxDailyDeletes: number;
-  readsPercentage: number;
-  writesPercentage: number;
-  deletesPercentage: number;
-  lastResetPeriod: string;
-  nextResetIso: string;
-  timeUntilReset: string;
-  lastSuccessIso?: string;
-  lastErrorIso?: string;
-  lastErrorMessage?: string;
-}
-
-export interface FallbackStorageState {
-  storageFile: string;
-  isServerless: boolean;
-  fileExists: boolean;
-  fileSizeBytes: number;
-  fileSizeFormatted: string;
-  inMemoryLoaded: boolean;
-  counts: {
-    shops: number;
-    batches: number;
-    openBatches: number;
-    orders: number;
-    suggestions: number;
-    locations: number;
-  };
-  lastModifiedIso?: string;
-}
-
-export interface SystemStatus {
-  firebaseConfigured: boolean;
-  severity: FirebaseSeverity;
-  quotaExhausted: boolean;
-  fallbackMode: boolean;
-  activeStorageEngine: "firestore" | "fallback_local";
-  lastError?: string;
-  resetTimeInfo: string;
-  metrics: QuotaMetrics;
-  fallbackState: FallbackStorageState;
-}
-
 let lastSystemSeverity: FirebaseSeverity = "normal";
 let lastQuotaExhausted = false;
 let lastErrorMessage: string | null = null;
@@ -477,57 +271,9 @@ function calculateNextResetInfo(): { nextResetIso: string; timeUntilReset: strin
   };
 }
 
-async function loadStoredMetrics(): Promise<StoredMetrics> {
+function getStoredMetrics(): StoredMetrics {
   const currentPeriod = getPacificDateString();
-  if (globalThis.__VEATEC_METRICS__) {
-    if (globalThis.__VEATEC_METRICS__.lastResetPeriod !== currentPeriod) {
-      globalThis.__VEATEC_METRICS__.readsToday = 0;
-      globalThis.__VEATEC_METRICS__.writesToday = 0;
-      globalThis.__VEATEC_METRICS__.deletesToday = 0;
-      globalThis.__VEATEC_METRICS__.lastResetPeriod = currentPeriod;
-      saveStoredMetrics(globalThis.__VEATEC_METRICS__).catch(() => {});
-    }
-    return globalThis.__VEATEC_METRICS__;
-  }
-
-  try {
-    const raw = await fs.readFile(METRICS_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as StoredMetrics;
-    if (parsed.lastResetPeriod !== currentPeriod) {
-      parsed.readsToday = 0;
-      parsed.writesToday = 0;
-      parsed.deletesToday = 0;
-      parsed.lastResetPeriod = currentPeriod;
-      saveStoredMetrics(parsed).catch(() => {});
-    }
-    globalThis.__VEATEC_METRICS__ = parsed;
-    return parsed;
-  } catch {
-    const fresh: StoredMetrics = {
-      readsToday: 0,
-      writesToday: 0,
-      deletesToday: 0,
-      lastResetPeriod: currentPeriod,
-    };
-    globalThis.__VEATEC_METRICS__ = fresh;
-    saveStoredMetrics(fresh).catch(() => {});
-    return fresh;
-  }
-}
-
-async function saveStoredMetrics(m: StoredMetrics): Promise<void> {
-  globalThis.__VEATEC_METRICS__ = m;
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(METRICS_FILE, JSON.stringify(m, null, 2), "utf-8");
-  } catch {
-    // serverless safe
-  }
-}
-
-export function recordFirestoreOp(op: "read" | "write" | "delete", count = 1) {
-  const currentPeriod = getPacificDateString();
-  if (!globalThis.__VEATEC_METRICS__) {
+  if (!globalThis.__VEATEC_METRICS__ || globalThis.__VEATEC_METRICS__.lastResetPeriod !== currentPeriod) {
     globalThis.__VEATEC_METRICS__ = {
       readsToday: 0,
       writesToday: 0,
@@ -535,34 +281,26 @@ export function recordFirestoreOp(op: "read" | "write" | "delete", count = 1) {
       lastResetPeriod: currentPeriod,
     };
   }
+  return globalThis.__VEATEC_METRICS__;
+}
 
-  const m = globalThis.__VEATEC_METRICS__;
-  if (m.lastResetPeriod !== currentPeriod) {
-    m.readsToday = 0;
-    m.writesToday = 0;
-    m.deletesToday = 0;
-    m.lastResetPeriod = currentPeriod;
-  }
-
+export function recordFirestoreOp(op: "read" | "write" | "delete", count = 1) {
+  const m = getStoredMetrics();
   if (op === "read") m.readsToday += count;
   if (op === "write") m.writesToday += count;
   if (op === "delete") m.deletesToday += count;
   m.lastSuccessIso = new Date().toISOString();
-
-  saveStoredMetrics(m).catch(() => {});
 }
 
 export async function resetQuotaMetrics(): Promise<void> {
   const currentPeriod = getPacificDateString();
-  const fresh: StoredMetrics = {
+  globalThis.__VEATEC_METRICS__ = {
     readsToday: 0,
     writesToday: 0,
     deletesToday: 0,
     lastResetPeriod: currentPeriod,
     lastSuccessIso: new Date().toISOString(),
   };
-  globalThis.__VEATEC_METRICS__ = fresh;
-  await saveStoredMetrics(fresh);
 }
 
 export function onFirestoreSuccess() {
@@ -587,15 +325,13 @@ export function recordFirestoreError(err: any) {
   }
   lastErrorMessage = errMsg;
 
-  if (globalThis.__VEATEC_METRICS__) {
-    globalThis.__VEATEC_METRICS__.lastErrorIso = new Date().toISOString();
-    globalThis.__VEATEC_METRICS__.lastErrorMessage = errMsg;
-    saveStoredMetrics(globalThis.__VEATEC_METRICS__).catch(() => {});
-  }
+  const m = getStoredMetrics();
+  m.lastErrorIso = new Date().toISOString();
+  m.lastErrorMessage = errMsg;
 }
 
 export async function getQuotaMetrics(): Promise<QuotaMetrics> {
-  const stored = await loadStoredMetrics();
+  const stored = getStoredMetrics();
   const resetInfo = calculateNextResetInfo();
 
   const readsPercentage = Math.min(100, Number(((stored.readsToday / MAX_DAILY_READS) * 100).toFixed(2)));
@@ -621,49 +357,226 @@ export async function getQuotaMetrics(): Promise<QuotaMetrics> {
   };
 }
 
-export async function getFallbackStorageState(): Promise<FallbackStorageState> {
-  const data = await ensureDataFile();
-  let fileExists = false;
-  let fileSizeBytes = 0;
-  let lastModifiedIso: string | undefined = undefined;
+// -------------------------------------------------------------
+// Cloud Storage & 30-Day Retention Management
+// -------------------------------------------------------------
+export async function getStorageMetrics(): Promise<StorageMetrics> {
+  let totalBatches = 0;
+  let totalOrders = 0;
+  let totalShops = 0;
+  let totalSuggestions = 0;
+  let slipsCount = 0;
+  let deliveryPhotosCount = 0;
+  let estimatedImageStorageBytes = 0;
+  let lastCleanupIso: string | undefined = undefined;
+  let lastCleanupSummary: string | undefined = undefined;
 
-  try {
-    const st = await fs.stat(DATA_FILE);
-    fileExists = true;
-    fileSizeBytes = st.size;
-    lastModifiedIso = st.mtime.toISOString();
-  } catch {
-    fileExists = false;
+  if (isFirebaseConfigured && db) {
+    try {
+      const [batchesSnap, ordersSnap, shopsSnap, suggsSnap, metaSnap] = await Promise.all([
+        trackedGetDocs(collection(db, "batches"), 3000).catch(() => ({ docs: [] } as any)),
+        trackedGetDocs(collection(db, "orders"), 3000).catch(() => ({ docs: [] } as any)),
+        trackedGetDocs(collection(db, "shops"), 2000).catch(() => ({ docs: [] } as any)),
+        trackedGetDocs(collection(db, "suggestions"), 2000).catch(() => ({ docs: [] } as any)),
+        trackedGetDoc(doc(db, "system", "storage_retention"), 2000).catch(() => ({ exists: () => false } as any)),
+      ]);
+
+      totalBatches = batchesSnap.docs.length;
+      totalOrders = ordersSnap.docs.length;
+      totalShops = shopsSnap.docs.length;
+      totalSuggestions = suggsSnap.docs.length;
+
+      ordersSnap.docs.forEach((d: any) => {
+        const o = d.data() as Order;
+        if (o.slipImageUrl && o.slipImageUrl.length > 50) {
+          slipsCount++;
+          estimatedImageStorageBytes += Math.round(o.slipImageUrl.length * 0.75);
+        }
+      });
+
+      batchesSnap.docs.forEach((d: any) => {
+        const b = d.data() as Batch;
+        if (b.deliveryPhotoUrl && b.deliveryPhotoUrl.length > 50) {
+          deliveryPhotosCount++;
+          estimatedImageStorageBytes += Math.round(b.deliveryPhotoUrl.length * 0.75);
+        }
+      });
+
+      if (metaSnap && typeof metaSnap.exists === "function" && metaSnap.exists()) {
+        const meta = metaSnap.data();
+        lastCleanupIso = meta?.lastCleanupIso;
+        lastCleanupSummary = meta?.lastCleanupSummary;
+      }
+    } catch (err) {
+      console.warn("getStorageMetrics warning:", err);
+    }
   }
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  const freeLimit = 1024 * 1024 * 1024; // 1 GiB free tier
+  const usagePct = Number(((estimatedImageStorageBytes / freeLimit) * 100).toFixed(3));
+
   return {
-    storageFile: DATA_FILE,
-    isServerless,
-    fileExists,
-    fileSizeBytes,
-    fileSizeFormatted: formatSize(fileSizeBytes),
-    inMemoryLoaded: Boolean(globalThis.__VEATEC_MEMORY_DB__),
-    counts: {
-      shops: data.shops?.length || 0,
-      batches: data.batches?.length || 0,
-      openBatches: data.batches?.filter((b) => b.status === "OPEN" && !b.isDeleted).length || 0,
-      orders: data.orders?.length || 0,
-      suggestions: data.suggestions?.length || 0,
-      locations: data.locations?.length || CAMPUS_LOCATIONS.length,
-    },
-    lastModifiedIso,
+    totalBatches,
+    totalOrders,
+    totalShops,
+    totalSuggestions,
+    slipsCount,
+    deliveryPhotosCount,
+    estimatedImageStorageBytes,
+    estimatedImageStorageFormatted: formatSize(estimatedImageStorageBytes),
+    retentionPolicyDays: 30,
+    lastCleanupIso,
+    lastCleanupSummary,
+    firestoreFreeLimitBytes: freeLimit,
+    storageUsagePercentage: usagePct,
   };
 }
 
-export async function getFallbackDatabase(): Promise<DatabaseSchema> {
-  return await ensureDataFile();
+export async function runStorageCleanup(retentionDays = 30): Promise<{
+  success: boolean;
+  slipsPurged: number;
+  photosPurged: number;
+  batchesArchived: number;
+  estimatedBytesFreed: number;
+  message: string;
+}> {
+  if (!isFirebaseConfigured || !db) {
+    return {
+      success: false,
+      slipsPurged: 0,
+      photosPurged: 0,
+      batchesArchived: 0,
+      estimatedBytesFreed: 0,
+      message: "ไม่ได้ตั้งค่า Firebase",
+    };
+  }
+
+  try {
+    const [batchesSnap, ordersSnap] = await Promise.all([
+      trackedGetDocs(collection(db, "batches"), 4000),
+      trackedGetDocs(collection(db, "orders"), 4000),
+    ]);
+
+    const todayStr = getBangkokDate();
+    let slipsPurged = 0;
+    let photosPurged = 0;
+    let batchesArchived = 0;
+    let estimatedBytesFreed = 0;
+
+    const updates: Promise<any>[] = [];
+
+    // 1. Process Orders: strip slipImageUrl if older than retentionDays
+    ordersSnap.docs.forEach((d: any) => {
+      const o = d.data() as Order;
+      const orderDateStr = o.createdAt ? o.createdAt.split("T")[0] : "";
+      const diff = orderDateStr ? getDaysDifference(orderDateStr, todayStr) : 0;
+
+      if (diff > retentionDays && o.slipImageUrl) {
+        const bytes = Math.round(o.slipImageUrl.length * 0.75);
+        estimatedBytesFreed += bytes;
+        slipsPurged++;
+        updates.push(
+          trackedUpdateDoc(doc(db!, "orders", o.id), {
+            slipImageUrl: "",
+            slipPurgedAt: new Date().toISOString(),
+          }).catch((err) => console.warn(`Failed to purge slip for order ${o.id}:`, err))
+        );
+      }
+    });
+
+    // 2. Process Batches: strip deliveryPhotoUrl and archive if older than retentionDays
+    batchesSnap.docs.forEach((d: any) => {
+      const b = d.data() as Batch;
+      const batchDateStr = b.date || (b.createdAt ? b.createdAt.split("T")[0] : "");
+      const diff = batchDateStr ? getDaysDifference(batchDateStr, todayStr) : 0;
+
+      const needsArchive = diff > 7 && !b.isDeleted;
+      const needsPhotoPurge = diff > retentionDays && Boolean(b.deliveryPhotoUrl);
+
+      if (needsArchive || needsPhotoPurge) {
+        const patch: Record<string, any> = {};
+        if (needsArchive) {
+          patch.isDeleted = true;
+          patch.deletedAt = b.deletedAt || new Date().toISOString();
+          batchesArchived++;
+        }
+        if (needsPhotoPurge && b.deliveryPhotoUrl) {
+          const bytes = Math.round(b.deliveryPhotoUrl.length * 0.75);
+          estimatedBytesFreed += bytes;
+          photosPurged++;
+          patch.deliveryPhotoUrl = "";
+          patch.photoPurgedAt = new Date().toISOString();
+        }
+        updates.push(
+          trackedUpdateDoc(doc(db!, "batches", b.id), patch).catch((err) =>
+            console.warn(`Failed to update batch ${b.id}:`, err)
+          )
+        );
+      }
+    });
+
+    await Promise.all(updates);
+
+    const formatSize = (bytes: number) => {
+      if (bytes === 0) return "0 B";
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    };
+
+    const summary = `ล้างสลิป ${slipsPurged} รายการ, รูปจัดส่ง ${photosPurged} รายการ, อาร์ไคฟ์ ${batchesArchived} รอบ (คืนพื้นที่ ~${formatSize(estimatedBytesFreed)})`;
+
+    // Save retention metadata in Firestore
+    await trackedSetDoc(
+      doc(db, "system", "storage_retention"),
+      {
+        lastCleanupIso: new Date().toISOString(),
+        lastCleanupSummary: summary,
+        slipsPurged,
+        photosPurged,
+        batchesArchived,
+        estimatedBytesFreed,
+        retentionDays,
+      },
+      { merge: true }
+    ).catch(() => {});
+
+    invalidateStoreCache();
+
+    return {
+      success: true,
+      slipsPurged,
+      photosPurged,
+      batchesArchived,
+      estimatedBytesFreed,
+      message: `ดำเนินการสำเร็จ: ${summary}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      slipsPurged: 0,
+      photosPurged: 0,
+      batchesArchived: 0,
+      estimatedBytesFreed: 0,
+      message: `เกิดข้อผิดพลาดในการล้างไฟล์: ${err?.message || String(err)}`,
+    };
+  }
+}
+
+let lastDailyCleanupDate = "";
+function triggerDailyCleanupIfNeeded() {
+  const today = getBangkokDate();
+  if (lastDailyCleanupDate !== today) {
+    lastDailyCleanupDate = today;
+    runStorageCleanup(30).catch((err) => console.warn("Auto daily storage cleanup error:", err));
+  }
 }
 
 // -------------------------------------------------------------
@@ -732,53 +645,6 @@ async function trackedDeleteDoc(ref: any, timeoutMs = 2500) {
   }
 }
 
-export async function syncFirestoreToFallback(): Promise<{
-  success: boolean;
-  message?: string;
-  error?: string;
-  counts?: FallbackStorageState["counts"];
-}> {
-  if (!isFirebaseConfigured || !db) {
-    return { success: false, error: "ไม่ได้ตั้งค่า Firebase" };
-  }
-
-  try {
-    const [shopsSnap, batchesSnap, ordersSnap, locsSnap, suggsSnap] = await Promise.all([
-      trackedGetDocs(collection(db, "shops")),
-      trackedGetDocs(collection(db, "batches")),
-      trackedGetDocs(collection(db, "orders")),
-      trackedGetDocs(collection(db, "locations")).catch(() => ({ docs: [] } as any)),
-      trackedGetDocs(collection(db, "suggestions")).catch(() => ({ docs: [] } as any)),
-    ]);
-
-    const schema: DatabaseSchema = {
-      shops: shopsSnap.docs.map((d: any) => d.data() as Shop),
-      batches: batchesSnap.docs.map((d: any) => d.data() as Batch),
-      orders: ordersSnap.docs.map((d: any) => d.data() as Order),
-      locations: locsSnap.docs.map((d: any) => d.data() as DeliveryLocation),
-      suggestions: suggsSnap.docs.map((d: any) => d.data() as Suggestion),
-    };
-
-    if (!schema.locations || schema.locations.length === 0) {
-      schema.locations = [...CAMPUS_LOCATIONS];
-    }
-
-    await writeData(schema);
-    const fbState = await getFallbackStorageState();
-
-    return {
-      success: true,
-      message: "ซิงค์ข้อมูลจาก Firestore ลง Fallback Cache เรียบร้อยแล้ว",
-      counts: fbState.counts,
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: `ซิงค์ล้มเหลว: ${err?.message || String(err)}`,
-    };
-  }
-}
-
 export async function resetSystemQuota(): Promise<SystemStatus> {
   lastSystemSeverity = "normal";
   lastQuotaExhausted = false;
@@ -788,19 +654,18 @@ export async function resetSystemQuota(): Promise<SystemStatus> {
 
 export async function getSystemStatus(): Promise<SystemStatus> {
   const metrics = await getQuotaMetrics();
-  const fallbackState = await getFallbackStorageState();
-  const fallbackMode = lastQuotaExhausted || !isFirebaseConfigured;
+  const storageMetrics = await getStorageMetrics();
 
   return {
     firebaseConfigured: isFirebaseConfigured,
     severity: isFirebaseConfigured ? lastSystemSeverity : "normal",
     quotaExhausted: lastQuotaExhausted,
-    fallbackMode,
-    activeStorageEngine: fallbackMode ? "fallback_local" : "firestore",
+    fallbackMode: false,
+    activeStorageEngine: "firestore",
     lastError: lastErrorMessage || undefined,
     resetTimeInfo: "ทุกวันเวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)",
     metrics,
-    fallbackState,
+    storageMetrics,
   };
 }
 
@@ -829,14 +694,11 @@ export async function ensureFirestoreSeeded(): Promise<void> {
   try {
     const testSnap = await trackedGetDocs(collection(firestore, "shops"), 2000);
     if (testSnap.empty) {
-      await Promise.all([
-        ...SEED_DATA.shops.map((shop) =>
+      await Promise.all(
+        SEED_DATA.shops.map((shop) =>
           trackedSetDoc(doc(firestore, "shops", shop.id), cleanForFirestore(shop), { merge: true }, 3000)
-        ),
-        ...SEED_DATA.batches.map((batch) =>
-          trackedSetDoc(doc(firestore, "batches", batch.id), cleanForFirestore(batch), { merge: true }, 3000)
-        ),
-      ]);
+        )
+      );
     }
   } catch (err) {
     console.warn("Firestore seed check warning:", err);
@@ -844,7 +706,7 @@ export async function ensureFirestoreSeeded(): Promise<void> {
 }
 
 // -------------------------------------------------------------
-// In-Memory Short-TTL Cache & Deduplication (Reduces Firestore reads)
+// In-Memory Short-TTL Cache & Deduplication
 // -------------------------------------------------------------
 let cachedBatches: { data: BatchWithDetails[]; timestamp: number } | null = null;
 let cachedShops: { data: Shop[]; timestamp: number } | null = null;
@@ -857,7 +719,7 @@ export function invalidateStoreCache() {
 }
 
 // -------------------------------------------------------------
-// Public Data API (Automatic Firestore / Local Switch)
+// Public Data API (Google Cloud Firestore Single Source of Truth)
 // -------------------------------------------------------------
 export async function getShops(forceFresh = false): Promise<Shop[]> {
   if (!forceFresh && cachedShops && Date.now() - cachedShops.timestamp < SHOPS_CACHE_TTL_MS) {
@@ -872,13 +734,12 @@ export async function getShops(forceFresh = false): Promise<Shop[]> {
         result = snap.docs.map((d) => d.data() as Shop);
       }
     } catch (err) {
-      console.warn("Firestore getShops failed, using local fallback:", err);
+      console.warn("Firestore getShops failed:", err);
     }
   }
 
   if (result.length === 0) {
-    const data = await ensureDataFile();
-    result = data.shops;
+    result = SEED_DATA.shops;
   }
 
   cachedShops = { data: result, timestamp: Date.now() };
@@ -891,51 +752,26 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
       const snap = await trackedGetDoc(doc(db, "shops", id), 2000);
       if (snap.exists()) return snap.data() as Shop;
     } catch (err) {
-      console.warn("Firestore getShopById failed, using local fallback:", err);
+      console.warn("Firestore getShopById failed:", err);
     }
   }
 
-  const data = await ensureDataFile();
-  return data.shops.find((s) => s.id === id);
+  return SEED_DATA.shops.find((s) => s.id === id);
 }
 
 export async function saveShop(shop: Shop): Promise<Shop> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedSetDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), undefined, 2500);
-      return shop;
-    } catch (err) {
-      console.warn("Firestore saveShop failed, using local fallback:", err);
-    }
+    await trackedSetDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), { merge: true }, 2500);
+    return shop;
   }
-
-  const data = await ensureDataFile();
-  const index = data.shops.findIndex((s) => s.id === shop.id);
-  if (index >= 0) {
-    data.shops[index] = shop;
-  } else {
-    data.shops.push(shop);
-  }
-  await writeData(data);
-  return shop;
+  throw new Error("Firestore is not configured. Cannot save shop.");
 }
 
 export async function deleteShop(id: string): Promise<boolean> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedDeleteDoc(doc(db, "shops", id), 2500);
-    } catch (err) {
-      console.warn("Firestore deleteShop failed:", err);
-    }
-  }
-
-  const data = await ensureDataFile();
-  const index = data.shops.findIndex((s) => s.id === id);
-  if (index >= 0) {
-    data.shops.splice(index, 1);
-    await writeData(data);
+    await trackedDeleteDoc(doc(db, "shops", id), 2500);
     return true;
   }
   return false;
@@ -952,56 +788,22 @@ export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
       console.warn("Firestore getDeliveryLocations failed:", err);
     }
   }
-
-  const data = await ensureDataFile();
-  if (data.locations && data.locations.length > 0) {
-    return data.locations;
-  }
   return CAMPUS_LOCATIONS;
 }
 
 export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<DeliveryLocation> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedSetDoc(doc(db, "locations", loc.id), cleanForFirestore(loc), undefined, 2500);
-    } catch (err) {
-      console.warn("Firestore saveDeliveryLocation failed:", err);
-    }
+    await trackedSetDoc(doc(db, "locations", loc.id), cleanForFirestore(loc), { merge: true }, 2500);
+    return loc;
   }
-
-  const data = await ensureDataFile();
-  if (!data.locations) {
-    data.locations = [...CAMPUS_LOCATIONS];
-  }
-  const idx = data.locations.findIndex((l) => l.id === loc.id);
-  if (idx >= 0) {
-    data.locations[idx] = loc;
-  } else {
-    data.locations.push(loc);
-  }
-  await writeData(data);
-  return loc;
+  throw new Error("Firestore is not configured. Cannot save location.");
 }
 
 export async function deleteDeliveryLocation(id: string): Promise<boolean> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedDeleteDoc(doc(db, "locations", id), 2500);
-    } catch (err) {
-      console.warn("Firestore deleteDeliveryLocation failed:", err);
-    }
-  }
-
-  const data = await ensureDataFile();
-  if (!data.locations) {
-    data.locations = [...CAMPUS_LOCATIONS];
-  }
-  const idx = data.locations.findIndex((l) => l.id === id);
-  if (idx >= 0) {
-    data.locations.splice(idx, 1);
-    await writeData(data);
+    await trackedDeleteDoc(doc(db, "locations", id), 2500);
     return true;
   }
   return false;
@@ -1033,6 +835,8 @@ export async function getBatches(sanitize = true, forceFresh = false): Promise<B
   if (!forceFresh && cachedBatches && Date.now() - cachedBatches.timestamp < BATCHES_CACHE_TTL_MS) {
     return sanitize ? cachedBatches.data.map(sanitizeBatchDetails) : cachedBatches.data;
   }
+
+  triggerDailyCleanupIfNeeded();
 
   let result: BatchWithDetails[] = [];
 
@@ -1068,26 +872,8 @@ export async function getBatches(sanitize = true, forceFresh = false): Promise<B
         );
       }
     } catch (err) {
-      console.warn("Firestore getBatches failed, using local fallback:", err);
+      console.warn("Firestore getBatches failed:", err);
     }
-  }
-
-  if (result.length === 0) {
-    const data = await ensureDataFile();
-    const todayStr = getBangkokDate();
-    let hasUpdates = false;
-    for (const b of data.batches) {
-      const diff = getDaysDifference(b.date, todayStr);
-      if (diff > 7 && !b.isDeleted) {
-        b.isDeleted = true;
-        b.deletedAt = new Date().toISOString();
-        hasUpdates = true;
-      }
-    }
-    if (hasUpdates) {
-      writeData(data).catch(() => {});
-    }
-    result = data.batches.map((b) => enrichBatch(b, data));
   }
 
   cachedBatches = { data: result, timestamp: Date.now() };
@@ -1095,7 +881,6 @@ export async function getBatches(sanitize = true, forceFresh = false): Promise<B
 }
 
 export async function getBatchById(id: string, sanitize = false, forceFresh = false): Promise<BatchWithDetails | undefined> {
-  // Deduplicate and use cache if available and fresh
   if (!forceFresh && cachedBatches && Date.now() - cachedBatches.timestamp < BATCHES_CACHE_TTL_MS) {
     const found = cachedBatches.data.find((b) => b.id === id);
     if (found) {
@@ -1103,7 +888,6 @@ export async function getBatchById(id: string, sanitize = false, forceFresh = fa
     }
   }
 
-  // Otherwise, load via getBatches to hydrate the in-memory cache
   const allBatches = await getBatches(false, forceFresh);
   const found = allBatches.find((b) => b.id === id);
   return sanitize && found ? sanitizeBatchDetails(found) : found;
@@ -1131,44 +915,6 @@ function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): Batc
     };
   }
 
-  const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const isMinMet = currentTotalAmount >= batch.targetMinAmount;
-  const amountRemaining = Math.max(0, batch.targetMinAmount - currentTotalAmount);
-
-  return {
-    ...batch,
-    shop,
-    orders,
-    currentTotalAmount,
-    isMinMet,
-    amountRemaining,
-    orderCount: orders.length,
-  };
-}
-
-function enrichBatch(batch: Batch, data: DatabaseSchema): BatchWithDetails {
-  const shop = data.shops.find((s) => s.id === batch.shopId) || data.shops[0];
-  const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
-
-  if (isDeleted) {
-    return {
-      ...batch,
-      isDeleted: true,
-      deletedAt: batch.deletedAt || new Date().toISOString(),
-      shop,
-      orders: [],
-      currentTotalAmount: 0,
-      isMinMet: false,
-      amountRemaining: batch.targetMinAmount,
-      orderCount: 0,
-      hostPhone: undefined,
-      hostLineId: undefined,
-      hostPin: undefined,
-      notes: undefined,
-    };
-  }
-
-  const orders = data.orders.filter((o) => o.batchId === batch.id);
   const currentTotalAmount = orders.reduce((sum, o) => sum + o.totalAmount, 0);
   const isMinMet = currentTotalAmount >= batch.targetMinAmount;
   const amountRemaining = Math.max(0, batch.targetMinAmount - currentTotalAmount);
@@ -1221,19 +967,12 @@ export async function createBatch(batchData: {
 
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedSetDoc(doc(db, "batches", id), cleanForFirestore(newBatch), undefined, 2500);
-      const shops = await getShops();
-      return enrichBatchFromData(newBatch, shops, []);
-    } catch (err) {
-      console.warn("Firestore createBatch failed, using local fallback:", err);
-    }
+    await trackedSetDoc(doc(db, "batches", id), cleanForFirestore(newBatch), undefined, 2500);
+    const shops = await getShops();
+    return enrichBatchFromData(newBatch, shops, []);
   }
 
-  const data = await ensureDataFile();
-  data.batches.unshift(newBatch);
-  await writeData(data);
-  return enrichBatch(newBatch, data);
+  throw new Error("Firestore is not configured. Cannot create batch.");
 }
 
 export async function updateBatchStatus(
@@ -1260,34 +999,11 @@ export async function updateBatchStatus(
   }
 
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload), 2500);
-      return getBatchById(batchId);
-    } catch (err) {
-      console.warn("Firestore updateBatchStatus failed, using local fallback:", err);
-    }
+    await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(updatePayload), 2500);
+    return getBatchById(batchId);
   }
 
-  const data = await ensureDataFile();
-  const batch = data.batches.find((b) => b.id === batchId);
-  if (!batch) return undefined;
-  batch.status = status;
-  if (extra?.isSelfPickup !== undefined) {
-    batch.isSelfPickup = extra.isSelfPickup;
-  }
-  if (extra?.sentToShopAt) {
-    batch.sentToShopAt = extra.sentToShopAt;
-  } else if (status === "ORDERED") {
-    batch.sentToShopAt = new Date().toISOString();
-  }
-  if (deliveryPhotoUrl) {
-    batch.deliveryPhotoUrl = deliveryPhotoUrl;
-    batch.deliveredAt = new Date().toISOString();
-  } else if (status === "COMPLETED") {
-    batch.deliveredAt = new Date().toISOString();
-  }
-  await writeData(data);
-  return enrichBatch(batch, data);
+  throw new Error("Firestore is not configured. Cannot update batch.");
 }
 
 export async function updateBatch(
@@ -1296,20 +1012,10 @@ export async function updateBatch(
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(fields), 2500);
-      return getBatchById(batchId);
-    } catch (err) {
-      console.warn("Firestore updateBatch failed, using local fallback:", err);
-    }
+    await trackedUpdateDoc(doc(db, "batches", batchId), cleanForFirestore(fields), 2500);
+    return getBatchById(batchId);
   }
-
-  const data = await ensureDataFile();
-  const batch = data.batches.find((b) => b.id === batchId);
-  if (!batch) return undefined;
-  Object.assign(batch, fields);
-  await writeData(data);
-  return enrichBatch(batch, data);
+  throw new Error("Firestore is not configured. Cannot update batch.");
 }
 
 export async function createOrder(input: {
@@ -1338,9 +1044,6 @@ export async function createOrder(input: {
     } catch (err) {
       console.warn("Firestore check existing orders failed:", err);
     }
-  } else {
-    const data = await ensureDataFile();
-    existingOrders = data.orders.filter((o) => o.batchId === input.batchId && !o.deletedAt);
   }
 
   const orderNumber = existingOrders.length + 1;
@@ -1376,18 +1079,11 @@ export async function createOrder(input: {
   };
 
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedSetDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder), undefined, 2500);
-      return newOrder;
-    } catch (err) {
-      console.error("Firestore createOrder failed, using local fallback:", err);
-    }
+    await trackedSetDoc(doc(db, "orders", newOrder.id), cleanForFirestore(newOrder), undefined, 2500);
+    return newOrder;
   }
 
-  const data = await ensureDataFile();
-  data.orders.push(newOrder);
-  await writeData(data);
-  return newOrder;
+  throw new Error("Firestore is not configured. Cannot create order.");
 }
 
 export async function deleteOrder(
@@ -1397,32 +1093,19 @@ export async function deleteOrder(
 ): Promise<boolean> {
   invalidateStoreCache();
   if (isFirebaseConfigured && db) {
-    try {
-      const orderRef = doc(db, "orders", orderId);
-      const snap = await trackedGetDoc(orderRef, 2000);
-      if (snap.exists()) {
-        await trackedUpdateDoc(
-          orderRef,
-          {
-            deletedAt: new Date().toISOString(),
-            deletedReason: `${reason} (by ${by})`,
-          },
-          2500
-        );
-        return true;
-      }
-    } catch (err) {
-      console.error("Firestore deleteOrder failed:", err);
+    const orderRef = doc(db, "orders", orderId);
+    const snap = await trackedGetDoc(orderRef, 2000);
+    if (snap.exists()) {
+      await trackedUpdateDoc(
+        orderRef,
+        {
+          deletedAt: new Date().toISOString(),
+          deletedReason: `${reason} (by ${by})`,
+        },
+        2500
+      );
+      return true;
     }
-  }
-
-  const data = await ensureDataFile();
-  const ord = data.orders.find((o) => o.id === orderId);
-  if (ord) {
-    ord.deletedAt = new Date().toISOString();
-    ord.deletedReason = `${reason} (by ${by})`;
-    await writeData(data);
-    return true;
   }
   return false;
 }
@@ -1434,14 +1117,10 @@ export async function getSuggestions(): Promise<Suggestion[]> {
       const list = snap.docs.map((d) => d.data() as Suggestion);
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (err) {
-      console.warn("Firestore getSuggestions failed, using local fallback:", err);
+      console.warn("Firestore getSuggestions failed:", err);
     }
   }
-
-  const data = await ensureDataFile();
-  return (data.suggestions || []).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  return [];
 }
 
 export async function createSuggestion(input: {
@@ -1461,37 +1140,19 @@ export async function createSuggestion(input: {
   };
 
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedSetDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion), undefined, 2500);
-      return newSuggestion;
-    } catch (err) {
-      console.error("Firestore createSuggestion failed, using local fallback:", err);
-    }
+    await trackedSetDoc(doc(db, "suggestions", newSuggestion.id), cleanForFirestore(newSuggestion), undefined, 2500);
+    return newSuggestion;
   }
 
-  const data = await ensureDataFile();
-  if (!data.suggestions) data.suggestions = [];
-  data.suggestions.push(newSuggestion);
-  await writeData(data);
-  return newSuggestion;
+  throw new Error("Firestore is not configured. Cannot create suggestion.");
 }
 
 export async function deleteSuggestion(id: string): Promise<boolean> {
   if (isFirebaseConfigured && db) {
-    try {
-      await trackedDeleteDoc(doc(db, "suggestions", id), 2500);
-      return true;
-    } catch (err) {
-      console.warn("Firestore deleteSuggestion failed:", err);
-    }
+    await trackedDeleteDoc(doc(db, "suggestions", id), 2500);
+    return true;
   }
-
-  const data = await ensureDataFile();
-  if (data.suggestions) {
-    data.suggestions = data.suggestions.filter((s) => s.id !== id);
-    await writeData(data);
-  }
-  return true;
+  return false;
 }
 
 // -------------------------------------------------------------
@@ -1576,6 +1237,3 @@ export async function removeActiveLineGroupId(groupId: string): Promise<void> {
     }
   }
 }
-
-
-

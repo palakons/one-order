@@ -8,7 +8,7 @@ import {
   Suggestion,
   SystemStatus,
   QuotaMetrics,
-  FallbackStorageState,
+  StorageMetrics,
 } from "@/lib/types";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
@@ -109,14 +109,14 @@ export default function AdminClient({
   // Collapsible toggle for LINE Notification Pane (Default: Collapsed)
   const [isLinePaneOpen, setIsLinePaneOpen] = useState(false);
 
-  // System, Firebase & Fallback Storage State
+  // System, Firebase & Cloud Storage State
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(
     initialSystemStatus || {
       firebaseConfigured: isFirebaseConfigured,
       severity: "normal",
       quotaExhausted: false,
-      fallbackMode: !isFirebaseConfigured,
-      activeStorageEngine: isFirebaseConfigured ? "firestore" : "fallback_local",
+      fallbackMode: false,
+      activeStorageEngine: "firestore",
       lastError: undefined,
       resetTimeInfo: "ทุกวันเวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)",
       metrics: {
@@ -133,26 +133,26 @@ export default function AdminClient({
         nextResetIso: "",
         timeUntilReset: "",
       },
-      fallbackState: {
-        storageFile: "src/data/store.json",
-        isServerless: false,
-        fileExists: true,
-        fileSizeBytes: 0,
-        fileSizeFormatted: "0 B",
-        inMemoryLoaded: true,
-        counts: {
-          shops: initialShops.length,
-          batches: initialBatches.length,
-          openBatches: initialBatches.filter((b) => b.status === "OPEN" && !b.isDeleted).length,
-          orders: initialBatches.reduce((acc, b) => acc + (b.orders?.length || 0), 0),
-          suggestions: 0,
-          locations: initialLocations?.length || CAMPUS_LOCATIONS.length,
-        },
+      storageMetrics: {
+        totalBatches: initialBatches.length,
+        totalOrders: initialBatches.reduce((acc, b) => acc + (b.orders?.length || 0), 0),
+        totalShops: initialShops.length,
+        totalSuggestions: 0,
+        slipsCount: initialBatches.reduce(
+          (acc, b) => acc + (b.orders?.filter((o) => o.slipImageUrl && o.slipImageUrl.length > 50).length || 0),
+          0
+        ),
+        deliveryPhotosCount: initialBatches.filter((b) => b.deliveryPhotoUrl && b.deliveryPhotoUrl.length > 50).length,
+        estimatedImageStorageBytes: 0,
+        estimatedImageStorageFormatted: "0 B",
+        retentionPolicyDays: 30,
+        firestoreFreeLimitBytes: 1024 * 1024 * 1024,
+        storageUsagePercentage: 0,
       },
     }
   );
   const [refreshingStatus, setRefreshingStatus] = useState(false);
-  const [syncingFallback, setSyncingFallback] = useState(false);
+  const [cleaningStorage, setCleaningStorage] = useState(false);
 
   // Shop Add/Edit Modal State
   const [showShopModal, setShowShopModal] = useState(false);
@@ -264,36 +264,59 @@ export default function AdminClient({
     }
   };
 
-  const handleSyncToFallback = async () => {
+  const handleCleanupStorage = async () => {
+    if (
+      !confirm(
+        "ยืนยันการล้างสลิปโอนเงินและรูปถ่ายจัดส่งที่เก่าเกิน 1 เดือน (30 วัน) หรือไม่?\n\n• ข้อมูลออเดอร์และยอดเงินจะยังคงอยู่ครบถ้วน\n• เฉพาะภาพถ่ายและรูปสลิปเก่าจะถูกเคลียร์เพื่อประหยัดพื้นที่จัดเก็บ"
+      )
+    ) {
+      return;
+    }
+
     try {
-      setSyncingFallback(true);
+      setCleaningStorage(true);
       const res = await fetch("/api/system/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync_to_fallback" }),
+        body: JSON.stringify({ action: "cleanup_storage", retentionDays: 30 }),
       });
       const data = await res.json();
       if (data.success) {
         if (data.status) setSystemStatus(data.status);
         alert(
-          `✅ ซิงค์สำเร็จ! อัปเดตข้อมูลจาก Firestore ลง Fallback Cache เรียบร้อยแล้ว\n` +
-          `• ร้านค้า: ${data.result?.counts?.shops ?? 0} ร้าน\n` +
-          `• รอบสั่งอาหาร: ${data.result?.counts?.batches ?? 0} รอบ\n` +
-          `• รายการคำสั่งซื้อ: ${data.result?.counts?.orders ?? 0} รายการ\n` +
-          `• จุดรับส่งอาหาร: ${data.result?.counts?.locations ?? 0} จุด`
+          `✅ ล้างข้อมูลและไฟล์ภาพเก่าสำเร็จ!\n` +
+          `• สลิปที่ลบออก: ${data.result?.slipsPurged ?? 0} รายการ\n` +
+          `• ภาพถ่ายจัดส่งที่ลบออก: ${data.result?.photosPurged ?? 0} รายการ\n` +
+          `• รอบสั่งอาหารที่อาร์ไคฟ์: ${data.result?.batchesArchived ?? 0} รอบ\n` +
+          `• คืนพื้นที่จัดเก็บประมาณ: ~${((data.result?.estimatedBytesFreed ?? 0) / 1024).toFixed(1)} KB`
         );
       } else {
-        alert("⚠️ ซิงค์ไม่สำเร็จ: " + (data.message || data.error || "Unknown error"));
+        alert("⚠️ การล้างไฟล์ไม่สำเร็จ: " + (data.message || data.error || "Unknown error"));
       }
     } catch (e: any) {
-      alert("เกิดข้อผิดพลาดในการซิงค์: " + (e.message || "Unknown error"));
+      alert("เกิดข้อผิดพลาดในการล้างไฟล์: " + (e.message || "Unknown error"));
     } finally {
-      setSyncingFallback(false);
+      setCleaningStorage(false);
     }
   };
 
-  const handleExportFallback = () => {
-    window.open("/api/system/status?export=true", "_blank");
+  const handleRefreshStorage = async () => {
+    try {
+      setRefreshingStatus(true);
+      const res = await fetch("/api/system/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refresh_storage" }),
+      });
+      const data = await res.json();
+      if (data.success && data.status) {
+        setSystemStatus(data.status);
+      }
+    } catch (e: any) {
+      alert("เกิดข้อผิดพลาดในการตรวจสอบพื้นที่: " + (e.message || "Unknown error"));
+    } finally {
+      setRefreshingStatus(false);
+    }
   };
 
   const fetchSuggestions = async () => {
@@ -902,14 +925,10 @@ export default function AdminClient({
                     {systemStatus.severity === "interrupted" ? "Quota Limited" : "Cloud Healthy"}
                   </span>
                   <span
-                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold border flex items-center gap-1 ${
-                      systemStatus.activeStorageEngine === "firestore"
-                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                        : "bg-amber-50 text-amber-900 border-amber-200"
-                    }`}
+                    className="rounded-md px-1.5 py-0.5 text-[10px] font-bold border flex items-center gap-1 bg-emerald-50 text-emerald-900 border-emerald-200"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {systemStatus.activeStorageEngine === "firestore" ? "Firestore" : "Fallback Storage"}
+                    Firestore Active
                   </span>
                   <span className="text-xs font-black text-slate-900 ml-1">
                     Firebase &amp; Datastore Architecture
@@ -921,7 +940,7 @@ export default function AdminClient({
                   <span>Writes: <strong>{systemStatus.metrics?.writesToday ?? 0}</strong>/20k</span>
                   <span>•</span>
                   <span>
-                    Fallback: {systemStatus.fallbackState?.counts?.shops ?? 0} ร้าน / {systemStatus.fallbackState?.counts?.batches ?? 0} รอบ ({systemStatus.fallbackState?.fileSizeFormatted ?? "0 B"})
+                    ภาพจัดเก็บ: <strong>{systemStatus.storageMetrics?.estimatedImageStorageFormatted ?? "0 B"}</strong> ({systemStatus.storageMetrics?.slipsCount ?? 0} สลิป)
                   </span>
                   {lineStatus?.quota && (
                     <>
@@ -986,16 +1005,10 @@ export default function AdminClient({
                       : "Cloud Firestore Healthy"}
                   </span>
                   <span
-                    className={`rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 ${
-                      systemStatus.activeStorageEngine === "firestore"
-                        ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                        : "bg-amber-100 text-amber-900 border-amber-300"
-                    }`}
+                    className="rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 bg-emerald-100 text-emerald-900 border-emerald-300"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {systemStatus.activeStorageEngine === "firestore"
-                      ? "Active Engine: Google Cloud Firestore (Primary)"
-                      : "Active Engine: High-Availability Fallback Storage"}
+                    Active Engine: Google Cloud Firestore + Cloud Storage
                   </span>
                   <span className="rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
                     Spark Free Tier
@@ -1167,7 +1180,7 @@ export default function AdminClient({
           )}
         </div>
 
-        {/* Fallback Storage Inspection & Backup Card */}
+        {/* Firebase Cloud Storage & 30-Day Auto Retention Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1177,14 +1190,14 @@ export default function AdminClient({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-black text-slate-900">
-                    สถานะ Fallback Storage &mdash; ระบบสำรองข้อมูลท้องถิ่น
+                    Cloud Storage &mdash; การจัดเก็บภาพ &amp; นโยบาย 30 วัน (1 เดือน)
                   </h3>
                   <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold">
-                    High-Availability Active
+                    Firestore + Cloud Storage
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  ทำงานคู่ขนานแบบ Zero Downtime: หาก Firestore โควตาเต็ม ระบบจะบันทึกและอ่านข้อมูลจากเครื่องนี้ทันที
+                  ควบคุมขนาดภาพถ่าย &lt; 80 KB อัตโนมัติ • ล้างสลิปและรูปเก่าเกิน 1 เดือนทุกวันเพื่อป้องกันพื้นที่เต็ม
                 </p>
               </div>
             </div>
@@ -1192,94 +1205,123 @@ export default function AdminClient({
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={handleSyncToFallback}
-                disabled={syncingFallback}
-                className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                title="ดึงข้อมูลล่าสุดจาก Firestore ลง Fallback Cache"
+                onClick={handleCleanupStorage}
+                disabled={cleaningStorage}
+                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                title="ล้างรูปสลิปและภาพจัดส่งที่เก่าเกิน 30 วันทันที"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncingFallback ? "animate-spin" : ""}`} />
-                <span>{syncingFallback ? "กำลังซิงค์..." : "🔁 ซิงค์จาก Firestore ลง Fallback"}</span>
+                <Trash2 className={`h-3.5 w-3.5 ${cleaningStorage ? "animate-spin" : ""}`} />
+                <span>{cleaningStorage ? "กำลังล้างไฟล์..." : "🧹 ล้างไฟล์เก่าเกิน 1 เดือนทันที"}</span>
               </button>
               <button
                 type="button"
-                onClick={handleExportFallback}
+                onClick={handleRefreshStorage}
+                disabled={refreshingStatus}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                title="ดาวน์โหลดไฟล์ JSON สำรอง"
+                title="ตรวจสอบขนาดพื้นที่จัดเก็บล่าสุด"
               >
-                <Download className="h-3.5 w-3.5 text-slate-500" />
-                <span>ดาวน์โหลด Backup (JSON)</span>
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshingStatus ? "animate-spin" : ""}`} />
+                <span>คำนวณพื้นที่จัดเก็บ</span>
               </button>
             </div>
           </div>
 
-          {/* Fallback File Info & Content Counters Grid */}
+          {/* Cloud Storage Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase">ที่ตั้งไฟล์สำรอง</span>
-              <span className="text-xs font-mono font-bold text-slate-800 break-all">
-                {systemStatus.fallbackState?.storageFile || "store.json"}
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">พื้นที่รูปภาพใช้งาน</span>
+              <span className="text-xs font-black text-slate-800">
+                {systemStatus.storageMetrics?.estimatedImageStorageFormatted || "0 B"}
+              </span>
+              <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 rounded-full"
+                  style={{ width: `${Math.max(1, Math.min(100, systemStatus.storageMetrics?.storageUsagePercentage || 0))}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-slate-500 block">
+                จาก 1,024 MB Free Tier ({systemStatus.storageMetrics?.storageUsagePercentage || 0}%)
               </span>
             </div>
+
             <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase">ขนาดไฟล์ในดิสก์</span>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">สลิปโอนเงิน PromptPay</span>
               <span className="text-xs font-black text-slate-800">
-                {systemStatus.fallbackState?.fileSizeFormatted || "0 B"}
+                {systemStatus.storageMetrics?.slipsCount || 0} สลิป
               </span>
               <span className="text-[10px] text-slate-500 block">
-                {systemStatus.fallbackState?.isServerless ? "Vercel /tmp Engine" : "Local Disk Storage"}
+                ย่อขนาด &lt; 80 KB อัตโนมัติ
               </span>
             </div>
+
             <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase">RAM Cache</span>
-              <span className="text-xs font-black text-emerald-700 flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                พร้อมใช้งานใน RAM
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">ภาพถ่ายการจัดส่ง</span>
+              <span className="text-xs font-black text-emerald-700">
+                {systemStatus.storageMetrics?.deliveryPhotosCount || 0} ภาพ
               </span>
-              <span className="text-[10px] text-slate-500 block font-mono">__VEATEC_MEMORY_DB__</span>
+              <span className="text-[10px] text-slate-500 block">
+                ภาพจุดวางส่งถึงโต๊ะ
+              </span>
             </div>
+
             <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase">อัปเดตไฟล์ล่าสุด</span>
-              <span className="text-xs font-semibold text-slate-700">
-                {systemStatus.fallbackState?.lastModifiedIso
-                  ? new Date(systemStatus.fallbackState.lastModifiedIso).toLocaleTimeString("th-TH")
-                  : "เริ่มต้นระบบ"}
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">นโยบายจัดเก็บ (Retention)</span>
+              <span className="text-xs font-black text-purple-900">
+                {systemStatus.storageMetrics?.retentionPolicyDays || 30} วัน (1 เดือน)
               </span>
-              <span className="text-[10px] text-slate-400 block">
-                {systemStatus.fallbackState?.lastModifiedIso
-                  ? new Date(systemStatus.fallbackState.lastModifiedIso).toLocaleDateString("th-TH")
-                  : ""}
+              <span className="text-[10px] text-slate-500 block">
+                ล้างสลิป/รูปเก่าอัตโนมัติทุกวัน
               </span>
             </div>
           </div>
 
-          {/* Fallback Inventory Counters */}
+          {/* Retention Log / Last Run Banner */}
+          {systemStatus.storageMetrics?.lastCleanupIso ? (
+            <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-2.5 text-xs text-emerald-900 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>การล้างไฟล์ล่าสุด:</strong> {systemStatus.storageMetrics.lastCleanupSummary}
+                </span>
+              </div>
+              <span className="text-[11px] text-emerald-700 font-mono shrink-0">
+                {new Date(systemStatus.storageMetrics.lastCleanupIso).toLocaleString("th-TH")}
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-slate-50/70 border border-slate-200/60 p-2.5 text-xs text-slate-600 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-400 shrink-0" />
+              <span>
+                <strong>การตรวจเช็คอัตโนมัติ:</strong> ระบบจะตรวจสอบอายุไฟล์ภาพทุกวันเมื่อมีการเปิดหน้าเว็บ หากพบรูปสลิปหรือภาพจัดส่งเก่าเกิน 30 วัน จะลบออกอัตโนมัติ
+              </span>
+            </div>
+          )}
+
+          {/* Firestore Collections Inventory */}
           <div className="rounded-xl bg-slate-50/70 border border-slate-200/60 p-3">
             <span className="text-[11px] font-bold text-slate-500 block mb-2">
-              ปริมาณข้อมูลที่จัดเก็บใน Fallback Storage ขณะนี้:
+              จำนวนข้อมูลทั้งหมดใน Google Cloud Firestore:
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
                 <Store className="h-3.5 w-3.5 text-purple-600" />
-                ร้านค้า: <strong className="text-purple-900">{systemStatus.fallbackState?.counts?.shops || 0}</strong> ร้าน
+                ร้านค้า: <strong className="text-purple-900">{systemStatus.storageMetrics?.totalShops || initialShops.length}</strong> ร้าน
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
                 <Layers className="h-3.5 w-3.5 text-indigo-600" />
-                รอบสั่งอาหาร: <strong className="text-indigo-900">{systemStatus.fallbackState?.counts?.batches || 0}</strong> รอบ
-                {systemStatus.fallbackState?.counts?.openBatches !== undefined && (
-                  <span className="text-emerald-600 text-[10px]">({systemStatus.fallbackState.counts.openBatches} เปิดรับ)</span>
-                )}
+                รอบสั่งอาหาร: <strong className="text-indigo-900">{systemStatus.storageMetrics?.totalBatches || initialBatches.length}</strong> รอบ
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                ออเดอร์: <strong className="text-emerald-900">{systemStatus.fallbackState?.counts?.orders || 0}</strong> รายการ
+                ออเดอร์สะสม: <strong className="text-emerald-900">{systemStatus.storageMetrics?.totalOrders || 0}</strong> รายการ
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
                 <MapPin className="h-3.5 w-3.5 text-amber-600" />
-                จุดส่งอาหาร: <strong className="text-amber-900">{systemStatus.fallbackState?.counts?.locations || 0}</strong> จุด
+                จุดส่งอาหาร: <strong className="text-amber-900">{CAMPUS_LOCATIONS.length}</strong> จุด
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
                 <MessageSquareHeart className="h-3.5 w-3.5 text-pink-600" />
-                ข้อเสนอแนะ: <strong className="text-pink-900">{systemStatus.fallbackState?.counts?.suggestions || 0}</strong> เรื่อง
+                ข้อเสนอแนะ: <strong className="text-pink-900">{systemStatus.storageMetrics?.totalSuggestions || 0}</strong> เรื่อง
               </span>
             </div>
           </div>

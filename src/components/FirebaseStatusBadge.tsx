@@ -34,21 +34,18 @@ export default function FirebaseStatusBadge() {
       nextResetIso: "",
       timeUntilReset: "",
     },
-    fallbackState: {
-      storageFile: "src/data/store.json",
-      isServerless: false,
-      fileExists: true,
-      fileSizeBytes: 0,
-      fileSizeFormatted: "0 B",
-      inMemoryLoaded: true,
-      counts: {
-        shops: 5,
-        batches: 0,
-        openBatches: 0,
-        orders: 0,
-        suggestions: 0,
-        locations: 1,
-      },
+    storageMetrics: {
+      totalBatches: 0,
+      totalOrders: 0,
+      totalShops: 5,
+      totalSuggestions: 0,
+      slipsCount: 0,
+      deliveryPhotosCount: 0,
+      estimatedImageStorageBytes: 0,
+      estimatedImageStorageFormatted: "0 B",
+      retentionPolicyDays: 30,
+      firestoreFreeLimitBytes: 1024 * 1024 * 1024,
+      storageUsagePercentage: 0,
     },
   });
 

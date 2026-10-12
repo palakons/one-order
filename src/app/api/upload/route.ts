@@ -17,8 +17,8 @@ export async function POST(request: Request) {
     // .rotate() automatically handles EXIF orientation from mobile phone cameras
     const compressedBuffer = await sharp(buffer)
       .rotate()
-      .resize(900, 900, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 70, mozjpeg: true })
+      .resize(800, 800, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 65, mozjpeg: true })
       .toBuffer();
 
     const dataUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;

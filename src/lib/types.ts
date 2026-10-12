@@ -125,22 +125,20 @@ export interface QuotaMetrics {
   lastErrorMessage?: string;
 }
 
-export interface FallbackStorageState {
-  storageFile: string;
-  isServerless: boolean;
-  fileExists: boolean;
-  fileSizeBytes: number;
-  fileSizeFormatted: string;
-  inMemoryLoaded: boolean;
-  counts: {
-    shops: number;
-    batches: number;
-    openBatches: number;
-    orders: number;
-    suggestions: number;
-    locations: number;
-  };
-  lastModifiedIso?: string;
+export interface StorageMetrics {
+  totalBatches: number;
+  totalOrders: number;
+  totalShops: number;
+  totalSuggestions: number;
+  slipsCount: number;
+  deliveryPhotosCount: number;
+  estimatedImageStorageBytes: number;
+  estimatedImageStorageFormatted: string;
+  retentionPolicyDays: number;
+  lastCleanupIso?: string;
+  lastCleanupSummary?: string;
+  firestoreFreeLimitBytes: number;
+  storageUsagePercentage: number;
 }
 
 export interface SystemStatus {
@@ -148,10 +146,10 @@ export interface SystemStatus {
   severity: FirebaseSeverity;
   quotaExhausted: boolean;
   fallbackMode: boolean;
-  activeStorageEngine: "firestore" | "fallback_local";
+  activeStorageEngine: "firestore";
   lastError?: string;
   resetTimeInfo: string;
   metrics: QuotaMetrics;
-  fallbackState: FallbackStorageState;
+  storageMetrics: StorageMetrics;
 }
 
