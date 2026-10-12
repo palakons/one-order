@@ -966,56 +966,68 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 return (
                   <div
                     key={ord.id}
-                    className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/60 rounded-xl px-2 transition-colors"
+                    className="py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 hover:bg-purple-50/30 rounded-xl px-2 sm:px-3 transition-colors"
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-white font-mono font-bold text-xs shrink-0 mt-0.5">
-                        #{ord.orderNumber}
-                      </span>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-sm text-gray-900">{lineName}</span>
+                    <div className="flex-1 min-w-0">
+                      {/* Nested smaller metadata row: #1 • @orderer • phone • slip badge */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 mb-1">
+                        <span className="inline-flex items-center justify-center font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-900 shrink-0">
+                          #{ord.orderNumber}
+                        </span>
+                        <span className="font-semibold text-gray-600 truncate max-w-[150px] sm:max-w-[220px]">
+                          {lineName}
+                        </span>
 
-                          {/* Leader can see customer phone with click to call */}
-                          {ord.customerPhone && (
-                            <a
-                              href={`tel:${ord.customerPhone}`}
-                              className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-xs font-mono font-bold hover:bg-purple-100 transition-colors"
-                              title="แตะเพื่อโทรหาลูกตี้"
-                            >
-                              <Phone className="h-3 w-3 text-purple-700" />
-                              <span>{ord.customerPhone}</span>
-                            </a>
-                          )}
+                        {/* Leader can see customer phone with click to call */}
+                        {ord.customerPhone && (
+                          <a
+                            href={`tel:${ord.customerPhone}`}
+                            className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-900 border border-purple-200/80 px-1.5 py-0.2 text-[10px] font-mono font-bold hover:bg-purple-100 transition-colors"
+                            title="แตะเพื่อโทรหาลูกตี้"
+                          >
+                            <Phone className="h-2.5 w-2.5 text-purple-700" />
+                            <span>{ord.customerPhone}</span>
+                          </a>
+                        )}
 
-                          {hasSlip ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                              <CheckCircle2 className="h-3 w-3" />
-                              <span>โอนแล้ว {ord.slipBankName ? `(${ord.slipBankName})` : "✓"}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                              <span>⏳ รอสลิป</span>
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-gray-300">•</span>
+                        {hasSlip ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 text-[10px] font-bold">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 px-2 py-0.5 text-[10px] font-bold">
+                            <span>⏳ รอสลิป</span>
+                          </span>
+                        )}
+                      </div>
 
-                        {/* Dish Details */}
-                        <div className="text-xs text-gray-700 mt-1 font-medium">
-                          {ord.items.map((it, idx) => (
-                            <span key={idx}>
-                              {it.quantity > 1 ? `${it.quantity}x ` : ""}
-                              <strong>{it.name}</strong>
-                              {it.customNote && <span className="text-amber-800 italic"> ({it.customNote})</span>}
+                      {/* PROMINENT Food Item(s) */}
+                      <div className="space-y-1">
+                        {ord.items.map((it, idx) => (
+                          <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                            <span className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+                              {it.quantity > 1 && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black bg-purple-100 text-purple-900 mr-1.5 align-middle">
+                                  {it.quantity}x
+                                </span>
+                              )}
+                              {it.name}
                             </span>
-                          ))}
-                        </div>
+                            {it.customNote && (
+                              <span className="text-xs font-medium text-amber-900 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5">
+                                {it.customNote}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
 
                     {/* Price, Slip View & Cancel Actions */}
-                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                      <span className="font-mono font-black text-sm sm:text-base text-orange-600">
+                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-1 sm:pt-0">
+                      <span className="font-mono font-black text-base sm:text-lg text-orange-600">
                         ฿{ord.totalAmount}
                       </span>
 

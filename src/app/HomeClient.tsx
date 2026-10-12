@@ -1610,94 +1610,192 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   <p className="text-xs text-slate-400">{t.beFirstOnBoard}</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3 w-12 font-mono">{t.thNumber}</th>
-                        <th className="py-2.5 px-3 w-36">{t.thCustomer}</th>
-                        <th className="py-2.5 px-3">{t.thDish}</th>
-                        <th className="py-2.5 px-3 w-20 text-right">{t.thPrice}</th>
-                        <th className="py-2.5 px-3 w-28 text-center">{t.thSlip}</th>
-                        <th className="py-2.5 px-3 w-12 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {activeOrders.map((ord) => {
-                        const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
-                        const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
+                <>
+                  {/* Mobile View: Clean card list with prominent food item */}
+                  <div className="divide-y divide-slate-100 sm:hidden">
+                    {activeOrders.map((ord) => {
+                      const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
+                      const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
+                      return (
+                        <div key={ord.id} className="p-3.5 hover:bg-slate-50/80 transition-colors">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              {/* Nested smaller metadata row */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mb-1">
+                                <span className="inline-flex items-center justify-center font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-900 shrink-0">
+                                  #{ord.orderNumber}
+                                </span>
+                                <span className="font-semibold text-slate-700 truncate max-w-[150px]">
+                                  {lineName}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                {hasSlip ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 text-[10px] font-bold">
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                    <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 px-2 py-0.5 text-[10px] font-bold">
+                                    <span>⏳ รอสลิป</span>
+                                  </span>
+                                )}
+                              </div>
 
-                        return (
-                          <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
-                              #{ord.orderNumber}
-                            </td>
-                            <td className="py-3 px-3 text-slate-900">
-                              <span className="font-bold text-xs block">{lineName}</span>
-                            </td>
-                            <td className="py-3 px-3 text-slate-800 font-medium">
+                              {/* PROMINENT Food Items */}
                               <div className="space-y-1">
                                 {ord.items.map((it, idx) => (
-                                  <div key={idx} className="flex items-baseline gap-1.5 flex-wrap">
-                                    <span className="font-bold text-slate-900">
-                                      {it.quantity > 1 ? `${it.quantity}x ` : ""}{it.name}
+                                  <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                                    <span className="text-base font-bold text-slate-950">
+                                      {it.quantity > 1 && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
+                                          {it.quantity}x
+                                        </span>
+                                      )}
+                                      {it.name}
                                     </span>
-                                    {it.price && it.quantity > 1 ? (
-                                      <span className="text-[10px] text-slate-500 font-mono">
-                                        (฿{it.price} × {it.quantity} = ฿{it.price * it.quantity})
-                                      </span>
-                                    ) : null}
                                     {it.customNote && (
-                                      <span className="text-[11px] text-amber-800 italic">
-                                        ({it.customNote})
+                                      <span className="text-xs font-medium text-amber-900 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5">
+                                        {it.customNote}
                                       </span>
                                     )}
                                   </div>
                                 ))}
                               </div>
-                            </td>
-                            <td className="py-3 px-3 font-mono font-black text-orange-600 text-right">
-                              ฿{ord.totalAmount}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              {hasSlip ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedSlip({
-                                      url: ord.slipImageUrl,
-                                      title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
-                                    })
-                                  }
-                                  className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                  <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : t.viewSlip}</span>
-                                </button>
-                              ) : (
-                                <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
-                                  {t.waitingSlip}
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              {isHost && activeBatch.status === "OPEN" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
-                                  className="text-slate-300 hover:text-rose-600 p-1 rounded transition-colors"
-                                  title={t.cancelOrderTitle}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="font-mono font-black text-base text-orange-600 block">
+                                ฿{ord.totalAmount}
+                              </span>
+                              <div className="flex items-center gap-2 mt-1.5 justify-end">
+                                {hasSlip && ord.slipImageUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedSlip({
+                                        url: ord.slipImageUrl,
+                                        title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                    <span>{t.viewSlip}</span>
+                                  </button>
+                                )}
+                                {isHost && activeBatch.status === "OPEN" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                                    className="text-slate-300 hover:text-rose-600 p-1"
+                                    title={t.cancelOrderTitle}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop View: Spacious table with prominent food item */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
+                        <tr>
+                          <th className="py-2.5 px-3 w-36">{t.thCustomer} / #</th>
+                          <th className="py-2.5 px-3">{t.thDish}</th>
+                          <th className="py-2.5 px-3 w-20 text-right">{t.thPrice}</th>
+                          <th className="py-2.5 px-3 w-24 text-center">{t.thSlip}</th>
+                          <th className="py-2.5 px-3 w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {activeOrders.map((ord) => {
+                          const lineName = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
+                          const hasSlip = Boolean(ord.slipImageUrl || ord.isSlipVerified);
+
+                          return (
+                            <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-3 text-slate-900 align-top">
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-bold text-xs text-slate-800 truncate max-w-[130px] block">{lineName}</span>
+                                  <span className="font-mono font-bold text-[11px] text-purple-900 bg-purple-100 px-1.5 py-0.5 rounded w-fit">
+                                    #{ord.orderNumber}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-slate-800 align-top">
+                                <div className="space-y-1">
+                                  {ord.items.map((it, idx) => (
+                                    <div key={idx} className="flex items-baseline gap-1.5 flex-wrap">
+                                      <span className="font-bold text-sm sm:text-base text-slate-950">
+                                        {it.quantity > 1 ? (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
+                                            {it.quantity}x
+                                          </span>
+                                        ) : ""}{it.name}
+                                      </span>
+                                      {it.price && it.quantity > 1 ? (
+                                        <span className="text-[10px] text-slate-500 font-mono">
+                                          (฿{it.price} × {it.quantity} = ฿{it.price * it.quantity})
+                                        </span>
+                                      ) : null}
+                                      {it.customNote && (
+                                        <span className="text-xs text-amber-900 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5">
+                                          {it.customNote}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 font-mono font-black text-sm sm:text-base text-orange-600 text-right align-top">
+                                ฿{ord.totalAmount}
+                              </td>
+                              <td className="py-3 px-3 text-center align-top">
+                                {hasSlip ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedSlip({
+                                        url: ord.slipImageUrl,
+                                        title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                    <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : t.viewSlip}</span>
+                                  </button>
+                                ) : (
+                                  <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                                    {t.waitingSlip}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-center align-top">
+                                {isHost && activeBatch.status === "OPEN" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                                    className="text-slate-300 hover:text-rose-600 p-1 rounded transition-colors"
+                                    title={t.cancelOrderTitle}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
