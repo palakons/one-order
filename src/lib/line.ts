@@ -533,12 +533,12 @@ export function formatBatchOrderSummaryText(batch: BatchWithDetails, appUrl: str
     txt += `(ยังไม่มีรายการสั่งอาหารในกระดานนี้)\n`;
   } else {
     orders.forEach((o) => {
-      const lineTag = o.customerLineId ? `@${o.customerLineId}` : o.customerName;
+      const lineTag = o.customerLineId ? `@${o.customerLineId.replace(/^@/, "")}` : o.customerName;
       const phoneTag = o.customerPhone ? ` (${o.customerPhone})` : "";
       const itemsStr = o.items
         .map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` [${it.customNote}]` : ""}`)
         .join(", ");
-      txt += `#${o.orderNumber} ${lineTag}${phoneTag} — ${itemsStr} (฿${o.totalAmount})\n`;
+      txt += `#${o.orderNumber} ${itemsStr} (฿${o.totalAmount}) — ${lineTag}${phoneTag}\n`;
     });
   }
 

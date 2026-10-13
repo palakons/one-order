@@ -309,10 +309,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
-      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId}` : o.customerName;
+      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId.replace(/^@/, "")}` : o.customerName;
       const phoneTag = o.customerPhone ? ` • โทร: ${o.customerPhone}` : "";
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
-      txt += `#${o.orderNumber} ${lineTag}${phoneTag} — ${itemsStr} (฿${o.totalAmount})\n`;
+      txt += `#${o.orderNumber} ${itemsStr} (฿${o.totalAmount}) — ${lineTag}${phoneTag}\n`;
     });
     txt += `------------------------------------\n`;
     txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
@@ -487,16 +487,26 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
   };
 
-  // Share Manifest to LINE
+  // Share Manifest to LINE (Sends both long image + text where supported)
   const handleShareToLine = async () => {
     if (!manifestData || !batch) return;
     const shareText = getCompiledOrderText();
 
+    // 1. Always copy text to clipboard as safety net so user can paste if needed
+    try {
+      await navigator.clipboard.writeText(shareText);
+    } catch (e) {}
+
+    const safeFileName = `order-manifest-${batch.id.slice(0, 8)}.jpg`;
+
+    // 2. Try Native Web Share API with safe ASCII filename
     if (navigator.share && navigator.canShare) {
-      const imageFile = new File([manifestData.blob], `veatec-order-${batch.shop.name}-${batch.date}.jpg`, {
+      const imageFile = new File([manifestData.blob], safeFileName, {
         type: "image/jpeg",
       });
-      if (navigator.canShare({ files: [imageFile] })) {
+
+      // Try sharing both file + text together
+      if (navigator.canShare({ files: [imageFile], text: shareText })) {
         try {
           await navigator.share({
             title: `ออเดอร์ร้าน ${batch.shop.name}`,
@@ -505,24 +515,31 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           });
           return;
         } catch (err: any) {
-          if (err.name !== "AbortError") {
-            console.warn("Native share failed, falling back to download & LINE scheme", err);
-          } else {
-            return;
-          }
+          if (err.name === "AbortError") return; // User cancelled share sheet
+          console.warn("Share both failed, falling back to files only", err);
+        }
+      }
+
+      // If browser can share file only
+      if (navigator.canShare({ files: [imageFile] })) {
+        try {
+          await navigator.share({
+            title: `ออเดอร์ร้าน ${batch.shop.name}`,
+            files: [imageFile],
+          });
+          return;
+        } catch (err: any) {
+          if (err.name === "AbortError") return;
+          console.warn("Native file share failed, falling back to download & LINE scheme", err);
         }
       }
     }
 
-    // Fallback: download image and copy text
+    // 3. Fallback: Download image and open LINE app with text
     const link = document.createElement("a");
     link.href = manifestData.dataUrl;
-    link.download = `veatec-order-${batch.shop.name}-${batch.date}.jpg`;
+    link.download = safeFileName;
     link.click();
-
-    try {
-      await navigator.clipboard.writeText(shareText);
-    } catch (e) {}
 
     alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
