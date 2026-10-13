@@ -1,8 +1,56 @@
 /**
+ * Add or subtract minutes from HH:mm time string
+ */
+export function addMinutesToTimeString(timeStr: string, minutesToAdd: number): string {
+  if (!timeStr || !timeStr.includes(":")) return "11:30";
+  const [hStr, mStr] = timeStr.split(":");
+  let h = parseInt(hStr || "11", 10);
+  let m = parseInt(mStr || "30", 10);
+  if (isNaN(h)) h = 11;
+  if (isNaN(m)) m = 30;
+  const totalM = (h * 60 + m + minutesToAdd + 1440) % 1440;
+  const newH = String(Math.floor(totalM / 60)).padStart(2, "0");
+  const newM = String(totalM % 60).padStart(2, "0");
+  return `${newH}:${newM}`;
+}
+
+/**
+ * Clean and shorten shop name for compact tab headers (e.g. "ครัวป้าต่าย ป่ายุบใน" -> "ป้าต่าย")
+ */
+export function getShortShopName(fullName?: string): string {
+  if (!fullName) return "ร้าน";
+  const cleaned = fullName
+    .replace(/^(ครัว|ร้านอาหาร|ร้าน|ก๋วยเตี๋ยว|ข้าวมันไก่|ข้าวแกง)\s*/, "")
+    .trim();
+  return cleaned.split(" ")[0] || fullName.split(" ")[0] || fullName;
+}
+
+/**
+ * Format tab header for multiple opening boards: e.g. "ป้าต่าย - M4 - 11:15 (+1)"
+ */
+export function formatTabHeader(
+  shopName: string,
+  buildingName?: string,
+  cutoffTime?: string,
+  batchDate?: string,
+  lang: "th" | "en" | "cn" = "th"
+): string {
+  const shortShop = getShortShopName(shopName);
+  const bldgCode = (buildingName || "M4")
+    .replace(/^(Bldg\s*|ตึก\s*)/i, "")
+    .replace(/\s*栋/i, "")
+    .trim() || "M4";
+  const time = cutoffTime || "11:15";
+  const today = getBangkokDate();
+  const diffDays = batchDate ? -getDaysDifference(batchDate, today) : 0;
+  const futureTag = diffDays > 0 ? ` (+${diffDays})` : "";
+  return `${shortShop} - ${bldgCode} - ${time}${futureTag}`;
+}
+
+/**
  * Formats cutoff display string:
- * - If cutoff date is today: just mention the time, e.g. "11:15 น." (or "11:15")
- * - If cutoff date is not today: add "in xx days", e.g. "11:15 น. (in 2 days)"
- * - If includeLabel = true: prefix with "สั่งอาหารได้ถึง..." / "Order until..."
+ * - Option 1: "เวลาสั่งอาหาร 10.00น (ปิดรับออเดอร์ล่วงหน้า 15 นาที)"
+ * - If cutoff date is not today: add (+xx) or (in xx days)
  */
 export function formatCutoffDisplay(
   cutoffTime: string,
@@ -11,32 +59,26 @@ export function formatCutoffDisplay(
   includeLabel = false
 ): string {
   const today = getBangkokDate();
-  const timeStr = lang === "th" ? `${cutoffTime} น.` : cutoffTime;
+  const orderTime = addMinutesToTimeString(cutoffTime, 15);
+  const diffDays = batchDate ? -getDaysDifference(batchDate, today) : 0;
+  const futureTag = diffDays > 0 ? ` (+${diffDays})` : "";
 
-  let labelPrefix = "";
   if (includeLabel) {
-    if (lang === "en") labelPrefix = "Order until ";
-    else if (lang === "cn") labelPrefix = "点餐截止至 ";
-    else labelPrefix = "สั่งอาหารได้ถึง ";
+    if (lang === "en") {
+      const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
+      return `Order time ${orderTime}${daySuffix} (Orders close 15m in advance)`;
+    }
+    if (lang === "cn") {
+      const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
+      return `点餐时间 ${orderTime}${daySuffix} (提前15分钟截止)`;
+    }
+    // Thai (Option 1): "เวลาสั่งอาหาร {orderTime} น. (ปิดรับออเดอร์ล่วงหน้า 15 นาที)"
+    const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
+    return `เวลาสั่งอาหาร ${orderTime} น.${daySuffix} (ปิดรับออเดอร์ล่วงหน้า 15 นาที)`;
   }
 
-  // If no date or date is today: just mention the time!
-  if (!batchDate || batchDate === today) {
-    return `${labelPrefix}${timeStr}`;
-  }
-
-  // Calculate day difference (positive = future date)
-  const diffDays = -getDaysDifference(batchDate, today);
-
-  if (diffDays <= 0) {
-    // Today or past date
-    return `${labelPrefix}${timeStr}`;
-  }
-
-  // Future date: add "in xx days"
-  const daysSuffix = ` (in ${diffDays} ${diffDays === 1 ? "day" : "days"})`;
-
-  return `${labelPrefix}${timeStr}${daysSuffix}`;
+  // Without label: return short order time with future tag
+  return lang === "th" ? `${orderTime} น.${futureTag}` : `${orderTime}${futureTag}`;
 }
 
 export function getTimeRemaining(

@@ -4,7 +4,7 @@
 import { getActiveLineGroupIds, getBatches, updateBatch, getBatchById } from "./store";
 import { BatchWithDetails } from "./types";
 import { getDropOffMapUrl } from "./locations";
-import { getTimeRemaining, formatCutoffDisplay } from "./utils";
+import { getTimeRemaining, formatCutoffDisplay, addMinutesToTimeString } from "./utils";
 async function resolveTargetIds(customTargetId?: string): Promise<string[]> {
   if (customTargetId) return [customTargetId];
 
@@ -147,16 +147,17 @@ export async function sendNewBoardAnnouncement(
   appUrl: string
 ): Promise<boolean> {
   const shopName = batch.shop.name;
-  const cutoffDisplay = formatCutoffDisplay(batch.cutoffTime, batch.date, "th");
+  const orderTime = addMinutesToTimeString(batch.cutoffTime, 15);
+  const cutoffDisplay = formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true);
   const locName = batch.isSelfPickup ? "รับเองที่หน้าร้าน" : `${batch.buildingName || "ตึก M4"} ชั้น 1`;
   const orderUrl = `${appUrl}/order/${batch.id}`;
 
-  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (สั่งอาหารได้ถึง ${cutoffDisplay}) 🍱✨`;
+  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (เวลาสั่งอาหาร ${orderTime} น. ปิดรับล่วงหน้า 15 นาที) 🍱✨`;
 
   const fallbackText =
     `📢 [VEATEC @ VISTEC] เปิดตี้ใหม่แล้วครับ! 🍱✨\n` +
     `ร้าน: ${shopName}\n` +
-    `⏰ สั่งอาหารได้ถึง: ${cutoffDisplay}\n` +
+    `⏰ เวลาสั่งอาหาร: ${orderTime} น. (ปิดรับออเดอร์ล่วงหน้า 15 นาที)\n` +
     `📍 จุดส่งอาหาร: ${locName}\n` +
     `💰 ขั้นต่ำร้าน: ฿${batch.targetMinAmount}\n\n` +
     `👉 เข้าร่วมสั่งอาหารร่วมตี้:\n${orderUrl}`;
@@ -200,8 +201,8 @@ export async function sendNewBoardAnnouncement(
               type: "box",
               layout: "horizontal",
               contents: [
-                { type: "text", text: "⏰ สั่งได้ถึง:", size: "xs", color: "#64748b", flex: 3 },
-                { type: "text", text: cutoffDisplay, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
+                { type: "text", text: "⏰ สั่งอาหาร:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: `${orderTime} น. (ปิดรับล่วงหน้า 15 น.)`, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
               ],
             },
             {

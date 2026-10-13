@@ -16,7 +16,7 @@ import {
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
-import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay } from "@/lib/utils";
+import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay, formatTabHeader, addMinutesToTimeString } from "@/lib/utils";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
 import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
 import confetti from "canvas-confetti";
@@ -123,7 +123,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return diff > 7;
   }, [todayStr]);
 
-  const openingBatches = useMemo(() => batches.filter(isOpeningBatch), [batches, isOpeningBatch]);
+  // Sort opening batches ascending by time (soonest cutoff first)
+  const openingBatches = useMemo(() => {
+    return batches
+      .filter(isOpeningBatch)
+      .sort((a, b) => {
+        const timeA = new Date(`${a.date}T${a.cutoffTime}:00+07:00`).getTime();
+        const timeB = new Date(`${b.date}T${b.cutoffTime}:00+07:00`).getTime();
+        if (timeA !== timeB) return timeA - timeB;
+        return a.createdAt.localeCompare(b.createdAt);
+      });
+  }, [batches, isOpeningBatch]);
   const closedTodayBatches = useMemo(() => batches.filter(isClosedTodayBatch), [batches, isClosedTodayBatch]);
   const archivedBatches = useMemo(() => batches.filter(isArchivedBatch), [batches, isArchivedBatch]);
   const deletedBatches = useMemo(() => batches.filter(isDeletedBatch), [batches, isDeletedBatch]);
@@ -146,16 +156,19 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   }, [activeGroup, openingBatches, closedTodayBatches, archivedBatches, deletedBatches]);
 
   const [activeBatchId, setActiveBatchId] = useState<string>(() => {
-    return (
-      initialBatches.find((b) => {
-        if (b.isDeleted) return false;
+    const valid = initialBatches
+      .filter((b) => {
+        if (b.isDeleted || b.status !== "OPEN") return false;
         const diff = getDaysDifference(b.date, getBangkokDate());
-        if (diff > 0 || b.status !== "OPEN") return false;
+        if (diff > 0) return false;
         return !getTimeRemaining(b.cutoffTime, b.date).isExpired;
-      })?.id ||
-      initialBatches[0]?.id ||
-      ""
-    );
+      })
+      .sort((a, b) => {
+        const timeA = new Date(`${a.date}T${a.cutoffTime}:00+07:00`).getTime();
+        const timeB = new Date(`${b.date}T${b.cutoffTime}:00+07:00`).getTime();
+        return timeA - timeB;
+      });
+    return valid[0]?.id || initialBatches[0]?.id || "";
   });
   const [showArchiveModal, setShowArchiveModal] = useState(false);
 
@@ -374,6 +387,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [openLeaderName, setOpenLeaderName] = useState("");
   const [openLeaderPhone, setOpenLeaderPhone] = useState("");
   const [openCutoffDate, setOpenCutoffDate] = useState<string>(() => getBangkokDate());
+  const [openOrderTime, setOpenOrderTime] = useState(() => addMinutesToTimeString(getDefaultCutoff(), 15));
   const [openCutoffTime, setOpenCutoffTime] = useState(getDefaultCutoff());
   const [openTargetMin, setOpenTargetMin] = useState("200");
   const [openNotes, setOpenNotes] = useState("");
@@ -518,7 +532,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     const cleanDigits = savedPhone.replace(/\D/g, "");
     setOpenHostPin(cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "");
     setOpenCutoffDate(getBangkokDate());
-    setOpenCutoffTime(getDefaultCutoff());
+    const defCutoff = getDefaultCutoff();
+    setOpenCutoffTime(defCutoff);
+    setOpenOrderTime(addMinutesToTimeString(defCutoff, 15));
     const bkkDay = getBangkokDayOfWeek();
     if (availableShops.length > 0) {
       const currentShop = availableShops.find((s) => s.id === openShopId);
@@ -552,7 +568,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     if (selectedDate === today) {
       const timeCheck = getTimeRemaining(openCutoffTime, selectedDate);
       if (timeCheck.isExpired) {
-        setOpenBoardError("เวลาตัดรอบที่เลือกได้ผ่านไปแล้ว กรุณาเลือกเวลาในอนาคต");
+        setOpenBoardError(`เวลาปิดรับออเดอร์ (${openCutoffTime} น.) ได้ผ่านไปแล้ว กรุณาเลือกเวลาสั่งอาหารล่วงหน้าอย่างน้อย 15 นาที`);
         return;
       }
     }
@@ -646,7 +662,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${b.id}` : "https://veatec.vercel.app";
     const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
       `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
-      `⏰ สั่งอาหารได้ถึง ${formatCutoffDisplay(b.cutoffTime, b.date, "th")} (${remainingText})\n\n` +
+      `⏰ ${formatCutoffDisplay(b.cutoffTime, b.date, "th", true)} (${remainingText})\n\n` +
       `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -1448,9 +1464,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
                       }`}
                     >
-                      <span>{idx + 1}. {localizedShop.name.split(" ")[0]}</span>
-                      <span className="rounded bg-slate-200/90 text-slate-700 px-1 py-0.2 text-[10px] font-mono font-medium">
-                        {bldgCode}
+                      <span className="font-bold tracking-tight">
+                        {formatTabHeader(localizedShop.name, b.buildingName, b.cutoffTime, b.date, lang)}
                       </span>
 
                       {/* Badge depending on group */}
@@ -3295,20 +3310,53 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     />
                   </div>
 
-                  {/* Time Input */}
+                  {/* Order Time Input (Send to Shop) */}
                   <div className="space-y-1">
-                    <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-purple-700" />
-                      <span>{t.cutoffTime}</span>
+                    <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-purple-700" />
+                        <span>{t.orderTimeLabel}</span>
+                      </span>
+                      <span className="text-[10px] text-purple-700 font-mono font-semibold">
+                        (ปิดรับ {openCutoffTime} น.)
+                      </span>
                     </div>
                     <input
                       type="time"
-                      value={openCutoffTime}
-                      onChange={(e) => setOpenCutoffTime(e.target.value)}
+                      value={openOrderTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setOpenOrderTime(val);
+                        setOpenCutoffTime(addMinutesToTimeString(val, -15));
+                      }}
                       required
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                     />
                   </div>
+                </div>
+
+                {/* Explanation Card for Leader */}
+                <div className="rounded-xl border border-purple-200/90 bg-white/95 p-2.5 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
+                    <div className="text-slate-800 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-purple-600 shrink-0 inline-block" />
+                      <span>{t.orderTimeSummary}:</span>
+                      <span className="font-mono font-bold text-purple-900 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                        {openOrderTime} น.
+                      </span>
+                    </div>
+                    <div className="text-rose-600 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0 inline-block" />
+                      <span>{t.cutoffTimeSummary}:</span>
+                      <span className="font-mono font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                        {openCutoffTime} น.
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-normal">{t.fixedBufferTag}</span>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-slate-500 leading-relaxed">
+                    💡 {t.cutoffNoticeFixed}
+                  </p>
                 </div>
 
                 {/* Quick Date Chips */}

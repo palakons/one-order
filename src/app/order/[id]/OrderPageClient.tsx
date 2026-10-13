@@ -554,7 +554,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     const shareUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : `https://veatec.vercel.app/order/${batch.id}`;
     const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
       `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
-      `⏰ สั่งอาหารได้ถึง ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")} (${remainingText})\n\n` +
+      `⏰ ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)} (${remainingText})\n\n` +
       `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
