@@ -605,7 +605,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-3 py-3 sm:px-6 sm:py-4 space-y-3 sm:space-y-3.5">
+      <main className="mx-auto max-w-4xl px-2.5 py-2 sm:px-6 sm:py-3 space-y-2 sm:space-y-2.5">
         {/* Top Navigation & Back */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
@@ -762,14 +762,14 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         </div>
 
         {/* 2. The Digital Whiteboard List */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+        <div className="rounded-2xl border border-gray-200 bg-white p-2.5 sm:p-3 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
             <div>
-              <h2 className="text-base font-black text-gray-900">
+              <h2 className="text-sm sm:text-base font-black text-gray-900">
                 📋 ออเดอร์ทั้งหมด
               </h2>
             </div>
-            <span className="text-xs font-black text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+            <span className="text-xs font-black text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
               รวม {activeOrders.length} กล่อง
             </span>
           </div>
@@ -891,63 +891,58 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
         {/* 4. The 1-Screen Order Input Form (Force Transfer) */}
         {!isBatchClosed ? (
-          <div id="order-form" className="rounded-2xl border-2 border-purple-400/80 bg-white p-3.5 sm:p-4.5 shadow-md space-y-3">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
-                <Plus className="h-3 w-3" />
-                <span>สั่งอาหาร</span>
+          <div id="order-form" className="rounded-2xl border border-purple-300 bg-white p-2.5 sm:p-3.5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+              <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm text-gray-900">
+                <Plus className="h-3.5 w-3.5 text-purple-700" />
+                <span>สั่งอาหาร & แนบสลิป</span>
               </div>
-              <h2 className="text-base sm:text-lg font-black text-gray-900 mt-0.5">
-                ระบุเมนูและแนบสลิป
-              </h2>
-              <p className="text-xs text-gray-500">
-                พิมพ์เมนูตามสั่ง หรือเลือกเมนูแนะนำด้านล่าง
-              </p>
+              <span className="text-[10px] text-gray-400">โอนตรงเข้าบัญชีร้าน</span>
             </div>
 
             {submitError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-center gap-2">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
                 <span>{submitError}</span>
               </div>
             )}
 
-            <form onSubmit={handleAddToWhiteboard} className="space-y-4">
-              {/* Row 1: LINE ID & Phone Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleAddToWhiteboard} className="space-y-2">
+              {/* Row 1: LINE ID & Phone Number on ONE LINE */}
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-bold text-gray-700">
+                  <label className="text-[11px] font-bold text-gray-700 block truncate">
                     ชื่อ / LINE ID <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="เช่น Golf หรือ @golf_123"
+                    placeholder="เช่น @golf หรือ Golf"
                     value={customerLineId}
                     onChange={(e) => setCustomerLineId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                    <span>เบอร์โทรศัพท์ <span className="text-rose-500">*</span></span>
-                    <span className="text-[10px] text-gray-400 font-normal">กรณีของหมด</span>
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center justify-between truncate">
+                    <span>เบอร์โทร <span className="text-rose-500">*</span></span>
+                    <span className="text-[9px] text-gray-400 font-normal hidden sm:inline">กรณีของหมด</span>
                   </label>
                   <input
                     type="tel"
                     inputMode="tel"
                     required
-                    placeholder="เช่น 0812345678"
+                    placeholder="0812345678"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600 font-mono"
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600 font-mono"
                   />
                 </div>
               </div>
 
               {/* Row 2: Dish Name & Quick Popular Chips */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-700">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-700 block">
                   รายการอาหาร <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -956,13 +951,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาว"
                   value={dishName}
                   onChange={(e) => setDishName(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                  className="w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
                 />
 
                 {/* Popular Dish Chips for 1-Tap Autofill */}
                 {batch.shop.menuItems && batch.shop.menuItems.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] font-bold text-gray-400">เมนูแนะนำ:</span>
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                    <span className="text-[10px] font-bold text-gray-400">เมนูแนะนำ:</span>
                     {batch.shop.menuItems.slice(0, 5).map((m) => (
                       <button
                         key={m.id}
@@ -971,7 +966,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                           setDishName(m.name);
                           setDishPrice(String(m.price));
                         }}
-                        className="rounded-lg border border-purple-200 bg-purple-50/60 px-2.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors"
+                        className="rounded-md border border-purple-200 bg-purple-50/70 px-2 py-0.5 text-[11px] font-bold text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer"
                       >
                         {m.name} (฿{m.price})
                       </button>
@@ -980,42 +975,44 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 )}
               </div>
 
-              {/* Row 3: Price & Note */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700">
+              {/* Row 3: Price & Note on ONE LINE */}
+              <div className="grid grid-cols-5 gap-2">
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-gray-700 block truncate">
                     ราคา (฿) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
                     required
                     min="1"
-                    placeholder="เช่น 60"
+                    placeholder="60"
                     value={dishPrice}
                     onChange={(e) => setDishPrice(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs font-bold text-orange-600 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600 font-mono"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700">หมายเหตุ (ถ้ามี)</label>
+                <div className="col-span-3">
+                  <label className="text-[11px] font-bold text-gray-700 block truncate">
+                    หมายเหตุ (ถ้ามี)
+                  </label>
                   <input
                     type="text"
-                    placeholder="เช่น ไม่ใส่ผักชี, เผ็ดน้อย"
+                    placeholder="ไม่เผ็ด, พิเศษ"
                     value={dishNote}
                     onChange={(e) => setDishNote(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
                   />
                 </div>
               </div>
 
               {/* Compact 1-Card Payment & Slip Bar */}
-              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-2.5 sm:p-3 space-y-2 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-2 sm:p-2.5 space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
                   {/* Left: Total & PromptPay QR button */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
                     <div>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">ยอดโอนรวม</span>
-                      <div className="text-xl sm:text-2xl font-mono font-black text-purple-950 leading-none">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase block leading-tight">ยอดโอน</span>
+                      <div className="text-base sm:text-lg font-mono font-black text-purple-950 leading-none">
                         ฿{dishPrice ? parseFloat(dishPrice) || 0 : 0}
                       </div>
                     </div>
@@ -1024,9 +1021,9 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       <button
                         type="button"
                         onClick={() => setShowPromptPayModal(true)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2.5 py-1 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
+                        className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-1 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
                       >
-                        <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                        <CreditCard className="h-3 w-3 text-purple-700" />
                         <span>QR ร้าน</span>
                       </button>
                     )}
@@ -1034,13 +1031,13 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
                   {/* Right: Slip upload button */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <label className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors shadow-2xs ${
+                    <label className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer transition-colors shadow-2xs ${
                       slipPreview
                         ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                         : "bg-purple-900 hover:bg-purple-800 text-white"
                     }`}>
                       <CreditCard className="h-3.5 w-3.5" />
-                      <span>{slipPreview ? "✓ เปลี่ยนสลิป" : "📎 แนบสลิปโอนเงิน *"}</span>
+                      <span>{slipPreview ? "✓ เปลี่ยนสลิป" : "📎 แนบสลิป *"}</span>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -1054,8 +1051,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
                 {/* Slip Scanning status */}
                 {scanningSlip && (
-                  <div className="text-[11px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5 bg-white p-1.5 rounded-lg border border-purple-200">
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
+                  <div className="text-[10px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5 bg-white p-1 rounded-md border border-purple-200">
+                    <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
                     <span>กำลังสแกนสลิปอัตโนมัติ...</span>
                   </div>
                 )}
@@ -1063,21 +1060,21 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 {/* Slip Verification / Preview feedback */}
                 {slipVerification && (
                   <div
-                    className={`rounded-lg p-2 text-xs font-bold flex items-center justify-between gap-2 border ${
+                    className={`rounded-lg p-1.5 text-xs font-bold flex items-center justify-between gap-2 border ${
                       slipVerification.isValid
                         ? "bg-emerald-50 text-emerald-900 border-emerald-300"
                         : "bg-blue-50 text-blue-900 border-blue-200"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
-                      <div className="truncate text-[11px] sm:text-xs">
+                      <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
+                      <div className="truncate text-[10px] sm:text-[11px]">
                         {slipVerification.isValid ? (
                           <span>
                             สลิป <strong>{slipVerification.bankName}</strong> {slipVerification.transRef ? `(Ref: ${slipVerification.transRef})` : ""}
                           </span>
                         ) : (
-                          <span>📷 แนบสลิปแล้ว ({slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ"})</span>
+                          <span>📷 แนบสลิปแล้ว ({slipVerification.note || "ตรวจไม่พบ QR Code"})</span>
                         )}
                       </div>
                     </div>
@@ -1085,7 +1082,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       <button
                         type="button"
                         onClick={() => setSelectedSlip({ url: slipPreview, title: "สลิปที่แนบ" })}
-                        className="text-[11px] text-purple-700 hover:underline shrink-0 font-bold"
+                        className="text-[10px] text-purple-700 hover:underline shrink-0 font-bold"
                       >
                         ดูรูป
                       </button>
@@ -1098,16 +1095,16 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               <button
                 type="submit"
                 disabled={submittingOrder || !slipPreview}
-                className="w-full rounded-2xl bg-purple-900 py-3.5 text-sm sm:text-base font-black text-white shadow-md shadow-purple-900/20 hover:bg-purple-800 disabled:opacity-50 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full rounded-xl bg-purple-900 py-2.5 text-xs sm:text-sm font-black text-white shadow-xs hover:bg-purple-800 disabled:opacity-50 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {submittingOrder ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     <span>กำลังบันทึก...</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     <span>เพิ่มลงกระดาน</span>
                   </>
                 )}
@@ -1115,7 +1112,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
             </form>
           </div>
         ) : (
-          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-center text-xs font-bold text-rose-800">
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3 text-center text-xs font-bold text-rose-800">
             🔴 ปิดรับออเดอร์แล้ว
           </div>
         )}

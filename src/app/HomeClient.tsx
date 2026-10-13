@@ -2140,10 +2140,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 )}
 
                 <form onSubmit={handleAddToWhiteboard} className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {/* Field 1: LINE ID */}
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700">
+                      <label className="text-[11px] font-bold text-slate-700 block truncate">
                         {t.lineIdLabel} <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -2152,15 +2152,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         placeholder={t.lineIdPlaceholder}
                         value={customerLineId}
                         onChange={(e) => setCustomerLineId(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                        className="mt-0.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900"
                       />
                     </div>
 
                     {/* Field 2: Phone Number (for shop to call) */}
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between truncate">
                         <span>{t.phoneLabel} <span className="text-rose-500">*</span></span>
-                        <span className="text-[10px] text-slate-400 font-normal">{t.phoneNote}</span>
+                        <span className="text-[9px] text-slate-400 font-normal hidden sm:inline">{t.phoneNote}</span>
                       </label>
                       <input
                         type="tel"
@@ -2169,7 +2169,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         placeholder={t.phonePlaceholder}
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900 font-mono"
+                        className="mt-0.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-purple-900 font-mono"
                       />
                     </div>
                   </div>

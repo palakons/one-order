@@ -588,53 +588,52 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-gray-700">
-                  เบอร์โทรศัพท์หัวหน้าตี้ <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  required
-                  placeholder="เช่น 0812345678"
-                  value={loginPhone}
-                  onChange={(e) => setLoginPhone(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-sm font-mono font-bold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700">
-                    Host PIN (4 หลัก) <span className="text-rose-500">*</span>
+            <form onSubmit={handleLogin} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block truncate">
+                    เบอร์โทร <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] text-gray-400">ค่าเริ่มต้น: 4 ตัวท้ายของเบอร์โทร</span>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    required
+                    placeholder="0812345678"
+                    value={loginPhone}
+                    onChange={(e) => setLoginPhone(e.target.value)}
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/50 px-2.5 py-1.5 text-xs font-mono font-bold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
+                  />
                 </div>
-                <input
-                  type="password"
-                  maxLength={6}
-                  required
-                  placeholder="เช่น 1234"
-                  value={loginPin}
-                  onChange={(e) => setLoginPin(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3.5 py-2.5 text-center text-lg font-mono font-bold tracking-widest text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
-                />
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block truncate">
+                    PIN (4 หลัก) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    required
+                    placeholder="1234"
+                    value={loginPin}
+                    onChange={(e) => setLoginPin(e.target.value)}
+                    className="mt-0.5 w-full rounded-lg border border-gray-300 bg-gray-50/50 px-2.5 py-1.5 text-center text-xs font-mono font-bold tracking-widest text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loggingIn}
-                className="w-full rounded-2xl bg-purple-900 py-3 text-sm font-black text-white shadow-md shadow-purple-900/20 hover:bg-purple-800 disabled:opacity-50 active:scale-98 transition-all flex items-center justify-center gap-2"
+                className="w-full rounded-xl bg-purple-900 py-2.5 text-xs sm:text-sm font-black text-white shadow-xs hover:bg-purple-800 disabled:opacity-50 active:scale-98 transition-all flex items-center justify-center gap-1.5"
               >
                 {loggingIn ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     <span>กำลังเข้าสู่ระบบ...</span>
                   </>
                 ) : (
                   <>
-                    <Key className="h-4 w-4" />
+                    <Key className="h-3.5 w-3.5" />
                     <span>เข้าสู่ระบบหัวหน้าตี้</span>
                   </>
                 )}
@@ -651,7 +650,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     <div className="min-h-screen bg-gradient-to-b from-purple-50/40 via-white to-gray-50 text-gray-900 pb-20">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-3 py-3 sm:px-6 sm:py-4 space-y-3 sm:space-y-3.5">
+      <main className="mx-auto max-w-4xl px-2.5 py-2 sm:px-6 sm:py-3 space-y-2 sm:space-y-2.5">
         {/* Top Navigation & Status */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
