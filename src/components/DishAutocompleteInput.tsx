@@ -111,23 +111,18 @@ export default function DishAutocompleteInput({
 
     const q = query.toLowerCase();
 
-    // Match against sanitized name or original name
+    // Match against sanitized name or original name (strictly compartmentalized to current shop)
     const matches = catalog.filter((item) => {
+      if (shopId && item.shopId !== shopId) return false;
       const nameMatch = item.name.toLowerCase().includes(q);
       const origMatch = item.originalName && item.originalName.toLowerCase().includes(q);
       return nameMatch || origMatch;
     });
 
     // Sort:
-    // 1. Current shop first
-    // 2. Exact prefix matches first
-    // 3. Higher popularity (totalQuantity then orderCount)
+    // 1. Exact prefix matches first
+    // 2. Higher popularity (totalQuantity then orderCount)
     matches.sort((a, b) => {
-      const aIsCurrentShop = shopId ? a.shopId === shopId : true;
-      const bIsCurrentShop = shopId ? b.shopId === shopId : true;
-      if (aIsCurrentShop && !bIsCurrentShop) return -1;
-      if (!aIsCurrentShop && bIsCurrentShop) return 1;
-
       const aPrefix = a.name.toLowerCase().startsWith(q);
       const bPrefix = b.name.toLowerCase().startsWith(q);
       if (aPrefix && !bPrefix) return -1;

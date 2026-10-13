@@ -1831,6 +1831,9 @@ export default function AdminClient({
                   <span className="rounded-md bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
                     Spark Free Tier
                   </span>
+                  <span className="rounded-md bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                    🎯 Dead Reckoning Telemetry
+                  </span>
                 </div>
                 <h2 className="text-base font-black text-slate-900">
                   {systemStatus.severity === "interrupted"
@@ -1988,11 +1991,25 @@ export default function AdminClient({
             </div>
           </div>
 
-          {/* Explanation note for Reads/Writes serverless counting */}
-          <div className="mt-3 p-3 rounded-xl bg-purple-50/70 border border-purple-200/80 text-[11px] text-purple-900 flex items-start gap-2.5">
-            <Info className="h-4 w-4 shrink-0 text-purple-700 mt-0.5" />
-            <div className="leading-relaxed">
-              <span className="font-bold">💡 หมายเหตุตัวเลข Reads/Writes:</span> สถิตินี้ถูกนับแบบ In-Memory บนแต่ละ Serverless Worker Instance ของ Vercel เพื่อประหยัดโควตา Write ของ Firestore ไม่ให้เสียครั้งเขียนในการเก็บสถิติ ตัวเลขอาจแตกต่างกันตาม Instance ที่รับ Request และจะรีเซ็ตอัตโนมัติทุกวันเวลา 15:00 น. ตามรอบโควตาฟรี 24 ชม. ของ Google Cloud (US Pacific 00:00)
+          {/* Explanation note for Dead Reckoning Telemetry & Probe Rationale */}
+          <div className="mt-3 p-3.5 rounded-xl bg-purple-50/80 border border-purple-200/90 text-xs text-purple-950 space-y-2">
+            <div className="flex items-center gap-2 font-black text-purple-900 text-xs">
+              <Info className="h-4 w-4 shrink-0 text-purple-700" />
+              <span>ทำความเข้าใจระบบนับโควตา &amp; ทำไมไม่ Probe ตลอดเวลา?</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-[11px] leading-relaxed text-purple-900/90">
+              <div className="p-2.5 rounded-lg bg-white/70 border border-purple-100">
+                <p className="font-bold text-purple-950 mb-0.5">🎯 การนับแบบ "Dead Reckoning" (In-Memory Telemetry):</p>
+                <p>
+                  เนื่องจาก Firebase Spark Free Tier ไม่มี Client SDK ส่งตัวเลขโควตาแบบ Real-time กลับมาให้แอป ระบบจึงใช้การดักนับสะสมในระดับ Application Memory ทุกครั้งที่มีการอ่าน/เขียนจริง เพื่อหลีกเลี่ยงการเสียโควตา Write ไปกับการบันทึกสถิติ ตัวเลขจะรีเซ็ตเริ่มต้นใหม่เมื่อ Server Restart / Build หรือเมื่อข้ามรอบวันใหม่เวลา 14:00 - 15:00 น. ICT (00:00 US Pacific Time)
+                </p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-white/70 border border-purple-100">
+                <p className="font-bold text-purple-950 mb-0.5">⚠️ ทำไมระบบไม่ Probe อัตโนมัติตลอดเวลา? (Observer Effect):</p>
+                <p>
+                  ทุกครั้งที่มีการ Probe คือการยิงคำสั่งอ่าน Firestore จริง หากเราตั้ง Polling Probe ตลอดเวลา (เช่น ทุก 10-30 วินาที) โควตา 50,000 Reads ต่อวันจะถูกเผาผลาญจนหมดไปกับ "การตรวจสอบตัวเอง" เสียเอง! ระบบจึงใช้ Dead Reckoning ในการทำงานปกติ และเปิดให้กดปุ่ม <strong>"🔄 ทดสอบ Quota เดี๋ยวนี้"</strong> แบบ On-Demand เมื่อต้องการทดสอบเท่านั้น
+                </p>
+              </div>
             </div>
           </div>
 

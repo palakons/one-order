@@ -151,13 +151,10 @@ export async function GET(request: Request) {
       cacheTimestamp = Date.now();
     }
 
-    // Filter by shopId if provided
+    // Strictly compartmentalize by shopId if provided
     let results: AutocompleteMenuItem[];
     if (requestedShopId) {
-      const shopItems = allItems.filter((it) => it.shopId === requestedShopId);
-      const otherItems = allItems.filter((it) => it.shopId !== requestedShopId);
-      // Prioritize current shop items, then append other popular items
-      results = [...shopItems, ...otherItems];
+      results = allItems.filter((it) => it.shopId === requestedShopId);
     } else {
       results = allItems;
     }
