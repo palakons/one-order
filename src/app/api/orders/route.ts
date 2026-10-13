@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createOrder, getBatchById, getBatches } from "@/lib/store";
+import { invalidateAutocompleteCache } from "@/app/api/menu-autocomplete/route";
 
 export async function GET(request: Request) {
   try {
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
     });
 
     const updatedBatch = await getBatchById(batchId);
+    invalidateAutocompleteCache();
 
     return NextResponse.json(
       {
@@ -169,6 +171,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
 
+    invalidateAutocompleteCache();
     return NextResponse.json({ success: true, message: "Order cancelled with audit trace" });
   } catch (error: any) {
     console.error("Failed to delete order:", error);

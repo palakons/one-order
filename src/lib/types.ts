@@ -170,3 +170,17 @@ export interface SanitizedMenuItem {
   updatedAt: string;
 }
 
+export interface AutocompleteMenuItem {
+  id: string;
+  name: string; // Sanitized menu name by ThaiLLM
+  originalName: string;
+  price: number;
+  orderCount: number;
+  totalQuantity: number;
+  shopId: string;
+  shopName: string;
+  hasTypoCorrected?: boolean;
+  isShopMenu?: boolean;
+}
+
+

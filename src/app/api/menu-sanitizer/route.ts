@@ -6,6 +6,8 @@ import {
   sanitizeMenuNamesWithThaiLLM,
   sanitizeSingleMenuNameWithThaiLLM,
 } from "@/lib/thaillm";
+import { invalidateAutocompleteCache } from "@/app/api/menu-autocomplete/route";
+
 
 function getSanitizedDocId(shopId: string, originalName: string): string {
   const hex = Buffer.from(originalName.trim()).toString("hex");
@@ -59,6 +61,7 @@ export async function POST(request: Request) {
         );
       }
 
+      invalidateAutocompleteCache();
       return NextResponse.json({ success: true, id, sanitizedName: sanitizedName.trim() });
     }
 
@@ -92,6 +95,7 @@ export async function POST(request: Request) {
         await setDoc(doc(db, "sanitized_menus", id), record, { merge: true });
       }
 
+      invalidateAutocompleteCache();
       return NextResponse.json({ success: true, item: record });
     }
 
@@ -145,6 +149,8 @@ export async function POST(request: Request) {
         await setDoc(doc(db, "sanitized_menus", id), record, { merge: true });
       }
     }
+
+    invalidateAutocompleteCache();
 
     return NextResponse.json({
       success: true,

@@ -55,6 +55,7 @@ import {
   QrCode,
   Calendar,
 } from "lucide-react";
+import DishAutocompleteInput from "@/components/DishAutocompleteInput";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
 
@@ -2359,15 +2360,21 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               )}
                             </div>
 
-                            {/* Dish Name */}
+                            {/* Dish Name with AI Autocomplete */}
                             <div>
-                              <input
-                                type="text"
-                                required
-                                placeholder={t.dishNamePlaceholder}
+                              <DishAutocompleteInput
                                 value={item.name}
-                                onChange={(e) => handleUpdateOrderItem(item.id, "name", e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-purple-900"
+                                onChange={(val) => handleUpdateOrderItem(item.id, "name", val)}
+                                onSelectMenu={(menuName, price) => {
+                                  handleUpdateOrderItem(item.id, "name", menuName);
+                                  if (price > 0) {
+                                    handleUpdateOrderItem(item.id, "price", String(price));
+                                  }
+                                }}
+                                shopId={activeBatch.shop.id}
+                                placeholder={t.dishNamePlaceholder}
+                                required
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:ring-1.5 focus:ring-purple-700"
                               />
                             </div>
 

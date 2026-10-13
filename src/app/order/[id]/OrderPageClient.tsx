@@ -11,6 +11,7 @@ import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
 import { getTimeRemaining } from "@/lib/utils";
 import confetti from "canvas-confetti";
+import DishAutocompleteInput from "@/components/DishAutocompleteInput";
 import {
   ArrowLeft,
   MapPin,
@@ -979,12 +980,18 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 <label className="text-[11px] font-bold text-gray-700 block">
                   รายการอาหาร <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาว"
+                <DishAutocompleteInput
                   value={dishName}
-                  onChange={(e) => setDishName(e.target.value)}
+                  onChange={setDishName}
+                  onSelectMenu={(menuName, price) => {
+                    setDishName(menuName);
+                    if (price > 0) {
+                      setDishPrice(String(price));
+                    }
+                  }}
+                  shopId={batch.shop.id}
+                  placeholder="เช่น ข้าวกะเพราหมูกรอบ ไข่ดาว"
+                  required
                   className="w-full rounded-lg border border-gray-300 bg-gray-50/60 px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
                 />
 
