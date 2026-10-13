@@ -18,10 +18,10 @@ export const DAYS_OF_WEEK: DayConfig[] = [
   { day: 0, label: "อาทิตย์", short: "อา.", en: "Sun", cn: "周日" },
 ];
 
-export function getBangkokDayOfWeek(): number {
+export function getBangkokDayOfWeek(dateStr?: string): number {
   try {
-    const now = new Date();
-    const bkkStr = now.toLocaleDateString("en-US", { timeZone: "Asia/Bangkok", weekday: "short" });
+    const d = dateStr ? new Date(`${dateStr}T12:00:00+07:00`) : new Date();
+    const bkkStr = d.toLocaleDateString("en-US", { timeZone: "Asia/Bangkok", weekday: "short" });
     const map: Record<string, number> = {
       Sun: 0,
       Mon: 1,
@@ -31,7 +31,7 @@ export function getBangkokDayOfWeek(): number {
       Fri: 5,
       Sat: 6,
     };
-    return map[bkkStr] ?? now.getDay();
+    return map[bkkStr] ?? d.getDay();
   } catch {
     return new Date().getDay();
   }

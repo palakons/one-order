@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getBatchById } from "@/lib/store";
 import { getLocationForBatch, getDropOffMapUrl } from "@/lib/locations";
 import { getImageFromStorage } from "@/lib/storage";
+import { formatCutoffDisplay } from "@/lib/utils";
 import QRCode from "qrcode";
 import sharp from "sharp";
 
@@ -93,7 +94,7 @@ export async function GET(
       svgParts.push(`<rect width="${width}" height="${headerHeight}" fill="url(#headerGrad)"/>`);
       svgParts.push(`<text x="${padding}" y="50" font-family="sans-serif" font-size="28" font-weight="900" fill="#ffffff">🍱 VEATEC — ใบสรุปออเดอร์ร้านค้า</text>`);
       svgParts.push(`<text x="${padding}" y="88" font-family="sans-serif" font-size="22" font-weight="bold" fill="#fbcfe8">ร้าน: ${escapeXml(batch.shop.name)}</text>`);
-      svgParts.push(`<text x="${padding}" y="120" font-family="sans-serif" font-size="14" fill="#e9d5ff">รอบวันที่: ${escapeXml(batch.date)} • ปิดรอบ: ${escapeXml(batch.cutoffTime)} น.</text>`);
+      svgParts.push(`<text x="${padding}" y="120" font-family="sans-serif" font-size="14" fill="#e9d5ff">รอบวันที่: ${escapeXml(batch.date)} • สั่งอาหารได้ถึง: ${escapeXml(formatCutoffDisplay(batch.cutoffTime, batch.date, "th"))}</text>`);
       svgParts.push(`<text x="${padding}" y="145" font-family="sans-serif" font-size="14" fill="#e9d5ff">จุดส่งอาหาร: ${escapeXml(loc.name)} (${escapeXml(loc.deskDetail)})</text>`);
       if (batch.hostName || batch.hostPhone) {
         svgParts.push(`<text x="${padding}" y="170" font-family="sans-serif" font-size="13" fill="#cbd5e1">👑 หัวหน้าตี้: ${escapeXml(batch.hostName || batch.hostLineId || "")} ${escapeXml(batch.hostPhone ? `(โทร: ${batch.hostPhone})` : "")}</text>`);

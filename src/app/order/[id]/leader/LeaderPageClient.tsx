@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import { BatchWithDetails, Order } from "@/lib/types";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
-import { getTimeRemaining } from "@/lib/utils";
+import { getTimeRemaining, formatCutoffDisplay } from "@/lib/utils";
 import { compressImage } from "@/lib/services";
 import confetti from "canvas-confetti";
 import {
@@ -467,7 +467,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${batch.id}` : "https://veatec.vercel.app";
     const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
       `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
-      `⏰ ปิดรับเวลา ${batch.cutoffTime} น. (${remainingText})\n\n` +
+      `⏰ สั่งอาหารได้ถึง ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")} (${remainingText})\n\n` +
       `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -805,7 +805,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
             <div className="flex items-center justify-between pt-0.5 text-[11px]">
               <span className="flex items-center gap-1 font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
                 <Clock className="h-3 w-3 text-purple-900" />
-                <span>{timeInfo.text} (Cutoff: {batch.cutoffTime} น.)</span>
+                <span>{timeInfo.text} • {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}</span>
               </span>
 
               {/* Board Control Buttons */}

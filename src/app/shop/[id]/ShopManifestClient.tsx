@@ -7,6 +7,7 @@ import LineShareButton from "@/components/LineShareButton";
 import { BatchWithDetails, BatchStatus } from "@/lib/types";
 import { getLocationById, getDropOffMapUrl } from "@/lib/locations";
 import { changeBatchStatus, compressImage } from "@/lib/services";
+import { formatCutoffDisplay } from "@/lib/utils";
 import {
   ChefHat,
   ArrowLeft,
@@ -559,7 +560,7 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                   )}
                 </span>
                 <span className="text-xs font-bold text-gray-600">
-                  รอบวันที่: {batch.date} (ปิดรับ: {batch.cutoffTime} น.)
+                  รอบวันที่: {batch.date} (สั่งอาหารได้ถึง: {formatCutoffDisplay(batch.cutoffTime, batch.date, "th")})
                 </span>
               </div>
 

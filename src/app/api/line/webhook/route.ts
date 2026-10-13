@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatches, saveActiveLineGroupId, getBatchById, updateBatch } from "@/lib/store";
 import { formatBatchOrderSummaryText } from "@/lib/line";
+import { formatCutoffDisplay } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
@@ -121,10 +122,10 @@ export async function POST(request: Request) {
               text:
                 `✅ เชื่อมต่อกระดานสำเร็จแล้วครับ คุณหัวหน้าตี้! 🎉\n\n` +
                 `🍱 ร้าน: ${targetBatch.shop.name}\n` +
-                `⏰ เวลาตัดรอบ: ${targetBatch.cutoffTime} น.\n` +
+                `⏰ สั่งอาหารได้ถึง: ${formatCutoffDisplay(targetBatch.cutoffTime, targetBatch.date, "th")}\n` +
                 `📍 จุดส่งอาหาร: ${targetBatch.buildingName || "ตึก M4"} ชั้น 1\n` +
                 `💰 ยอดปัจจุบัน: ฿${targetBatch.currentTotalAmount} (${targetBatch.orders.length} กล่อง)\n\n` +
-                `🔔 เมื่อถึงเวลาตัดรอบ (${targetBatch.cutoffTime} น.) บอทจะส่งข้อความสรุปยอดทั้งหมด พร้อมรูปใบสรุปสั่งอาหาร (One Long Manifest) ให้คุณทาง LINE ส่วนตัวนี้ทันทีครับ ✨\n\n` +
+                `🔔 เมื่อถึงเวลาตัดรอบ (${formatCutoffDisplay(targetBatch.cutoffTime, targetBatch.date, "th")}) บอทจะส่งข้อความสรุปยอดทั้งหมด พร้อมรูปใบสรุปสั่งอาหาร (One Long Manifest) ให้คุณทาง LINE ส่วนตัวนี้ทันทีครับ ✨\n\n` +
                 `💡 คุณสามารถพิมพ์ "สรุป" เพื่อดูออเดอร์ล่าสุดได้ตลอดเวลาครับ`,
               quickReply: {
                 items: [

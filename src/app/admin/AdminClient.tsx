@@ -11,6 +11,7 @@ import {
   StorageMetrics,
   SanitizedMenuItem,
 } from "@/lib/types";
+import { formatCutoffDisplay } from "@/lib/utils";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
   ChefHat,
@@ -3500,7 +3501,7 @@ export default function AdminClient({
 
                       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
                         <span>วันที่: <strong>{b.date}</strong></span>
-                        <span>ปิดรับ: <strong>{b.cutoffTime} น.</strong></span>
+                        <span>{formatCutoffDisplay(b.cutoffTime, b.date, "th", true)}</span>
                         <span>จุดส่ง: <strong>{b.buildingName || "ตึก M4"}</strong></span>
                         <span>
                           ยอดรวม: <strong className="text-purple-900 font-mono">฿{b.currentTotalAmount}</strong> / ฿{b.targetMinAmount}

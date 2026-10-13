@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageSquare, Copy, Check, ExternalLink, Share2 } from "lucide-react";
 import { BatchWithDetails } from "@/lib/types";
 import { getLocationById, getDropOffMapUrl } from "@/lib/locations";
+import { formatCutoffDisplay } from "@/lib/utils";
 
 interface Props {
   batch: BatchWithDetails;
@@ -52,7 +53,7 @@ ${manifestUrl}
 
 ขอให้อร่อยกับมื้ออาหารครับ/ค่ะ 🙏`
     : `🍱 [VEATEC @ VISTEC] สรุปออเดอร์ร้าน ${batch.shop.name}
-รอบส่งวันที่: ${batch.date} (ปิดรอบ ${batch.cutoffTime})
+รอบส่งวันที่: ${batch.date} (สั่งอาหารได้ถึง: ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")})
 สถานะส่ง: ${deliveryStatusText}
 
 📊 ยอดรวมทั้งหมด: ฿${batch.currentTotalAmount} (${batch.orders.length} ออเดอร์)

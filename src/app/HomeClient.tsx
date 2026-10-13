@@ -16,7 +16,7 @@ import {
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
-import { getTimeRemaining, getBangkokDate, getDaysDifference } from "@/lib/utils";
+import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay } from "@/lib/utils";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
 import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
 import confetti from "canvas-confetti";
@@ -373,6 +373,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [openBuildingId, setOpenBuildingId] = useState<string>(() => initialLocations?.[0]?.id || "loc-m4");
   const [openLeaderName, setOpenLeaderName] = useState("");
   const [openLeaderPhone, setOpenLeaderPhone] = useState("");
+  const [openCutoffDate, setOpenCutoffDate] = useState<string>(() => getBangkokDate());
   const [openCutoffTime, setOpenCutoffTime] = useState(getDefaultCutoff());
   const [openTargetMin, setOpenTargetMin] = useState("200");
   const [openNotes, setOpenNotes] = useState("");
@@ -516,6 +517,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     setOpenLeaderPhone(savedPhone);
     const cleanDigits = savedPhone.replace(/\D/g, "");
     setOpenHostPin(cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "");
+    setOpenCutoffDate(getBangkokDate());
     setOpenCutoffTime(getDefaultCutoff());
     const bkkDay = getBangkokDayOfWeek();
     if (availableShops.length > 0) {
@@ -539,6 +541,21 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     const cleanPhone = openLeaderPhone.trim();
     const phoneDigits = cleanPhone.replace(/\D/g, "");
     const finalPin = openHostPin.trim() || (phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "1234");
+    const selectedDate = (openCutoffDate || "").trim() || getBangkokDate();
+    const today = getBangkokDate();
+
+    if (selectedDate < today) {
+      setOpenBoardError("ไม่สามารถเลือกวันที่ในอดีตได้ กรุณาเลือกวันนี้หรือวันในอนาคต");
+      return;
+    }
+
+    if (selectedDate === today) {
+      const timeCheck = getTimeRemaining(openCutoffTime, selectedDate);
+      if (timeCheck.isExpired) {
+        setOpenBoardError("เวลาตัดรอบที่เลือกได้ผ่านไปแล้ว กรุณาเลือกเวลาในอนาคต");
+        return;
+      }
+    }
 
     if (!openShopId) {
       setOpenBoardError("กรุณาเลือกร้านอาหารที่ต้องการสั่ง");
@@ -553,10 +570,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       setOpenBoardError("ร้านนี้ปิดให้บริการชั่วคราว (Inactive) ไม่สามารถเปิดกระดานตี้ได้");
       return;
     }
-    const bkkDay = getBangkokDayOfWeek();
+    const bkkDay = getBangkokDayOfWeek(selectedDate);
     if (!isShopOpenOnDay(targetShop, bkkDay)) {
       const daysText = formatOpenDaysText(targetShop.openDays, lang);
-      setOpenBoardError(`ร้านนี้ปิดทำการในวันนี้ (วันเปิดทำการ: ${daysText}) กรุณาเลือกร้านอื่นที่เปิดให้บริการ`);
+      setOpenBoardError(`ร้านนี้ปิดทำการในวันที่เลือก (${selectedDate}) (วันเปิดทำการ: ${daysText}) กรุณาเลือกร้านอื่นหรือเลือกวันอื่น`);
       return;
     }
     if (!cleanLeader) {
@@ -576,7 +593,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shopId: openShopId,
-          date: getBangkokDate(),
+          date: selectedDate,
           cutoffTime: openCutoffTime,
           targetMinAmount: Number(openTargetMin) || 200,
           notes: openNotes.trim() || undefined,
@@ -629,7 +646,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${b.id}` : "https://veatec.vercel.app";
     const text = `🍱 มาสั่งข้าวตี้ร้าน ${shopName} กันครับ/ค่ะ!\n` +
       `📍 จุดส่ง: โต๊ะ ${locName} ชั้น 1\n` +
-      `⏰ ปิดรับเวลา ${b.cutoffTime} น. (${remainingText})\n\n` +
+      `⏰ สั่งอาหารได้ถึง ${formatCutoffDisplay(b.cutoffTime, b.date, "th")} (${remainingText})\n\n` +
       `👉 สั่งร่วมตี้ได้ที่นี่เลย:\n${shareUrl}`;
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -1489,7 +1506,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-amber-300 shrink-0" />
               <span>
-                <strong>{t.groupClosedToday}:</strong> {activeShopInfo?.name || activeBatch.shop.name} (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""}) • {lang === "en" ? "Closed for today" : lang === "cn" ? "今日已截止" : "ปิดรับออเดอร์สำหรับรอบนี้แล้ว"}
+                <strong>{t.groupClosedToday}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)}) • {lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรับออเดอร์สำหรับรอบนี้แล้ว"}
               </span>
             </div>
             {openingBatches.length > 0 && (
@@ -1810,7 +1827,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       {timeInfo?.text}
                     </span>
                     <span className="text-slate-500 font-normal text-[11px]">
-                      (Cutoff: {activeBatch.cutoffTime}{lang === "th" ? " น." : ""})
+                      ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)})
                     </span>
                   </span>
 
@@ -2921,7 +2938,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-3">
                         <span>{t.orderDate}: <strong>{b.date}</strong></span>
-                        <span>Cutoff: <strong>{b.cutoffTime}{lang === "th" ? " น." : ""}</strong></span>
+                        <span>{formatCutoffDisplay(b.cutoffTime, b.date, lang, true)}</span>
                         <span>{t.currentTotal}: <strong className="text-orange-600">฿{b.currentTotalAmount}</strong> ({b.orders?.filter((o) => !o.deletedAt).length || 0} {t.boxesCount})</span>
                       </div>
                     </div>
@@ -3123,17 +3140,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         {lang === "en" ? (
                           <>
                             An open board is currently accepting orders at{" "}
-                            <strong>{dup.buildingName || "M4"}</strong> (Cutoff: {dup.cutoffTime} • Current: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount}).
+                            <strong>{dup.buildingName || "M4"}</strong> ({formatCutoffDisplay(dup.cutoffTime, dup.date, "en", true)} • Current: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount}).
                             Joining the existing board helps reach the free delivery minimum faster!
                           </>
                         ) : lang === "cn" ? (
                           <>
-                            <strong>{dup.buildingName || "M4"}</strong> 已有正在接单的拼单 (截止: {dup.cutoffTime} • 进度: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})。
+                            <strong>{dup.buildingName || "M4"}</strong> 已有正在接单的拼单 ({formatCutoffDisplay(dup.cutoffTime, dup.date, "cn", true)} • 进度: ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})。
                             合并拼单可更快达到免运门槛！
                           </>
                         ) : (
                           <>
-                            มีตี้ร้านนี้กำลังเปิดรับออเดอร์อยู่ที่ <strong>{dup.buildingName || "ตึก M4"}</strong> (ปิดรับ {dup.cutoffTime} น. • ยอดปัจจุบัน ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})
+                            มีตี้ร้านนี้กำลังเปิดรับออเดอร์อยู่ที่ <strong>{dup.buildingName || "ตึก M4"}</strong> ({formatCutoffDisplay(dup.cutoffTime, dup.date, "th", true)} • ยอดปัจจุบัน ฿{dup.currentTotalAmount}/฿{dup.targetMinAmount})
                             หากสั่งรวมในตี้เดิมจะช่วยให้ครบยอด ฿200 ส่งฟรีได้เร็วยิ่งขึ้น
                           </>
                         )}
@@ -3248,33 +3265,103 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 </p>
               </div>
 
-              {/* 4. เวลา Cutoff & ยอดขั้นต่ำ */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-800">
-                    {t.stepCutoff} <span className="text-rose-500">*</span>
+              {/* 4. สั่งอาหารได้ถึง... (Cutoff Date & Time) & ยอดขั้นต่ำ */}
+              <div className="space-y-3 rounded-2xl border border-purple-100 bg-purple-50/40 p-3 sm:p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <label className="font-bold text-slate-900 flex items-center gap-1.5 text-xs sm:text-sm">
+                    <Clock className="h-4 w-4 text-purple-700" />
+                    <span>{t.stepCutoff}</span>
+                    <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="time"
-                    value={openCutoffTime}
-                    onChange={(e) => setOpenCutoffTime(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
-                  />
+                  <span className="text-[11px] font-mono font-bold text-purple-900 bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs">
+                    {formatCutoffDisplay(openCutoffTime, openCutoffDate, lang, true)}
+                  </span>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-800">
-                    {t.stepTargetMin}
-                  </label>
-                  <input
-                    type="number"
-                    value={openTargetMin}
-                    onChange={(e) => setOpenTargetMin(e.target.value)}
-                    min="0"
-                    step="10"
-                    required
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Date Input */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-purple-700" />
+                      <span>{t.cutoffDate}</span>
+                    </div>
+                    <input
+                      type="date"
+                      value={openCutoffDate}
+                      min={todayStr}
+                      onChange={(e) => setOpenCutoffDate(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
+
+                  {/* Time Input */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-purple-700" />
+                      <span>{t.cutoffTime}</span>
+                    </div>
+                    <input
+                      type="time"
+                      value={openCutoffTime}
+                      onChange={(e) => setOpenCutoffTime(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Date Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-500">{lang === "en" ? "Quick select:" : lang === "cn" ? "快捷选择:" : "เลือกด่วน:"}</span>
+                  {(() => {
+                    const addDays = (days: number) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + days);
+                      return getBangkokDate(d);
+                    };
+                    const presets = [
+                      { label: t.quickToday, date: todayStr },
+                      { label: t.quickTomorrow, date: addDays(1) },
+                      { label: t.quick2Days, date: addDays(2) },
+                      { label: t.quick3Days, date: addDays(3) },
+                    ];
+                    return presets.map((p) => {
+                      const isSelected = openCutoffDate === p.date;
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setOpenCutoffDate(p.date)}
+                          className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all border cursor-pointer ${
+                            isSelected
+                              ? "bg-purple-900 text-white border-purple-900 shadow-2xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-purple-50 hover:border-purple-300"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Target Min Amount */}
+                <div className="pt-2 border-t border-purple-100/80">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-800">
+                      {t.stepTargetMin}
+                    </label>
+                    <input
+                      type="number"
+                      value={openTargetMin}
+                      onChange={(e) => setOpenTargetMin(e.target.value)}
+                      min="0"
+                      step="10"
+                      required
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -3303,7 +3390,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   {t.cancel}
                 </button>
                 {(() => {
-                  const bkkDay = getBangkokDayOfWeek();
+                  const bkkDay = getBangkokDayOfWeek(openCutoffDate);
                   const targetShop = availableShops.find((s) => s.id === openShopId);
                   const isClosed = targetShop ? !isShopOpenOnDay(targetShop, bkkDay) : false;
                   return (
@@ -3318,7 +3405,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           <span>{t.openingBoard}</span>
                         </>
                       ) : isClosed ? (
-                        <span>ร้านปิดวันนี้ (ไม่สามารถเปิดตี้)</span>
+                        <span>{lang === "en" ? "Shop closed on selected date" : lang === "cn" ? "该日期商家休息" : "ร้านปิดในวันที่เลือก (ไม่สามารถเปิดตี้)"}</span>
                       ) : (
                         <>
                           <Plus className="h-4 w-4" />

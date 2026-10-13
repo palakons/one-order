@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { BatchWithDetails, Order } from "./types";
 import { getLocationForBatch, getDropOffMapUrl } from "./locations";
+import { formatCutoffDisplay } from "./utils";
 
 /**
  * Cross-browser rounded rectangle helper for HTML5 Canvas
@@ -203,7 +204,7 @@ export async function generateOneLongManifestImage(
 
   ctx.fillStyle = "#f1f5f9";
   ctx.font = "14px sans-serif";
-  const dateStr = `รอบวันที่: ${batch.date} (Cutoff: ${batch.cutoffTime} น.) ${leaderContact ? `• ${leaderContact}` : ""}`;
+  const dateStr = `รอบวันที่: ${batch.date} (สั่งอาหารได้ถึง: ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")}) ${leaderContact ? `• ${leaderContact}` : ""}`;
   const totalStr = `ยอดเงินรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% แล้ว ✅`;
   ctx.fillText(dateStr, padding, 110);
   ctx.fillText(totalStr, padding, 130);

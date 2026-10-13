@@ -1,11 +1,13 @@
 "use client";
 
 import { CheckCircle2, Clock, Sparkles, AlertCircle, Truck, ShoppingBag } from "lucide-react";
+import { formatCutoffDisplay } from "@/lib/utils";
 
 interface Props {
   currentAmount: number;
   targetAmount: number;
   cutoffTime: string;
+  batchDate?: string;
   orderCount: number;
   compact?: boolean;
 }
@@ -14,6 +16,7 @@ export default function DeliveryProgressBar({
   currentAmount,
   targetAmount,
   cutoffTime,
+  batchDate,
   orderCount,
   compact = false,
 }: Props) {
@@ -82,7 +85,7 @@ export default function DeliveryProgressBar({
 
         <div className="flex items-center gap-1 text-[11px] font-semibold text-gray-700 bg-white/90 border border-gray-200 px-2.5 py-0.5 rounded-full">
           <Clock className="h-3 w-3 text-orange-500" />
-          <span>ปิดรับ {cutoffTime} น.</span>
+          <span>{formatCutoffDisplay(cutoffTime, batchDate, "th", true)}</span>
         </div>
       </div>
 

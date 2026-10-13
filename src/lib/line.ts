@@ -4,7 +4,7 @@
 import { getActiveLineGroupIds, getBatches, updateBatch, getBatchById } from "./store";
 import { BatchWithDetails } from "./types";
 import { getDropOffMapUrl } from "./locations";
-import { getTimeRemaining } from "./utils";
+import { getTimeRemaining, formatCutoffDisplay } from "./utils";
 async function resolveTargetIds(customTargetId?: string): Promise<string[]> {
   if (customTargetId) return [customTargetId];
 
@@ -147,16 +147,16 @@ export async function sendNewBoardAnnouncement(
   appUrl: string
 ): Promise<boolean> {
   const shopName = batch.shop.name;
-  const cutoff = batch.cutoffTime;
+  const cutoffDisplay = formatCutoffDisplay(batch.cutoffTime, batch.date, "th");
   const locName = batch.isSelfPickup ? "รับเองที่หน้าร้าน" : `${batch.buildingName || "ตึก M4"} ชั้น 1`;
   const orderUrl = `${appUrl}/order/${batch.id}`;
 
-  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (ปิดรับ ${cutoff} น.) 🍱✨`;
+  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (สั่งอาหารได้ถึง ${cutoffDisplay}) 🍱✨`;
 
   const fallbackText =
     `📢 [VEATEC @ VISTEC] เปิดตี้ใหม่แล้วครับ! 🍱✨\n` +
     `ร้าน: ${shopName}\n` +
-    `⏰ ปิดรับออเดอร์: ${cutoff} น.\n` +
+    `⏰ สั่งอาหารได้ถึง: ${cutoffDisplay}\n` +
     `📍 จุดส่งอาหาร: ${locName}\n` +
     `💰 ขั้นต่ำร้าน: ฿${batch.targetMinAmount}\n\n` +
     `👉 เข้าร่วมสั่งอาหารร่วมตี้:\n${orderUrl}`;
@@ -200,8 +200,8 @@ export async function sendNewBoardAnnouncement(
               type: "box",
               layout: "horizontal",
               contents: [
-                { type: "text", text: "⏰ ปิดรับ:", size: "xs", color: "#64748b", flex: 3 },
-                { type: "text", text: `${cutoff} น.`, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
+                { type: "text", text: "⏰ สั่งได้ถึง:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: cutoffDisplay, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
               ],
             },
             {
