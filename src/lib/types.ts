@@ -158,3 +158,15 @@ export interface SystemStatus {
   storageMetrics: StorageMetrics;
 }
 
+export interface SanitizedMenuItem {
+  id: string; // e.g. shopId + "___" + encodeURIComponent(originalName)
+  shopId: string;
+  shopName: string;
+  originalName: string;
+  sanitizedName: string;
+  amount: number; // accumulated order count
+  hasTypo: boolean;
+  source: "thaillm" | "manual";
+  updatedAt: string;
+}
+

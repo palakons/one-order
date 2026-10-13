@@ -9,6 +9,7 @@ import {
   SystemStatus,
   QuotaMetrics,
   StorageMetrics,
+  SanitizedMenuItem,
 } from "@/lib/types";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
@@ -57,6 +58,7 @@ import {
   DollarSign,
   ListOrdered,
   Eye,
+  Bot,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -350,7 +352,7 @@ export default function AdminClient({
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "orders" | "shops" | "desks" | "batches" | "suggestions" | "frequently_ordered"
+    "orders" | "shops" | "desks" | "batches" | "suggestions" | "frequently_ordered" | "ai_sanitizer"
   >("orders");
   const [orderShopFilter, setOrderShopFilter] = useState<string>("all");
   const [orderLocationFilter, setOrderLocationFilter] = useState<string>("all");
@@ -359,8 +361,26 @@ export default function AdminClient({
   const [selectedSlipPhoto, setSelectedSlipPhoto] = useState<{ url: string; title: string } | null>(null);
   const [copiedOrderSummary, setCopiedOrderSummary] = useState(false);
 
+  // ThaiLLM Menu Sanitizer State
+  const [sanitizedRecords, setSanitizedRecords] = useState<Record<string, SanitizedMenuItem>>({});
+  const [loadingSanitizer, setLoadingSanitizer] = useState(false);
+  const [isSanitizingAll, setIsSanitizingAll] = useState(false);
+  const [sanitizingSingleKey, setSanitizingSingleKey] = useState<string | null>(null);
+  const [sanitizerSearch, setSanitizerSearch] = useState("");
+  const [sanitizerShopFilter, setSanitizerShopFilter] = useState("all");
+  const [sanitizerStatusFilter, setSanitizerStatusFilter] = useState<"all" | "typo" | "correct" | "pending">("all");
+  const [editingSanitizedItem, setEditingSanitizedItem] = useState<{
+    id: string;
+    originalName: string;
+    sanitizedName: string;
+    shopName: string;
+    amount: number;
+  } | null>(null);
+  const [sanitizerMessage, setSanitizerMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [frequentShopFilter, setFrequentShopFilter] = useState<string>("all");
   const [addingMenuItemShopId, setAddingMenuItemShopId] = useState<string | null>(null);
+
 
   const [copiedDesk, setCopiedDesk] = useState<string | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
@@ -499,6 +519,7 @@ export default function AdminClient({
         fetchSuggestions();
         fetchLocations();
         fetchLineStatus();
+        fetchSanitizedMenus();
       }
     } catch (e) {
       console.warn("sessionStorage check failed", e);
@@ -1228,8 +1249,190 @@ export default function AdminClient({
     }
   };
 
-
   // -------------------------------------------------------------
+  // ThaiLLM Menu Sanitizer Functions
+  // -------------------------------------------------------------
+  const fetchSanitizedMenus = async () => {
+    setLoadingSanitizer(true);
+    try {
+      const res = await fetch("/api/menu-sanitizer");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.items)) {
+          const map: Record<string, SanitizedMenuItem> = {};
+          data.items.forEach((it: SanitizedMenuItem) => {
+            map[`${it.shopId}___${it.originalName.trim()}`] = it;
+          });
+          setSanitizedRecords(map);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch sanitized menus:", e);
+    } finally {
+      setLoadingSanitizer(false);
+    }
+  };
+
+  const handleSanitizeAllMenus = async () => {
+    if (isSanitizingAll) return;
+    setIsSanitizingAll(true);
+    setSanitizerMessage(null);
+
+    try {
+      const itemsToSanitize = frequentlyOrderedDishes.map((dish) => ({
+        shopId: dish.shopId,
+        shopName: dish.shopName,
+        originalName: dish.dishName,
+        amount: dish.totalQuantity,
+      }));
+
+      const res = await fetch("/api/menu-sanitizer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sanitize", items: itemsToSanitize }),
+      });
+
+      if (!res.ok) {
+        throw new Error("HTTP " + res.status);
+      }
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items)) {
+        setSanitizedRecords((prev) => {
+          const updated = { ...prev };
+          data.items.forEach((it: SanitizedMenuItem) => {
+            updated[`${it.shopId}___${it.originalName.trim()}`] = it;
+          });
+          return updated;
+        });
+
+        setSanitizerMessage({
+          type: "success",
+          text: `สแกนด้วย ThaiLLM เรียบร้อยแล้ว (${data.totalProcessed} เมนู, พบและแก้ไขคำผิด ${data.typosCount} เมนู)`,
+        });
+      } else {
+        throw new Error(data.error || "Unknown error");
+      }
+    } catch (err: any) {
+      setSanitizerMessage({
+        type: "error",
+        text: `เกิดข้อผิดพลาดในการเรียก ThaiLLM: ${err.message}`,
+      });
+    } finally {
+      setIsSanitizingAll(false);
+    }
+  };
+
+  const handleSanitizeSingleDish = async (dish: {
+    shopId: string;
+    shopName: string;
+    dishName: string;
+    totalQuantity: number;
+  }) => {
+    const key = `${dish.shopId}___${dish.dishName.trim()}`;
+    setSanitizingSingleKey(key);
+    try {
+      const res = await fetch("/api/menu-sanitizer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sanitize_single",
+          shopId: dish.shopId,
+          shopName: dish.shopName,
+          originalName: dish.dishName,
+          amount: dish.totalQuantity,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.item) {
+        setSanitizedRecords((prev) => ({
+          ...prev,
+          [key]: data.item,
+        }));
+      }
+    } catch (err) {
+      console.warn("Single sanitize error:", err);
+    } finally {
+      setSanitizingSingleKey(null);
+    }
+  };
+
+  const handleSaveManualSanitized = async (
+    recordId: string,
+    originalName: string,
+    newSanitizedName: string
+  ) => {
+    if (!newSanitizedName.trim()) return;
+    try {
+      const res = await fetch("/api/menu-sanitizer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_manual",
+          id: recordId,
+          originalName,
+          sanitizedName: newSanitizedName.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setSanitizedRecords((prev) => {
+          const updated = { ...prev };
+          for (const k in updated) {
+            if (updated[k].id === recordId) {
+              updated[k] = {
+                ...updated[k],
+                sanitizedName: newSanitizedName.trim(),
+                hasTypo: originalName.trim() !== newSanitizedName.trim(),
+                source: "manual",
+                updatedAt: new Date().toISOString(),
+              };
+            }
+          }
+          return updated;
+        });
+        setEditingSanitizedItem(null);
+      }
+    } catch (err) {
+      console.warn("Manual save error:", err);
+    }
+  };
+
+  const sanitizerRows = useMemo(() => {
+    return frequentlyOrderedDishes
+      .map((dish) => {
+        const key = `${dish.shopId}___${dish.dishName.trim()}`;
+        const record = sanitizedRecords[key];
+        return {
+          key,
+          dish,
+          record,
+          shopId: dish.shopId,
+          shopName: dish.shopName,
+          menu: dish.dishName,
+          amount: dish.totalQuantity,
+          sanitizedName: record?.sanitizedName || null,
+          hasTypo: record ? record.hasTypo : null,
+          isScanned: Boolean(record),
+        };
+      })
+      .filter((row) => {
+        if (sanitizerShopFilter !== "all" && row.shopId !== sanitizerShopFilter) return false;
+        if (sanitizerSearch.trim()) {
+          const q = sanitizerSearch.toLowerCase();
+          const matchMenu = row.menu.toLowerCase().includes(q);
+          const matchSanitized = row.sanitizedName?.toLowerCase().includes(q);
+          const matchShop = row.shopName.toLowerCase().includes(q);
+          if (!matchMenu && !matchSanitized && !matchShop) return false;
+        }
+        if (sanitizerStatusFilter === "typo" && row.hasTypo !== true) return false;
+        if (sanitizerStatusFilter === "correct" && (row.hasTypo !== false || !row.isScanned)) return false;
+        if (sanitizerStatusFilter === "pending" && row.isScanned) return false;
+        return true;
+      });
+  }, [frequentlyOrderedDishes, sanitizedRecords, sanitizerShopFilter, sanitizerSearch, sanitizerStatusFilter]);
+
   const handleOpenAddLocation = () => {
     setEditingLocationId(null);
     setLocName("");
@@ -2269,6 +2472,28 @@ export default function AdminClient({
             <Sparkles className="h-4 w-4 text-amber-500" />
             <span>เมนูสั่งบ่อย ({frequentlyOrderedDishes.length})</span>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("ai_sanitizer");
+              if (Object.keys(sanitizedRecords).length === 0) {
+                fetchSanitizedMenus();
+              }
+            }}
+            className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === "ai_sanitizer"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Bot className="h-4 w-4 text-purple-600" />
+            <span>คลีนเมนู AI (ThaiLLM)</span>
+            {Object.values(sanitizedRecords).some((r) => r.hasTypo) && (
+              <span className="text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full">
+                {Object.values(sanitizedRecords).filter((r) => r.hasTypo).length} แก้แล้ว
+              </span>
+            )}
+          </button>
         </div>
 
         {/* ========================================================= */}
@@ -3106,7 +3331,356 @@ export default function AdminClient({
           </div>
         )}
 
+        {/* ========================================================= */}
+        {/* TAB 6: AI MENU SANITIZER (THAILLM) */}
+        {/* ========================================================= */}
+        {activeTab === "ai_sanitizer" && (
+          <div className="space-y-4">
+            {/* Header Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-700" />
+                  <span>คลีนคำผิดชื่อเมนูด้วย AI (ThaiLLM OpenThaiGPT)</span>
+                </h2>
+                <p className="text-xs text-gray-500">
+                  ตรวจจับและแก้คำสะกดผิด วรรณยุกต์ และการทับศัพท์จากออเดอร์จริงของลูกค้าอัตโนมัติ พร้อมบันทึกผลลงระบบ
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchSanitizedMenus}
+                  disabled={loadingSanitizer}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingSanitizer ? "animate-spin" : ""}`} />
+                  <span>รีเฟรช</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSanitizingAll || frequentlyOrderedDishes.length === 0}
+                  onClick={handleSanitizeAllMenus}
+                  className="inline-flex items-center gap-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 active:scale-98"
+                >
+                  {isSanitizingAll ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>กำลังประมวลผลด้วย ThaiLLM...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                      <span>✨ สแกนคำผิดทั้งหมดด้วย AI ({frequentlyOrderedDishes.length} เมนู)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Notification message */}
+            {sanitizerMessage && (
+              <div
+                className={`p-3 rounded-2xl text-xs font-medium flex items-center justify-between border ${
+                  sanitizerMessage.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-rose-50 border-rose-200 text-rose-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {sanitizerMessage.type === "success" ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{sanitizerMessage.text}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSanitizerMessage(null)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Summary KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-2xs">
+                <span className="text-[11px] font-bold text-gray-400 block">เมนูออเดอร์ทั้งหมด</span>
+                <span className="text-xl font-black text-gray-900 font-mono">
+                  {frequentlyOrderedDishes.length}
+                </span>
+                <span className="text-[10px] text-gray-400 block mt-0.5">รายการจากชุมชน</span>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-3 shadow-2xs">
+                <span className="text-[11px] font-bold text-amber-700 block">พบคำผิด & แก้ไขแล้ว</span>
+                <span className="text-xl font-black text-amber-900 font-mono">
+                  {sanitizerRows.filter((r) => r.hasTypo === true).length}
+                </span>
+                <span className="text-[10px] text-amber-600 block mt-0.5">วรรณยุกต์/ทับศัพท์</span>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 shadow-2xs">
+                <span className="text-[11px] font-bold text-emerald-700 block">สะกดถูกต้องแล้ว</span>
+                <span className="text-xl font-black text-emerald-900 font-mono">
+                  {sanitizerRows.filter((r) => r.hasTypo === false && r.isScanned).length}
+                </span>
+                <span className="text-[10px] text-emerald-600 block mt-0.5">ตามพจนานุกรม</span>
+              </div>
+
+              <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-3 shadow-2xs">
+                <span className="text-[11px] font-bold text-purple-700 block">AI Engine</span>
+                <span className="text-sm font-black text-purple-950 truncate block mt-1">
+                  OpenThaiGPT 8B
+                </span>
+                <span className="text-[10px] text-purple-600 block">ThaiLLM (200 req/min)</span>
+              </div>
+            </div>
+
+            {/* Filters Toolbar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-gray-50 p-2.5 rounded-2xl border border-gray-200">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อเมนูเดิม, ชื่อที่แก้ไขแล้ว, หรือชื่อร้าน..."
+                  value={sanitizerSearch}
+                  onChange={(e) => setSanitizerSearch(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={sanitizerShopFilter}
+                  onChange={(e) => setSanitizerShopFilter(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-700 focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
+                >
+                  <option value="all">ทุกร้านค้า ({shops.length})</option>
+                  {shops.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={sanitizerStatusFilter}
+                  onChange={(e) => setSanitizerStatusFilter(e.target.value as any)}
+                  className="rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-700 focus:outline-hidden focus:ring-1.5 focus:ring-purple-600"
+                >
+                  <option value="all">สถานะทั้งหมด</option>
+                  <option value="typo">⚠️ พบคำผิด & แก้ไขแล้ว</option>
+                  <option value="correct">✅ สะกดถูกต้อง</option>
+                  <option value="pending">⏳ ยังไม่ได้สแกน</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Table */}
+            {sanitizerRows.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+                ไม่พบรายการเมนูที่ตรงกับเงื่อนไขการค้นหา
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="py-3 px-4">ร้านค้า (Shop)</th>
+                      <th className="py-3 px-4">ชื่อเมนูเดิม (Menu)</th>
+                      <th className="py-3 px-4 text-center">จำนวนที่สั่ง (Amount)</th>
+                      <th className="py-3 px-4">ชื่อที่คลีนคำผิดแล้ว (Sanitized Menu)</th>
+                      <th className="py-3 px-4 text-right">การจัดการ (Actions)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {sanitizerRows.map((row) => (
+                      <tr key={row.key} className="hover:bg-purple-50/30 transition-colors">
+                        <td className="py-3 px-4 font-bold text-gray-900 whitespace-nowrap">
+                          <span className="inline-block bg-purple-50 text-purple-900 px-2.5 py-0.5 rounded-lg border border-purple-100 font-semibold">
+                            {row.shopName}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold text-gray-900 text-sm block">{row.menu}</span>
+                          <span className="text-[10px] text-gray-400 font-mono">฿{row.dish.latestPrice}</span>
+                        </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-gray-100 text-gray-800">
+                            {row.amount} กล่อง
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {row.isScanned ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-sm font-black ${
+                                    row.hasTypo
+                                      ? "text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200"
+                                      : "text-emerald-900"
+                                  }`}
+                                >
+                                  {row.sanitizedName}
+                                </span>
+                                {row.hasTypo ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    <span>แก้ไขคำผิดแล้ว</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span>สะกดถูกต้อง</span>
+                                  </span>
+                                )}
+                              </div>
+                              {row.hasTypo && (
+                                <p className="text-[11px] text-gray-500">
+                                  เดิม: <del className="text-rose-500">{row.menu}</del> ➔ แก้เป็น:{" "}
+                                  <strong className="text-emerald-700 font-bold">{row.sanitizedName}</strong>
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>ยังไม่เคยสแกน AI</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={sanitizingSingleKey === row.key || isSanitizingAll}
+                              onClick={() => handleSanitizeSingleDish(row.dish)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer disabled:opacity-50"
+                              title="สแกนคำผิดด้วย ThaiLLM สำหรับเมนูนี้"
+                            >
+                              {sanitizingSingleKey === row.key ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3 w-3 text-purple-700" />
+                              )}
+                              <span>{row.isScanned ? "สแกนซ้ำ" : "สแกน AI"}</span>
+                            </button>
+
+                            {row.isScanned && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingSanitizedItem({
+                                    id: row.record?.id || "",
+                                    originalName: row.menu,
+                                    sanitizedName: row.sanitizedName || row.menu,
+                                    shopName: row.shopName,
+                                    amount: row.amount,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                                title="แก้ไขชื่อเมนูนี้ด้วยตนเอง"
+                              >
+                                <Edit className="h-3 w-3" />
+                                <span>แก้ไข</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
+
+      {/* ========================================================= */}
+      {/* MODAL 6: EDIT SANITIZED MENU NAME */}
+      {/* ========================================================= */}
+      {editingSanitizedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <Bot className="h-5 w-5 text-purple-700" />
+                <span>แก้ไขชื่อเมนูมาตรฐาน (Sanitized)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingSanitizedItem(null)}
+                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-gray-400 block font-bold">ร้านค้า:</span>
+                <span className="font-bold text-gray-900 text-sm">{editingSanitizedItem.shopName}</span>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block font-bold">ชื่อเมนูเดิมจากลูกค้า:</span>
+                <span className="font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded-lg block font-mono">
+                  {editingSanitizedItem.originalName} ({editingSanitizedItem.amount} กล่อง)
+                </span>
+              </div>
+
+              <div>
+                <label className="text-gray-700 block font-bold mb-1">
+                  ชื่อเมนูหลังตรวจแก้คำผิด (Sanitized Name):
+                </label>
+                <input
+                  type="text"
+                  value={editingSanitizedItem.sanitizedName}
+                  onChange={(e) =>
+                    setEditingSanitizedItem({
+                      ...editingSanitizedItem,
+                      sanitizedName: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                  placeholder="พิมพ์ชื่อเมนูที่ถูกต้อง..."
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setEditingSanitizedItem(null)}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleSaveManualSanitized(
+                    editingSanitizedItem.id,
+                    editingSanitizedItem.originalName,
+                    editingSanitizedItem.sanitizedName
+                  )
+                }
+                className="rounded-xl bg-purple-900 hover:bg-purple-800 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer active:scale-98"
+              >
+                💾 บันทึกการแก้ไข
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* MODAL 1: ADD / EDIT SHOP */}
@@ -3118,6 +3692,7 @@ export default function AdminClient({
               <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
                 <Store className="h-5 w-5 text-purple-700" />
                 <span>{editingShopId ? `แก้ไขร้าน: ${shopName}` : "เพิ่มร้านอาหารใหม่เข้าสู่ระบบ"}</span>
+
               </h3>
               <button
                 type="button"
