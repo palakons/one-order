@@ -7,7 +7,7 @@ async function AdminDataLoader() {
   await connection();
   try {
     const [batches, shops, locations, systemStatus] = await Promise.all([
-      getBatches(),
+      getBatches(false, true),
       getShops(),
       getDeliveryLocations(),
       getSystemStatus(),

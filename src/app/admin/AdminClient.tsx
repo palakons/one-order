@@ -50,6 +50,13 @@ import {
   Maximize2,
   ShoppingBag,
   Info,
+  Package,
+  Search,
+  Filter,
+  Calendar,
+  DollarSign,
+  ListOrdered,
+  Eye,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
@@ -343,8 +350,15 @@ export default function AdminClient({
   const [passcode, setPasscode] = useState("");
   const [passError, setPassError] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "shops" | "desks" | "batches" | "suggestions" | "frequently_ordered"
-  >("shops");
+    "orders" | "shops" | "desks" | "batches" | "suggestions" | "frequently_ordered"
+  >("orders");
+  const [orderShopFilter, setOrderShopFilter] = useState<string>("all");
+  const [orderLocationFilter, setOrderLocationFilter] = useState<string>("all");
+  const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
+  const [orderSearch, setOrderSearch] = useState<string>("");
+  const [selectedSlipPhoto, setSelectedSlipPhoto] = useState<{ url: string; title: string } | null>(null);
+  const [copiedOrderSummary, setCopiedOrderSummary] = useState(false);
+
   const [frequentShopFilter, setFrequentShopFilter] = useState<string>("all");
   const [addingMenuItemShopId, setAddingMenuItemShopId] = useState<string | null>(null);
 
@@ -781,7 +795,7 @@ export default function AdminClient({
   const refreshData = async () => {
     try {
       const [batchesRes, shopsRes, locsRes] = await Promise.all([
-        fetch("/api/batches"),
+        fetch("/api/batches?role=host&fresh=true"),
         fetch("/api/shops"),
         fetch("/api/locations"),
       ]);
@@ -961,6 +975,141 @@ export default function AdminClient({
         console.error("Image upload compression error:", err);
       }
     }
+  };
+
+  // -------------------------------------------------------------
+  // Crowdsourced All Orders Master Analytics & Filtering
+  // -------------------------------------------------------------
+  const allOrders = useMemo(() => {
+    const list: Array<{
+      id: string;
+      orderNumber: number;
+      batchId: string;
+      batchDate: string;
+      batchStatus: string;
+      shopId: string;
+      shopName: string;
+      customerName: string;
+      customerLineId?: string;
+      customerPhone?: string;
+      locationId: string;
+      locationName: string;
+      items: Array<{ name: string; price: number; quantity: number; customNote?: string }>;
+      totalAmount: number;
+      slipImageUrl?: string;
+      isSlipVerified?: boolean;
+      createdAt: string;
+      boxLabel?: string;
+    }> = [];
+
+    batches.forEach((b) => {
+      const shop = shops.find((s) => s.id === b.shopId) || b.shop;
+      const shopName = shop?.name || "ร้านอาหาร";
+
+      (b.orders || []).forEach((ord) => {
+        if (ord.deletedAt) return;
+        const loc = locations.find((l) => l.id === ord.locationId);
+        list.push({
+          id: ord.id,
+          orderNumber: ord.orderNumber,
+          batchId: b.id,
+          batchDate: b.date,
+          batchStatus: b.status,
+          shopId: b.shopId,
+          shopName,
+          customerName: ord.customerName,
+          customerLineId: ord.customerLineId,
+          customerPhone: ord.customerPhone,
+          locationId: ord.locationId,
+          locationName: loc ? loc.name : ord.locationId,
+          items: ord.items || [],
+          totalAmount: ord.totalAmount,
+          slipImageUrl: ord.slipImageUrl,
+          isSlipVerified: ord.isSlipVerified,
+          createdAt: ord.createdAt || "",
+          boxLabel: ord.boxLabel,
+        });
+      });
+    });
+
+    return list.sort((a, b) => {
+      const tA = new Date(a.createdAt || a.batchDate).getTime() || 0;
+      const tB = new Date(b.createdAt || b.batchDate).getTime() || 0;
+      return tB - tA;
+    });
+  }, [batches, shops, locations]);
+
+  const filteredOrders = useMemo(() => {
+    return allOrders.filter((ord) => {
+      // 1. Shop filter
+      if (orderShopFilter !== "all" && ord.shopId !== orderShopFilter) return false;
+
+      // 2. Building / Location filter
+      if (orderLocationFilter !== "all" && ord.locationId !== orderLocationFilter) return false;
+
+      // 3. Date filter
+      if (orderDateFilter === "today") {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (ord.batchDate !== todayStr) return false;
+      }
+
+      // 4. Search query
+      if (orderSearch.trim()) {
+        const q = orderSearch.trim().toLowerCase();
+        const matchCustomer = (ord.customerName || "").toLowerCase().includes(q);
+        const matchLine = (ord.customerLineId || "").toLowerCase().includes(q);
+        const matchPhone = (ord.customerPhone || "").includes(q);
+        const matchLoc = (ord.locationName || "").toLowerCase().includes(q);
+        const matchShop = (ord.shopName || "").toLowerCase().includes(q);
+        const matchDish = (ord.items || []).some((it) => (it.name || "").toLowerCase().includes(q));
+        if (!matchCustomer && !matchLine && !matchPhone && !matchLoc && !matchShop && !matchDish) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allOrders, orderShopFilter, orderLocationFilter, orderDateFilter, orderSearch]);
+
+  const ordersMetrics = useMemo(() => {
+    const totalOrders = filteredOrders.length;
+    const totalBoxes = filteredOrders.reduce((sum, o) => {
+      const boxCount = (o.items || []).reduce((bSum, it) => bSum + (it.quantity || 1), 0);
+      return sum + (boxCount || 1);
+    }, 0);
+    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    // Top crowd-sourced dish in current selection
+    const dishCounts: Record<string, number> = {};
+    filteredOrders.forEach((o) => {
+      (o.items || []).forEach((it) => {
+        const name = (it.name || "").trim();
+        if (name) dishCounts[name] = (dishCounts[name] || 0) + (it.quantity || 1);
+      });
+    });
+    const sortedDishes = Object.entries(dishCounts).sort((a, b) => b[1] - a[1]);
+    const topDish = sortedDishes[0] ? `${sortedDishes[0][0]} (${sortedDishes[0][1]} กล่อง)` : "-";
+
+    return { totalOrders, totalBoxes, totalRevenue, topDish, topDishesList: sortedDishes.slice(0, 5) };
+  }, [filteredOrders]);
+
+  const handleCopyFilteredOrdersSummary = async () => {
+    if (filteredOrders.length === 0) return;
+    let txt = `📋 [VEATEC] สรุปรายการออเดอร์ทั้งหมด (${filteredOrders.length} ออเดอร์ • ${ordersMetrics.totalBoxes} กล่อง)\n`;
+    txt += `💰 ยอดรวม: ฿${ordersMetrics.totalRevenue.toLocaleString()}\n`;
+    txt += `------------------------------------\n`;
+    filteredOrders.forEach((ord, i) => {
+      const lineTag = ord.customerLineId ? `@${ord.customerLineId}` : ord.customerName;
+      const phoneTag = ord.customerPhone ? ` (${ord.customerPhone})` : "";
+      const itemsStr = ord.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` [${it.customNote}]` : ""}`).join(", ");
+      txt += `${i + 1}. #${ord.orderNumber} ${ord.shopName} [${ord.locationName}] — ${itemsStr} (฿${ord.totalAmount}) — ${lineTag}${phoneTag}\n`;
+    });
+    txt += `------------------------------------\n`;
+    try {
+      await navigator.clipboard.writeText(txt);
+      setCopiedOrderSummary(true);
+      setTimeout(() => setCopiedOrderSummary(false), 2500);
+    } catch (e) {}
   };
 
   // -------------------------------------------------------------
@@ -2044,6 +2193,18 @@ export default function AdminClient({
         {/* Navigation Tabs */}
         <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
           <button
+            onClick={() => setActiveTab("orders")}
+            className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === "orders"
+                ? "border-purple-800 text-purple-900"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Package className="h-4 w-4" />
+            <span>ออเดอร์ทั้งหมด ({allOrders.length})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("shops")}
             className={`pb-3 px-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
               activeTab === "shops"
@@ -2109,6 +2270,310 @@ export default function AdminClient({
             <span>เมนูสั่งบ่อย ({frequentlyOrderedDishes.length})</span>
           </button>
         </div>
+
+        {/* ========================================================= */}
+        {/* TAB 0: CROWDSOURCED ORDERS MASTER & FILTER */}
+        {/* ========================================================= */}
+        {activeTab === "orders" && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Package className="h-5 w-5 text-purple-700" />
+                  <span>บันทึกออเดอร์รวมจากผู้ใช้ ({allOrders.length} ออเดอร์)</span>
+                </h2>
+                <p className="text-xs text-gray-500">
+                  ฐานข้อมูลคำสั่งซื้อจริง (Crowdsourced Order Records) แยกดูตามร้านค้าและจุดส่ง/ตึกได้อย่างอิสระ
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={handleCopyFilteredOrdersSummary}
+                  disabled={filteredOrders.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs transition-colors cursor-pointer"
+                  title="คัดลอกสรุปรายการที่กรองไว้ทั้งหมด"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  <span>{copiedOrderSummary ? "✓ คัดลอกแล้ว!" : "คัดลอกสรุปรายการ"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={refreshData}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>รีเฟรช</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Metrics KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5 text-purple-600" />
+                  <span>ออเดอร์ในตัวกรอง</span>
+                </span>
+                <p className="text-xl font-black text-gray-900 font-mono">
+                  {filteredOrders.length} <span className="text-xs text-gray-500 font-normal">/ {allOrders.length}</span>
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                  <ShoppingBag className="h-3.5 w-3.5 text-amber-600" />
+                  <span>จำนวนกล่องรวม</span>
+                </span>
+                <p className="text-xl font-black text-amber-900 font-mono">
+                  {ordersMetrics.totalBoxes} <span className="text-xs text-gray-500 font-normal">กล่อง</span>
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                  <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>ยอดเงินรวม</span>
+                </span>
+                <p className="text-xl font-black text-emerald-700 font-mono">
+                  ฿{ordersMetrics.totalRevenue.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+                  <span>เมนูยอดนิยม</span>
+                </span>
+                <p className="text-xs font-bold text-purple-950 truncate" title={ordersMetrics.topDish}>
+                  {ordersMetrics.topDish}
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="ค้นหาชื่อผู้สั่ง, LINE, เบอร์โทร, หรือชื่อเมนู..."
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-purple-600 focus:outline-hidden"
+                  />
+                  {orderSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter: Shop */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Store className="h-3.5 w-3.5 text-gray-500" />
+                  <select
+                    value={orderShopFilter}
+                    onChange={(e) => setOrderShopFilter(e.target.value)}
+                    className="rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-800 shadow-2xs focus:border-purple-500"
+                  >
+                    <option value="all">ทุกร้านค้า ({shops.length})</option>
+                    {shops.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filter: Building / Location */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <MapPin className="h-3.5 w-3.5 text-gray-500" />
+                  <select
+                    value={orderLocationFilter}
+                    onChange={(e) => setOrderLocationFilter(e.target.value)}
+                    className="rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-800 shadow-2xs focus:border-purple-500"
+                  >
+                    <option value="all">ทุกจุดส่ง/ตึก ({locations.length})</option>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filter: Date */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Calendar className="h-3.5 w-3.5 text-gray-500" />
+                  <select
+                    value={orderDateFilter}
+                    onChange={(e) => setOrderDateFilter(e.target.value)}
+                    className="rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-800 shadow-2xs focus:border-purple-500"
+                  >
+                    <option value="all">ทุกวันที่</option>
+                    <option value="today">เฉพาะวันนี้</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Orders List */}
+            {filteredOrders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 space-y-2">
+                <Package className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="text-sm font-bold">ไม่พบรายการออเดอร์ตามเงื่อนไขที่เลือก</p>
+                <p className="text-xs text-gray-400">ลองล้างตัวกรองหรือคำค้นหาเพื่อดูออเดอร์ทั้งหมด</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredOrders.map((ord) => {
+                  const lineTag = ord.customerLineId ? `@${ord.customerLineId.replace(/^@/, "")}` : ord.customerName;
+                  return (
+                    <div
+                      key={ord.id}
+                      className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:border-purple-300 transition-all space-y-2.5"
+                    >
+                      {/* Top Bar: Box #, Shop, Building, Date, Status */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center justify-center rounded-lg bg-purple-900 text-white font-mono font-black text-xs px-2 py-0.5">
+                            #{ord.orderNumber}
+                          </span>
+                          <span className="font-bold text-xs text-gray-900">
+                            {ord.shopName}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 text-[11px] font-bold">
+                            <MapPin className="h-3 w-3 text-purple-600" />
+                            <span>{ord.locationName}</span>
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            วันที่ {ord.batchDate} {ord.createdAt ? `• ${ord.createdAt.slice(11, 16)} น.` : ""}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600 font-bold uppercase">
+                            {ord.batchStatus}
+                          </span>
+                          {ord.isSlipVerified ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[11px] font-bold">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              <span>ตรวจสลิปแล้ว</span>
+                            </span>
+                          ) : ord.slipImageUrl ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[11px] font-bold">
+                              <Clock className="h-3 w-3 text-amber-600" />
+                              <span>มีสลิปแนบ</span>
+                            </span>
+                          ) : (
+                            <span className="rounded bg-rose-100 text-rose-800 px-2 py-0.5 text-[11px] font-bold">
+                              ยังไม่มีสลิป
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Middle: Customer Info & Dishes */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-0.5">
+                        {/* Customer */}
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                            ข้อมูลผู้สั่ง
+                          </span>
+                          <p className="text-xs font-bold text-gray-900">
+                            {ord.customerName}
+                          </p>
+                          <p className="text-xs text-purple-800 font-mono">
+                            LINE: {lineTag}
+                          </p>
+                          {ord.customerPhone && (
+                            <p className="text-xs text-gray-600 font-mono">
+                              📞 {ord.customerPhone}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Dishes */}
+                        <div className="md:col-span-2 space-y-1">
+                          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                            รายการอาหารที่สั่ง
+                          </span>
+                          <div className="space-y-1">
+                            {ord.items.map((it, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start justify-between text-xs text-gray-800 bg-gray-50 rounded-lg px-2.5 py-1 border border-gray-100"
+                              >
+                                <div>
+                                  <span className="font-bold">
+                                    {it.quantity > 1 ? `${it.quantity}x ` : ""}
+                                    {it.name}
+                                  </span>
+                                  {it.customNote && (
+                                    <span className="text-gray-500 text-[11px] ml-1.5 italic">
+                                      ({it.customNote})
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-mono font-bold text-purple-950 ml-2 shrink-0">
+                                  ฿{it.price * (it.quantity || 1)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Footer: Total Amount & Slip Preview Button */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <span>รหัสออเดอร์:</span>
+                          <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[11px]">
+                            {ord.id}
+                          </code>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {ord.slipImageUrl ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedSlipPhoto({
+                                  url: ord.slipImageUrl!,
+                                  title: `สลิปโอนเงิน #${ord.orderNumber} (${ord.customerName} - ฿${ord.totalAmount})`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-xs text-purple-700 hover:text-purple-900 font-bold hover:underline cursor-pointer"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>ดูรูปสลิป</span>
+                            </button>
+                          ) : null}
+
+                          <div className="flex items-center gap-1 text-xs font-bold text-gray-900">
+                            <span>ยอดรวม:</span>
+                            <span className="font-mono text-base font-black text-purple-950">
+                              ฿{ord.totalAmount}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ========================================================= */}
         {/* TAB 1: SHOPS MANAGEMENT */}
@@ -3186,6 +3651,51 @@ export default function AdminClient({
               <button
                 type="button"
                 onClick={() => setZoomedQr(null)}
+                className="flex-1 rounded-xl bg-purple-900 hover:bg-purple-800 text-white py-2 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Slip Photo Full View */}
+      {selectedSlipPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative max-w-md w-full rounded-2xl bg-white p-5 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h4 className="text-xs font-bold text-gray-800 truncate pr-2">
+                {selectedSlipPhoto.title}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setSelectedSlipPhoto(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="rounded-xl overflow-hidden bg-slate-950 max-h-[70vh] flex items-center justify-center border border-gray-200">
+              <img
+                src={selectedSlipPhoto.url}
+                alt={selectedSlipPhoto.title}
+                className="max-h-[70vh] w-auto object-contain"
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <a
+                href={selectedSlipPhoto.url}
+                download="slip-transfer.jpg"
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 text-center rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 py-2 text-xs font-bold text-purple-900 transition-colors cursor-pointer"
+              >
+                เปิดรูปเต็ม / บันทึกรูป
+              </a>
+              <button
+                type="button"
+                onClick={() => setSelectedSlipPhoto(null)}
                 className="flex-1 rounded-xl bg-purple-900 hover:bg-purple-800 text-white py-2 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
               >
                 ปิดหน้าต่าง
