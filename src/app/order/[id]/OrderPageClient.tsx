@@ -35,6 +35,7 @@ import {
   Key,
   SlidersHorizontal,
   RefreshCw,
+  ArrowDown,
 } from "lucide-react";
 
 interface Props {
@@ -639,38 +640,93 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
-        {/* 1. Header Card: Shop Info, Google Maps & PromptPay QR (Compact) */}
-        <div className="rounded-2xl border border-purple-200/80 bg-white p-3.5 sm:p-4.5 shadow-xs space-y-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-                <span>{batch.shop.cuisine}</span>
-              </div>
-              <h1 className="mt-1 text-xl sm:text-2xl font-black text-gray-900">
+        {/* 1. Header Card: Shop Info, Drop-off & Quick Contacts (Ultra-compact & Space-saving) */}
+        <div className="rounded-2xl border border-purple-200 bg-white p-3 sm:p-3.5 shadow-2xs space-y-2">
+          {/* Row 1: Shop Name, Location & Quick Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h1 className="text-base sm:text-lg font-black text-gray-950 tracking-tight">
                 {batch.shop.name}
               </h1>
-              <p className="mt-0.5 text-xs text-gray-600 max-w-xl">
-                {batch.shop.description}
-              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                <MapPin className="h-3 w-3 text-purple-700 shrink-0" />
+                <span>{buildingName} ชั้น 1</span>
+              </span>
+            </div>
+
+            {/* Quick Actions (Call Shop, LINE Shop, QR Shop, Share) */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {batch.shop.phone && (
+                <a
+                  href={`tel:${batch.shop.phone}`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 shadow-2xs transition-colors"
+                  title="โทรติดต่อร้านค้า"
+                >
+                  <Phone className="h-3 w-3 text-emerald-700" />
+                  <span>{batch.shop.phone}</span>
+                </a>
+              )}
+
+              {batch.shop.lineId && (
+                <a
+                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
+                  title="เปิด LINE ร้าน"
+                >
+                  <span>💬 LINE ร้าน</span>
+                </a>
+              )}
+
+              {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPromptPayModal(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+                  title="ดู QR พร้อมเพย์ร้านค้า"
+                >
+                  <CreditCard className="h-3 w-3 text-purple-700" />
+                  <span>QR ร้าน</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleShareBoard}
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-950 hover:bg-purple-100 shadow-2xs transition-colors cursor-pointer"
+                title="แชร์ชวนเพื่อน"
+              >
+                <Share2 className="h-3 w-3 text-purple-700" />
+                <span>ชวนเพื่อน</span>
+              </button>
             </div>
           </div>
 
-          {/* Delivery Goal & Progress */}
-          <div className="pt-2 border-t border-gray-100 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-gray-700 flex items-center gap-1">
-                <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
-                <span>
-                  <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong> / ฿{batch.targetMinAmount}
+          {/* Row 2: Delivery Goal & Progress */}
+          <div className="pt-1.5 border-t border-gray-100 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs font-bold">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-700 flex items-center gap-1">
+                  <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
+                  <span>
+                    ยอดรวม: <strong className="text-purple-900 font-mono">฿{batch.currentTotalAmount}</strong>/฿{batch.targetMinAmount}
+                    <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
+                  </span>
                 </span>
-              </span>
+                {batch.isSelfPickup && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded-md">
+                    🚶 รับเอง
+                  </span>
+                )}
+              </div>
+
               <span className={`text-[11px] ${batch.isMinMet ? "text-emerald-700 font-bold" : "text-amber-700 font-semibold"}`}>
                 {batch.isMinMet ? "✓ ครบยอดส่งฟรี" : `ขาดอีก ฿${batch.amountRemaining}`}
               </span>
             </div>
 
-            {/* Visual Bar */}
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/80">
               <div
                 className={`h-full transition-all duration-500 ${
                   batch.isMinMet
@@ -681,60 +737,26 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               />
             </div>
 
-            {/* Time & Destination Badges */}
-            <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5 text-[11px]">
-              <span className="flex items-center gap-1 font-semibold text-gray-700 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+            {/* Time & Leader Info */}
+            <div className="flex items-center justify-between pt-0.5 text-[11px]">
+              <span className="flex items-center gap-1 font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
                 <Clock className="h-3 w-3 text-purple-900" />
                 <span>{timeInfo.text} (Cutoff: {batch.cutoffTime} น.)</span>
               </span>
-              <span className="flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                <MapPin className="h-3 w-3 text-emerald-700" />
-                <span>จุดส่ง: {buildingName} ชั้น 1</span>
-              </span>
-            </div>
 
-            {/* Leader Contact Card */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50/80 border border-purple-200 px-3 py-1.5 text-xs">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm">👑</span>
-                <span className="font-bold text-purple-950">
-                  หัวหน้าตี้: <span className="font-extrabold text-purple-900">{leaderLine}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-600 font-medium hidden sm:inline">
+                  👑 {leaderLine}
                 </span>
-
-                {/* Subtle Board Managing Button */}
                 <Link
                   href={`/order/${batchId}/leader`}
-                  className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs hover:shadow-xs"
+                  className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-950 px-2 py-0.5 text-[11px] font-bold transition-all shadow-2xs"
                   title="จัดการกระดาน"
                 >
                   <SlidersHorizontal className="h-3 w-3 text-purple-700" />
                   <span>จัดการกระดาน ↗</span>
                 </Link>
-
-                {batch.status === "ORDERED" && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] font-bold">
-                    🚀 ส่งร้านแล้ว
-                  </span>
-                )}
-                {batch.isSelfPickup && batch.status !== "ORDERED" && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-bold">
-                    🚶 รับเอง
-                  </span>
-                )}
               </div>
-
-              {leaderPhone ? (
-                <a
-                  href={`tel:${leaderPhone}`}
-                  className="flex items-center gap-1 font-bold text-purple-900 hover:text-purple-700 bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs transition-colors text-xs"
-                  title="โทรหาหัวหน้าตี้"
-                >
-                  <Phone className="h-3 w-3 text-purple-700" />
-                  <span>โทร: {leaderPhone}</span>
-                </a>
-              ) : (
-                <span className="text-[11px] text-purple-600">ไม่มีเบอร์โทรระบุ</span>
-              )}
             </div>
           </div>
         </div>
@@ -767,85 +789,98 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 return (
                   <div
                     key={ord.id}
-                    className="py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-purple-50/30 rounded-xl px-2 sm:px-3 transition-colors"
+                    className="p-3 sm:p-3.5 hover:bg-purple-50/30 rounded-xl transition-colors space-y-2"
                   >
-                    <div className="flex-1 min-w-0">
-                      {/* 1. BIG PROMINENT Food Item(s) ON TOP */}
-                      <div className="space-y-1">
-                        {ord.items.map((it, idx) => (
-                          <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
-                            <span className="text-lg sm:text-xl font-black text-gray-950 tracking-tight">
-                              {it.quantity > 1 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black bg-purple-100 text-purple-900 mr-1.5 align-middle">
-                                  {it.quantity}x
-                                </span>
-                              )}
-                              {it.name}
-                            </span>
-                            {it.customNote && (
-                              <span className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.5">
-                                {it.customNote}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* 2. Person & Transfer Status go BELOW Menu */}
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-gray-500 pt-1.5">
-                        <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-gray-900 text-white shrink-0">
-                          #{ord.orderNumber}
-                        </span>
-                        <span className="font-bold text-sm text-gray-800 truncate max-w-[150px] sm:max-w-[220px]">
-                          {lineName}
-                        </span>
-                        <span className="text-gray-300">•</span>
-                        {hasSlip ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold">
-                            <span>⏳ รอสลิป</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Price, Slip View & Cancel Actions */}
-                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-1 sm:pt-0">
-                      <span className="font-mono font-black text-lg sm:text-xl text-orange-600">
-                        ฿{ord.totalAmount}
+                    {/* Row 1: [#1] @น้องวัว (dark gray text-slate-600) [📞 tel] */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-gray-900 text-white shrink-0">
+                        #{ord.orderNumber}
+                      </span>
+                      <span className="font-semibold text-xs text-gray-600 truncate max-w-[150px] sm:max-w-[220px]">
+                        {lineName}
                       </span>
 
-                      {ord.slipImageUrl && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedSlip({
-                              url: ord.slipImageUrl,
-                              title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
-                            })
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-purple-50 hover:border-purple-300 transition-colors shadow-2xs"
+                      {ord.customerPhone && (
+                        <a
+                          href={`tel:${ord.customerPhone}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-900 border border-purple-200/80 px-2 py-0.5 text-[11px] font-mono font-semibold hover:bg-purple-100 transition-colors shrink-0"
+                          title="แตะเพื่อโทรหาลูกตี้"
                         >
-                          <Eye className="h-3 w-3 text-purple-700" />
-                          <span>ดูสลิป</span>
-                        </button>
+                          <Phone className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                          <span>{ord.customerPhone}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Row 2: Numbered Menu Items */}
+                    <div className="space-y-1 pl-0.5">
+                      {ord.items.map((it, idx) => (
+                        <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                          <span className="text-sm sm:text-base font-black text-gray-950">
+                            <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
+                            {it.quantity > 1 && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
+                                {it.quantity}x
+                              </span>
+                            )}
+                            {it.name}
+                          </span>
+                          {it.customNote && (
+                            <span className="text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.2">
+                              {it.customNote}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Row 3: [โอนแล้ว (KTB)]   ฿95 [ดูสลิป] [🗑️] */}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      {/* Left: Transfer status */}
+                      {hasSlip ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>โอนแล้ว{ord.slipBankName ? ` (${ord.slipBankName.split(" ")[0]})` : " ✓"}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-xs font-bold shrink-0">
+                          <span>⏳ รอสลิป</span>
+                        </span>
                       )}
 
-                      {/* Delete with trace (Host only or before sent) */}
-                      {isHost && batch.status === "OPEN" && (
-                        <button
-                          type="button"
-                          onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
-                          className="p-1 rounded-lg text-gray-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="ยกเลิกออเดอร์นี้ (บันทึกประวัติ)"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      {/* Right: Price + View Slip + Cancel */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono font-black text-base text-orange-600">
+                          ฿{ord.totalAmount}
+                        </span>
+
+                        {ord.slipImageUrl && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedSlip({
+                                url: ord.slipImageUrl,
+                                title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-white px-2 py-1 text-xs font-bold text-purple-900 hover:bg-purple-50 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <Eye className="h-3 w-3 text-purple-700" />
+                            <span>ดูสลิป</span>
+                          </button>
+                        )}
+
+                        {isHost && batch.status === "OPEN" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelOrder(ord.id, ord.orderNumber, lineName)}
+                            className="p-1 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="ยกเลิกออเดอร์นี้"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -856,7 +891,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
         {/* 4. The 1-Screen Order Input Form (Force Transfer) */}
         {!isBatchClosed ? (
-          <div className="rounded-2xl border-2 border-purple-400/80 bg-white p-3.5 sm:p-4.5 shadow-md space-y-3">
+          <div id="order-form" className="rounded-2xl border-2 border-purple-400/80 bg-white p-3.5 sm:p-4.5 shadow-md space-y-3">
             <div>
               <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
                 <Plus className="h-3 w-3" />
@@ -973,106 +1008,90 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </div>
               </div>
 
-              {/* 3 Bottom Cards: Total, Display QR, Upload Slip */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
-                {/* Card 1: Total */}
-                <div className="rounded-xl bg-purple-950 text-white p-3.5 flex flex-col justify-between shadow-xs min-h-[110px]">
-                  <div className="text-[11px] text-purple-200 font-medium">
-                    ยอดโอนรวม
-                  </div>
-                  <div className="my-1 text-2xl font-mono font-black text-amber-300">
-                    ฿{dishPrice ? parseFloat(dishPrice) || 0 : 0}
-                  </div>
-                  <div className="text-[10px] text-purple-300 leading-tight">
-                    โอนเข้าพร้อมเพย์ร้าน
-                  </div>
-                </div>
+              {/* Compact 1-Card Payment & Slip Bar */}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-2.5 sm:p-3 space-y-2 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {/* Left: Total & PromptPay QR button */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase block">ยอดโอนรวม</span>
+                      <div className="text-xl sm:text-2xl font-mono font-black text-purple-950 leading-none">
+                        ฿{dishPrice ? parseFloat(dishPrice) || 0 : 0}
+                      </div>
+                    </div>
 
-                {/* Card 2: Display QR */}
-                <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3.5 flex flex-col justify-between shadow-2xs min-h-[110px]">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-purple-950">
-                    <span className="flex items-center gap-1.5">
-                      <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                      <span>QR พร้อมเพย์ร้าน</span>
-                    </span>
-                  </div>
-                  <div className="my-1 text-[11px] text-purple-950 font-bold truncate">
-                    {batch.shop.promptpayAccountName || batch.shop.name}
-                    {batch.shop.promptpayNumber && (
-                      <span className="block text-[10px] font-mono text-purple-800 font-semibold mt-0.5">
-                        {batch.shop.promptpayNumber}
-                      </span>
+                    {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPromptPayModal(true)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-100 text-purple-950 px-2.5 py-1 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
+                      >
+                        <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                        <span>QR ร้าน</span>
+                      </button>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg bg-white border border-purple-300 hover:bg-purple-100 text-purple-950 py-1.5 px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
-                  >
-                    <CreditCard className="h-3.5 w-3.5 text-purple-700" />
-                    <span>💳 ดู QR ร้าน</span>
-                  </button>
+
+                  {/* Right: Slip upload button */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors shadow-2xs ${
+                      slipPreview
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-purple-900 hover:bg-purple-800 text-white"
+                    }`}>
+                      <CreditCard className="h-3.5 w-3.5" />
+                      <span>{slipPreview ? "✓ เปลี่ยนสลิป" : "📎 แนบสลิปโอนเงิน *"}</span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+                        onChange={handleSlipFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
 
-                {/* Card 3: Upload Slip */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex flex-col justify-between shadow-2xs min-h-[110px] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
-                      <CreditCard className="h-3.5 w-3.5 text-purple-900" />
-                      <span>แนบสลิป <span className="text-rose-500">*</span></span>
-                    </label>
-                    <span className="text-[10px] text-slate-500 font-medium">ตรวจสลิปออโต้</span>
+                {/* Slip Scanning status */}
+                {scanningSlip && (
+                  <div className="text-[11px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5 bg-white p-1.5 rounded-lg border border-purple-200">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
+                    <span>กำลังสแกนสลิปอัตโนมัติ...</span>
                   </div>
+                )}
 
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    required
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/*"
-                    onChange={handleSlipFileChange}
-                    className="block w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-purple-900 file:text-white hover:file:bg-purple-800 cursor-pointer"
-                  />
-
-                  {scanningSlip && (
-                    <div className="text-[10px] font-bold text-purple-900 animate-pulse flex items-center gap-1.5">
-                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-purple-900 border-t-transparent" />
-                      <span>กำลังสแกนสลิป...</span>
-                    </div>
-                  )}
-
-                  {slipVerification && (
-                    <div
-                      className={`rounded-lg p-1.5 text-[10px] font-bold flex items-center gap-1.5 ${
-                        slipVerification.isValid
-                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                          : "bg-blue-50 text-blue-900 border border-blue-200"
-                      }`}
-                    >
-                      <CheckCircle2 className={`h-3 w-3 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
-                      <div className="space-y-0.2 truncate text-[10px]">
+                {/* Slip Verification / Preview feedback */}
+                {slipVerification && (
+                  <div
+                    className={`rounded-lg p-2 text-xs font-bold flex items-center justify-between gap-2 border ${
+                      slipVerification.isValid
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                        : "bg-blue-50 text-blue-900 border-blue-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${slipVerification.isValid ? "text-emerald-600" : "text-blue-600"}`} />
+                      <div className="truncate text-[11px] sm:text-xs">
                         {slipVerification.isValid ? (
-                          <>
-                            <div className="truncate">
-                              ✓ สลิป <strong>{slipVerification.bankName}</strong>
-                            </div>
-                            {slipVerification.transRef && (
-                              <div className="font-mono text-emerald-800 truncate">
-                                Ref: {slipVerification.transRef}
-                              </div>
-                            )}
-                          </>
+                          <span>
+                            สลิป <strong>{slipVerification.bankName}</strong> {slipVerification.transRef ? `(Ref: ${slipVerification.transRef})` : ""}
+                          </span>
                         ) : (
-                          <>
-                            <div>📷 แนบสลิปแล้ว</div>
-                            <div className="font-normal text-blue-800 truncate">
-                              {slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ"}
-                            </div>
-                          </>
+                          <span>📷 แนบสลิปแล้ว ({slipVerification.note || "ตรวจไม่พบ QR Code อัตโนมัติ"})</span>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
+                    {slipPreview && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSlip({ url: slipPreview, title: "สลิปที่แนบ" })}
+                        className="text-[11px] text-purple-700 hover:underline shrink-0 font-bold"
+                      >
+                        ดูรูป
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}
@@ -1098,6 +1117,23 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
         ) : (
           <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-center text-xs font-bold text-rose-800">
             🔴 ปิดรับออเดอร์แล้ว
+          </div>
+        )}
+
+        {/* Floating Quick Jump to Order Form Button (Mobile only) */}
+        {!isBatchClosed && activeOrders.length > 2 && (
+          <div className="fixed bottom-4 right-4 z-30 sm:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById("order-form")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-purple-900 text-white px-3.5 py-2 text-xs font-black shadow-lg hover:bg-purple-800 active:scale-95 transition-all border border-purple-700 ring-2 ring-purple-400/30 cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-300" />
+              <span>สั่งอาหาร</span>
+              <ArrowDown className="h-3 w-3" />
+            </button>
           </div>
         )}
       </main>
