@@ -426,6 +426,12 @@ export default function AdminClient({
     online: boolean;
     latencyMs: number | null;
     error: string | null;
+    telemetry?: {
+      totalCalls: number;
+      successCalls: number;
+      rateLimitHits: number;
+      lastRateLimitIso?: string;
+    };
     config: {
       model: string;
       apiUrl: string;
@@ -2608,7 +2614,7 @@ export default function AdminClient({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] font-bold text-gray-500 block">สถานะเซิร์ฟเวอร์</span>
                     <span className="text-base font-black flex items-center gap-1.5">
@@ -2631,6 +2637,25 @@ export default function AdminClient({
                     </span>
                     <span className="text-[10px] text-emerald-600 font-bold block">
                       {llmStatus?.latencyMs && llmStatus.latencyMs < 500 ? "⚡ ตอบสนองเร็วมาก" : "ปกติ"}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[11px] font-bold text-gray-500 block">Rate Limit Hits (429)</span>
+                    <span className="text-base font-black font-mono flex items-center gap-1.5">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          (llmStatus?.telemetry?.rateLimitHits || 0) > 0 ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                        }`}
+                      />
+                      <span className={(llmStatus?.telemetry?.rateLimitHits || 0) > 0 ? "text-amber-700" : "text-emerald-700"}>
+                        {llmStatus?.telemetry?.rateLimitHits || 0} ครั้ง
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 block truncate">
+                      {llmStatus?.telemetry?.lastRateLimitIso
+                        ? `ล่าสุด: ${new Date(llmStatus.telemetry.lastRateLimitIso).toLocaleTimeString("th-TH")} น.`
+                        : "ไม่เคยชนลิมิต (5 req/s)"}
                     </span>
                   </div>
 

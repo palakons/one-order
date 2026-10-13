@@ -56,6 +56,7 @@ import {
   Calendar,
 } from "lucide-react";
 import DishAutocompleteInput from "@/components/DishAutocompleteInput";
+import AIMenuSuggester from "@/components/AIMenuSuggester";
 
 export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
 
@@ -2360,8 +2361,23 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               )}
                             </div>
 
-                            {/* Dish Name with AI Autocomplete */}
-                            <div>
+                            {/* Dish Name with AI Autocomplete & AI Menu Suggester */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-600">
+                                  {t.dishNamePlaceholder.split(" ")[0] || "รายการอาหาร"}
+                                </span>
+                                <AIMenuSuggester
+                                  shopId={activeBatch.shop.id}
+                                  shopName={activeBatch.shop.name}
+                                  onSelectDish={(dishName, price) => {
+                                    handleUpdateOrderItem(item.id, "name", dishName);
+                                    if (price > 0) {
+                                      handleUpdateOrderItem(item.id, "price", String(price));
+                                    }
+                                  }}
+                                />
+                              </div>
                               <DishAutocompleteInput
                                 value={item.name}
                                 onChange={(val) => handleUpdateOrderItem(item.id, "name", val)}

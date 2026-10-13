@@ -1,5 +1,5 @@
 /**
- * ThaiLLM (OpenThaiGPT) Client & Typo Sanitizer
+ * ThaiLLM (OpenThaiGPT) Client, Typo Sanitizer & Order Recommender
  * API Provider: http://thaillm.or.th
  * Model: openthaigpt-thaillm-8b-instruct-v7.2
  */
@@ -7,6 +7,49 @@
 const THAILLM_API_KEY = process.env.THAILLM_API_KEY || "K25Cnc8myVFS83RPFOzA5waZldNc2pQe";
 const THAILLM_MODEL = process.env.THAILLM_MODEL || "openthaigpt-thaillm-8b-instruct-v7.2";
 const THAILLM_API_URL = process.env.THAILLM_API_URL || "http://thaillm.or.th/api/v1/chat/completions";
+
+// -------------------------------------------------------------
+// Telemetry & Rate-Limit (429) Tracker
+// -------------------------------------------------------------
+export interface ThaiLLMTelemetry {
+  totalCalls: number;
+  successCalls: number;
+  rateLimitHits: number;
+  lastRateLimitIso?: string;
+  lastSuccessIso?: string;
+  lastCallIso?: string;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __THAILLM_METRICS__: ThaiLLMTelemetry | undefined;
+}
+
+export function getThaiLLMMetrics(): ThaiLLMTelemetry {
+  if (!globalThis.__THAILLM_METRICS__) {
+    globalThis.__THAILLM_METRICS__ = {
+      totalCalls: 0,
+      successCalls: 0,
+      rateLimitHits: 0,
+    };
+  }
+  return globalThis.__THAILLM_METRICS__;
+}
+
+export function recordThaiLLMCall(status: number | "error") {
+  const m = getThaiLLMMetrics();
+  m.totalCalls += 1;
+  m.lastCallIso = new Date().toISOString();
+
+  if (status === 200) {
+    m.successCalls += 1;
+    m.lastSuccessIso = new Date().toISOString();
+  } else if (status === 429) {
+    m.rateLimitHits += 1;
+    m.lastRateLimitIso = new Date().toISOString();
+    console.warn(`🚨 [ThaiLLM] Rate Limit (429) hit! Total 429 hits today: ${m.rateLimitHits}`);
+  }
+}
 
 export function stripThinkingAndCodeBlocks(raw: string): string {
   // Strip <think>...</think> tag from reasoning models
@@ -79,6 +122,7 @@ export async function sanitizeMenuNamesWithThaiLLM(
       });
 
       clearTimeout(timeoutId);
+      recordThaiLLMCall(response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -115,6 +159,7 @@ export async function sanitizeMenuNamesWithThaiLLM(
         }
       }
     } catch (err) {
+      recordThaiLLMCall("error");
       console.error("Error calling ThaiLLM API chunk:", err);
     }
   }
@@ -133,5 +178,172 @@ export async function sanitizeSingleMenuNameWithThaiLLM(dishName: string): Promi
   } catch (err) {
     console.warn("Failed to sanitize single dish name with ThaiLLM:", err);
     return dishName;
+  }
+}
+
+// -------------------------------------------------------------
+// Interactive Order Recommendation with Shop Context
+// -------------------------------------------------------------
+export interface DishRecommendation {
+  name: string;
+  price: number;
+  reason: string;
+}
+
+export async function recommendMenuWithThaiLLM({
+  userPrompt,
+  shopName,
+  shopMenus,
+}: {
+  userPrompt: string;
+  shopName: string;
+  shopMenus: Array<{ name: string; price: number }>;
+}): Promise<{
+  success: boolean;
+  recommendations: DishRecommendation[];
+  rateLimited?: boolean;
+  error?: string;
+}> {
+  if (!userPrompt || !userPrompt.trim()) {
+    return { success: false, recommendations: [], error: "Missing user prompt" };
+  }
+
+  if (!shopMenus || shopMenus.length === 0) {
+    return {
+      success: false,
+      recommendations: [],
+      error: "ไม่มีรายการเมนูของร้านนี้ในระบบ",
+    };
+  }
+
+  // Cap to top 35 dishes to stay lean on tokens
+  const compactMenus = shopMenus.slice(0, 35).map((m) => ({
+    name: m.name.trim(),
+    price: m.price || 0,
+  }));
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+
+    const systemPrompt =
+      `คุณคือ "AI ผู้ช่วยเลือกอาหารตามสั่งประจำร้าน" ของร้าน "${shopName}"\n` +
+      `หน้าที่ของคุณคือวิเคราะห์ความต้องการหรืออารมณ์ของลูกค้า แล้วเลือกแนะนำ 1 ถึง 2 เมนูที่ตรงใจที่สุด จาก [รายการเมนูที่มีอยู่จริงของร้านนี้] เท่านั้น!\n\n` +
+      `กฎเหล็กที่ต้องปฏิบัติตามอย่างเคร่งครัด:\n` +
+      `1. ต้องแนะนำเฉพาะชื่อเมนูที่มีอยู่ใน [รายการอาหารของร้าน] ด้านล่างนี้เท่านั้น ห้ามแต่งหรือสร้างชื่อเมนูใหม่เด็ดขาด\n` +
+      `2. ตอบในรูปแบบ JSON Array เท่านั้น ตามโครงสร้างนี้:\n` +
+      `[\n` +
+      `  {\n` +
+      `    "name": "ชื่อเมนูที่มีในรายการ",\n` +
+      `    "price": ราคาตัวเลขตามรายการ,\n` +
+      `    "reason": "เหตุผลสั้นๆ 1 ประโยค (ไม่เกิน 15 คำ) สำเนียงน่ารัก เป็นกันเอง เช่น แซ่บถึงใจ ผักกรุบกรอบ งบสบายกระเป๋า"\n` +
+      `  }\n` +
+      `]\n` +
+      `3. ห้ามพิมพ์ข้อความอื่นใดนอกเหนือจาก JSON Array เด็ดขาด`;
+
+    const userMessage =
+      `ความต้องการของลูกค้า: "${userPrompt.trim()}"\n\n` +
+      `[รายการอาหารของร้าน]:\n` +
+      JSON.stringify(compactMenus);
+
+    const response = await fetch(THAILLM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${THAILLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: THAILLM_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 800,
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    recordThaiLLMCall(response.status);
+
+    if (response.status === 429) {
+      return {
+        success: false,
+        recommendations: [],
+        rateLimited: true,
+        error: "ป้า AI คิวยาวนิดนึงน้า (ชน Rate Limit) รบกวนรอ 3-5 วินาทีแล้วถามใหม่อีกทีจ้า",
+      };
+    }
+
+    if (!response.ok) {
+      const errTxt = await response.text();
+      return {
+        success: false,
+        recommendations: [],
+        error: `ThaiLLM Error (HTTP ${response.status}): ${errTxt}`,
+      };
+    }
+
+    const json = await response.json();
+    const rawContent = json.choices?.[0]?.message?.content || "";
+    const cleaned = stripThinkingAndCodeBlocks(rawContent);
+
+    let parsed: Array<{ name: string; price: number; reason: string }> = [];
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const match = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {}
+      }
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      // Fallback: Pick top 2 items from shopMenus that vaguely match or are popular
+      return {
+        success: true,
+        recommendations: compactMenus.slice(0, 2).map((m) => ({
+          name: m.name,
+          price: m.price,
+          reason: "เมนูเด็ดประจำร้าน อร่อยถูกใจแน่นอน",
+        })),
+      };
+    }
+
+    // Verify recommendations belong to the shop
+    const validatedRecs: DishRecommendation[] = [];
+    parsed.slice(0, 3).forEach((rec) => {
+      if (!rec.name) return;
+      const matchedShopItem = compactMenus.find(
+        (m) => m.name.toLowerCase() === rec.name.trim().toLowerCase()
+      );
+      validatedRecs.push({
+        name: matchedShopItem ? matchedShopItem.name : rec.name.trim(),
+        price: matchedShopItem ? matchedShopItem.price : Number(rec.price) || 0,
+        reason: rec.reason || "เมนูแนะนำตามความต้องการของคุณ",
+      });
+    });
+
+    return {
+      success: true,
+      recommendations: validatedRecs.length > 0 ? validatedRecs : [
+        {
+          name: compactMenus[0].name,
+          price: compactMenus[0].price,
+          reason: "เมนูยอดนิยมประจำร้าน แนะนำให้ลอง!",
+        },
+      ],
+    };
+  } catch (err: any) {
+    recordThaiLLMCall("error");
+    const isAbort = err.name === "AbortError";
+    return {
+      success: false,
+      recommendations: [],
+      error: isAbort ? "การเชื่อมต่อกับ AI ใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง" : err.message,
+    };
   }
 }

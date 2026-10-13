@@ -12,6 +12,7 @@ import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
 import { getTimeRemaining } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import DishAutocompleteInput from "@/components/DishAutocompleteInput";
+import AIMenuSuggester from "@/components/AIMenuSuggester";
 import {
   ArrowLeft,
   MapPin,
@@ -976,10 +977,22 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </div>
 
               {/* Row 2: Dish Name & Quick Popular Chips */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-gray-700 block">
-                  รายการอาหาร <span className="text-rose-500">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-gray-700 block">
+                    รายการอาหาร <span className="text-rose-500">*</span>
+                  </label>
+                  <AIMenuSuggester
+                    shopId={batch.shop.id}
+                    shopName={batch.shop.name}
+                    onSelectDish={(selectedName, selectedPrice) => {
+                      setDishName(selectedName);
+                      if (selectedPrice > 0) {
+                        setDishPrice(String(selectedPrice));
+                      }
+                    }}
+                  />
+                </div>
                 <DishAutocompleteInput
                   value={dishName}
                   onChange={setDishName}

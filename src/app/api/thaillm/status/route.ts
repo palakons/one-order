@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { sanitizeSingleMenuNameWithThaiLLM } from "@/lib/thaillm";
+import {
+  sanitizeSingleMenuNameWithThaiLLM,
+  getThaiLLMMetrics,
+  recordThaiLLMCall,
+} from "@/lib/thaillm";
 
 const THAILLM_API_KEY = process.env.THAILLM_API_KEY || "K25Cnc8myVFS83RPFOzA5waZldNc2pQe";
 const THAILLM_MODEL = process.env.THAILLM_MODEL || "openthaigpt-thaillm-8b-instruct-v7.2";
@@ -38,6 +42,7 @@ export async function GET() {
 
     clearTimeout(timeoutId);
     latencyMs = Date.now() - startTime;
+    recordThaiLLMCall(response.status);
 
     if (response.ok) {
       online = true;
@@ -46,6 +51,7 @@ export async function GET() {
       errorMsg = `HTTP ${response.status} ${response.statusText}`;
     }
   } catch (err: any) {
+    recordThaiLLMCall("error");
     latencyMs = Date.now() - startTime;
     online = false;
     errorMsg = err.name === "AbortError" ? "Connection timeout (>10s)" : err.message;
@@ -56,6 +62,7 @@ export async function GET() {
     online,
     latencyMs: online ? latencyMs : null,
     error: errorMsg,
+    telemetry: getThaiLLMMetrics(),
     config: {
       model: THAILLM_MODEL,
       apiUrl: THAILLM_API_URL,
