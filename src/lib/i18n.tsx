@@ -107,7 +107,7 @@ export const translations = {
     desksNotice: "ไรเดอร์จะนำกล่องอาหารวางที่โต๊ะประจำตึก M4 โปรดตรวจหมายเลขกล่องเมื่อมารับ",
 
     // Live Whiteboard & Modals
-    openNewBoard: "+ เปิดตี้ใหม่",
+    openNewBoard: "เปิดตี้ใหม่",
     archivedBoards: "กระดานเก่า",
     backToLive: "กลับกระดานสด",
     viewingArchivedBanner: "กำลังดูกระดานเก่า",
@@ -181,7 +181,7 @@ export const translations = {
     dishNoteLabel: "หมายเหตุ (ถ้ามี)",
     dishNotePlaceholder: "เช่น ไม่ใส่ผักชี, พิเศษ",
     orderItemsTitle: "รายการอาหาร (สั่งหลายเมนูได้)",
-    addItemButton: "+ เพิ่มเมนู",
+    addItemButton: "เพิ่มเมนู",
     removeItemButton: "ลบ",
     itemNumber: "รายการที่",
     quantityLabel: "จำนวน",
@@ -371,7 +371,7 @@ export const translations = {
     desksNotice: "Riders deliver labeled boxes to Bldg M4 tables. Check your box number when picking up.",
 
     // Live Whiteboard & Modals
-    openNewBoard: "+ Open New Board",
+    openNewBoard: "Open New Board",
     archivedBoards: "Archived Boards",
     backToLive: "Back to Live Board",
     viewingArchivedBanner: "Viewing Archived Board",
@@ -445,7 +445,7 @@ export const translations = {
     dishNoteLabel: "Kitchen Note (Optional)",
     dishNotePlaceholder: "e.g. No cilantro, spicy",
     orderItemsTitle: "Dishes in this order (Multiple dishes, one single transfer)",
-    addItemButton: "+ Add Another Dish",
+    addItemButton: "Add Another Dish",
     removeItemButton: "Remove",
     itemNumber: "Dish",
     quantityLabel: "Qty",
@@ -635,7 +635,7 @@ export const translations = {
     desksNotice: "骑手会将贴有您姓名的餐盒送至 M4 取餐台，取餐时请核对您的餐盒编号。",
 
     // Live Whiteboard & Modals
-    openNewBoard: "+ 发起新拼单",
+    openNewBoard: "发起新拼单",
     archivedBoards: "历史拼单",
     backToLive: "返回实时拼单",
     viewingArchivedBanner: "正在查看历史拼单",
@@ -709,7 +709,7 @@ export const translations = {
     dishNoteLabel: "口味备注 (选填)",
     dishNotePlaceholder: "例如: 不加香菜、微辣",
     orderItemsTitle: "本次订单菜品明细 (一单可点多道菜，统一转账一次)",
-    addItemButton: "+ 增加其他餐品",
+    addItemButton: "增加其他餐品",
     removeItemButton: "删除",
     itemNumber: "餐品",
     quantityLabel: "数量",

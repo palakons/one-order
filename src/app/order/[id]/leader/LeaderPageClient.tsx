@@ -859,7 +859,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 {currentPhase > 1 ? "✓" : "1"}
               </span>
               <div className="min-w-0">
-                <p className="text-xs truncate font-black">1. รับออเดอร์</p>
+                <p className="text-xs truncate font-black">รับออเดอร์</p>
                 <p className="text-[10px] text-slate-500 truncate hidden sm:block">ชวนเพื่อน & ตรวจสลิป</p>
               </div>
             </div>
@@ -886,7 +886,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 {currentPhase > 2 ? "✓" : "2"}
               </span>
               <div className="min-w-0">
-                <p className="text-xs truncate font-black">2. สั่งร้านเข้าครัว</p>
+                <p className="text-xs truncate font-black">สั่งร้านเข้าครัว</p>
                 <p className="text-[10px] text-slate-500 truncate hidden sm:block">ส่งสรุปยาว & รอทำ</p>
               </div>
             </div>
@@ -909,7 +909,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 {currentPhase === 3 ? "🎉" : "3"}
               </span>
               <div className="min-w-0">
-                <p className="text-xs truncate font-black">3. ส่งถึงโต๊ะแล้ว</p>
+                <p className="text-xs truncate font-black">ส่งถึงโต๊ะแล้ว</p>
                 <p className="text-[10px] text-slate-500 truncate hidden sm:block">ถ่ายรูปวางโต๊ะ & เตือน</p>
               </div>
             </div>
