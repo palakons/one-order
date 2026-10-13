@@ -149,7 +149,6 @@ export async function sendNewBoardAnnouncement(
   const shopName = batch.shop.name;
   const cutoff = batch.cutoffTime;
   const locName = batch.isSelfPickup ? "รับเองที่หน้าร้าน" : `${batch.buildingName || "ตึก M4"} ชั้น 1`;
-  const leaderName = batch.hostName || (batch.hostLineId ? `@${batch.hostLineId}` : "เพื่อนในตี้");
   const orderUrl = `${appUrl}/order/${batch.id}`;
 
   const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (ปิดรับ ${cutoff} น.) 🍱✨`;
@@ -159,7 +158,6 @@ export async function sendNewBoardAnnouncement(
     `ร้าน: ${shopName}\n` +
     `⏰ ปิดรับออเดอร์: ${cutoff} น.\n` +
     `📍 จุดส่งอาหาร: ${locName}\n` +
-    `👑 หัวหน้าตี้: ${leaderName}\n` +
     `💰 ขั้นต่ำร้าน: ฿${batch.targetMinAmount}\n\n` +
     `👉 เข้าร่วมสั่งอาหารร่วมตี้:\n${orderUrl}`;
 
@@ -212,14 +210,6 @@ export async function sendNewBoardAnnouncement(
               contents: [
                 { type: "text", text: "📍 จุดส่ง:", size: "xs", color: "#64748b", flex: 3 },
                 { type: "text", text: locName, size: "xs", color: "#334155", flex: 7, wrap: true },
-              ],
-            },
-            {
-              type: "box",
-              layout: "horizontal",
-              contents: [
-                { type: "text", text: "👑 หัวหน้าตี้:", size: "xs", color: "#64748b", flex: 3 },
-                { type: "text", text: leaderName, size: "xs", color: "#334155", flex: 7 },
               ],
             },
             {
