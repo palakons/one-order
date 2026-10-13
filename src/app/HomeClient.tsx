@@ -3318,7 +3318,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <span>{t.orderTimeLabel}</span>
                       </span>
                       <span className="text-[10px] text-purple-700 font-mono font-semibold">
-                        (ปิดรับ {openCutoffTime} น.)
+                        ({t.cutoffTimeSummary} {openCutoffTime} น.)
                       </span>
                     </div>
                     <input
@@ -3338,13 +3338,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                 {/* Explanation Card for Leader */}
                 <div className="rounded-xl border border-purple-200/90 bg-white/95 p-2.5 shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
-                    <div className="text-slate-800 flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-purple-600 shrink-0 inline-block" />
-                      <span>{t.orderTimeSummary}:</span>
-                      <span className="font-mono font-bold text-purple-900 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
-                        {openOrderTime} น.
-                      </span>
-                    </div>
                     <div className="text-rose-600 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0 inline-block" />
                       <span>{t.cutoffTimeSummary}:</span>
@@ -3352,6 +3345,13 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         {openCutoffTime} น.
                       </span>
                       <span className="text-[10px] text-slate-500 font-normal">{t.fixedBufferTag}</span>
+                    </div>
+                    <div className="text-slate-800 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-purple-600 shrink-0 inline-block" />
+                      <span>{t.orderTimeSummary}:</span>
+                      <span className="font-mono font-bold text-purple-900 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                        {openOrderTime} น.
+                      </span>
                     </div>
                   </div>
                   <p className="mt-1.5 text-[10px] text-slate-500 leading-relaxed">

@@ -152,12 +152,12 @@ export async function sendNewBoardAnnouncement(
   const locName = batch.isSelfPickup ? "รับเองที่หน้าร้าน" : `${batch.buildingName || "ตึก M4"} ชั้น 1`;
   const orderUrl = `${appUrl}/order/${batch.id}`;
 
-  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (เวลาสั่งอาหาร ${orderTime} น. ปิดรับล่วงหน้า 15 นาที) 🍱✨`;
+  const altText = `📢 [VEATEC] เปิดตี้ใหม่แล้ว! ร้าน ${shopName} (${cutoffDisplay}) 🍱✨`;
 
   const fallbackText =
     `📢 [VEATEC @ VISTEC] เปิดตี้ใหม่แล้วครับ! 🍱✨\n` +
     `ร้าน: ${shopName}\n` +
-    `⏰ เวลาสั่งอาหาร: ${orderTime} น. (ปิดรับออเดอร์ล่วงหน้า 15 นาที)\n` +
+    `⏰ ${cutoffDisplay}\n` +
     `📍 จุดส่งอาหาร: ${locName}\n` +
     `💰 ขั้นต่ำร้าน: ฿${batch.targetMinAmount}\n\n` +
     `👉 เข้าร่วมสั่งอาหารร่วมตี้:\n${orderUrl}`;
@@ -201,8 +201,8 @@ export async function sendNewBoardAnnouncement(
               type: "box",
               layout: "horizontal",
               contents: [
-                { type: "text", text: "⏰ สั่งอาหาร:", size: "xs", color: "#64748b", flex: 3 },
-                { type: "text", text: `${orderTime} น. (ปิดรับล่วงหน้า 15 น.)`, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
+                { type: "text", text: "⏰ สั่งได้ถึง:", size: "xs", color: "#64748b", flex: 3 },
+                { type: "text", text: `${batch.cutoffTime} น. (ส่งร้านรอบ ${orderTime} น.)`, size: "xs", color: "#b91c1c", weight: "bold", flex: 7 },
               ],
             },
             {

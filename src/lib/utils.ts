@@ -65,20 +65,17 @@ export function formatCutoffDisplay(
 
   if (includeLabel) {
     if (lang === "en") {
-      const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
-      return `Order time ${orderTime}${daySuffix} (Orders close 15m in advance)`;
+      return `Order until ${cutoffTime}${futureTag} (Shop batch ${orderTime})`;
     }
     if (lang === "cn") {
-      const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
-      return `点餐时间 ${orderTime}${daySuffix} (提前15分钟截止)`;
+      return `点餐截止至 ${cutoffTime}${futureTag} (送店批次 ${orderTime})`;
     }
-    // Thai (Option 1): "เวลาสั่งอาหาร {orderTime} น. (ปิดรับออเดอร์ล่วงหน้า 15 นาที)"
-    const daySuffix = diffDays > 0 ? ` (+${diffDays})` : "";
-    return `เวลาสั่งอาหาร ${orderTime} น.${daySuffix} (ปิดรับออเดอร์ล่วงหน้า 15 นาที)`;
+    // Thai: "สั่งได้ถึง 09:45 น. (ส่งร้านรอบ 10:00 น.)"
+    return `สั่งได้ถึง ${cutoffTime} น.${futureTag} (ส่งร้านรอบ ${orderTime} น.)`;
   }
 
-  // Without label: return short order time with future tag
-  return lang === "th" ? `${orderTime} น.${futureTag}` : `${orderTime}${futureTag}`;
+  // Without label: return short cutoff time with future tag
+  return lang === "th" ? `${cutoffTime} น.${futureTag}` : `${cutoffTime}${futureTag}`;
 }
 
 export function getTimeRemaining(
