@@ -16,6 +16,7 @@ import {
   Clock,
   CreditCard,
   Share2,
+  MessageSquare,
   Copy,
   Download,
   Eye,
@@ -487,40 +488,28 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
   };
 
-  // Share Manifest to LINE (Sends both long image + text where supported)
-  const handleShareToLine = async () => {
-    if (!manifestData || !batch) return;
+  // Button 1: Send Compiled Order Text directly to LINE Chat
+  const handleSendTextToLine = async () => {
+    if (!batch) return;
     const shareText = getCompiledOrderText();
 
-    // 1. Always copy text to clipboard as safety net so user can paste if needed
     try {
       await navigator.clipboard.writeText(shareText);
     } catch (e) {}
 
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+  };
+
+  // Button 2: Share Long Manifest Image via Web Share API or download fallback
+  const handleShareImageOnly = async () => {
+    if (!manifestData || !batch) return;
     const safeFileName = `order-manifest-${batch.id.slice(0, 8)}.jpg`;
 
-    // 2. Try Native Web Share API with safe ASCII filename
     if (navigator.share && navigator.canShare) {
       const imageFile = new File([manifestData.blob], safeFileName, {
         type: "image/jpeg",
       });
 
-      // Try sharing both file + text together
-      if (navigator.canShare({ files: [imageFile], text: shareText })) {
-        try {
-          await navigator.share({
-            title: `ออเดอร์ร้าน ${batch.shop.name}`,
-            text: shareText,
-            files: [imageFile],
-          });
-          return;
-        } catch (err: any) {
-          if (err.name === "AbortError") return; // User cancelled share sheet
-          console.warn("Share both failed, falling back to files only", err);
-        }
-      }
-
-      // If browser can share file only
       if (navigator.canShare({ files: [imageFile] })) {
         try {
           await navigator.share({
@@ -529,20 +518,18 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           });
           return;
         } catch (err: any) {
-          if (err.name === "AbortError") return;
-          console.warn("Native file share failed, falling back to download & LINE scheme", err);
+          if (err.name === "AbortError") return; // User cancelled
+          console.warn("Share image failed, falling back to download", err);
         }
       }
     }
 
-    // 3. Fallback: Download image and open LINE app with text
+    // Fallback: download image
     const link = document.createElement("a");
     link.href = manifestData.dataUrl;
     link.download = safeFileName;
     link.click();
-
-    alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
-    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+    alert("บันทึกรูปภาพสรุปลงเครื่องเรียบร้อยแล้ว!");
   };
 
   if (!batch) {
@@ -1464,31 +1451,43 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
             {/* Action Buttons */}
             {manifestData && (
               <div className="pt-3 border-t border-gray-100 flex flex-col gap-2 shrink-0">
-                <div className="flex flex-col sm:flex-row items-center gap-2">
+                {/* 1. Primary Action: Send Text directly to LINE */}
+                <button
+                  type="button"
+                  onClick={handleSendTextToLine}
+                  className="w-full rounded-2xl bg-[#06C755] hover:bg-[#05b34c] py-3 text-sm font-black text-white shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>💬 ส่งข้อความสรุปเข้า LINE</span>
+                </button>
+
+                {/* 2. Secondary Row: Share Image & Save Image */}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={handleShareToLine}
-                    className="w-full sm:flex-1 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] py-3 text-sm font-black text-white shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all"
+                    onClick={handleShareImageOnly}
+                    className="rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 py-2.5 px-3 text-xs font-bold text-gray-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                   >
-                    <Share2 className="h-4 w-4" />
-                    <span>ส่งเข้า LINE ร้าน</span>
+                    <Share2 className="h-3.5 w-3.5 text-gray-600" />
+                    <span>🖼️ แชร์รูปใบสรุปยาว</span>
                   </button>
 
                   <a
                     href={manifestData.dataUrl}
-                    download={`veatec-order-${batch.shop.name}-${batch.date}.jpg`}
-                    className="w-full sm:w-auto rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 py-3 px-4 text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 transition-colors"
+                    download={`order-manifest-${batch.id.slice(0, 8)}.jpg`}
+                    className="rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 py-2.5 px-3 text-xs font-bold text-gray-800 flex items-center justify-center gap-1.5 transition-colors text-center shadow-2xs"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>บันทึกรูปยาว</span>
+                    <Download className="h-3.5 w-3.5 text-gray-600" />
+                    <span>บันทึกรูปลงเครื่อง</span>
                   </a>
                 </div>
 
+                {/* 3. Host Action: Confirm Sent to Shop */}
                 {batch.status === "OPEN" && (
                   <button
                     type="button"
                     onClick={handleConfirmSentToShop}
-                    className="w-full rounded-2xl bg-purple-900 hover:bg-purple-800 text-white py-2.5 text-xs font-black shadow transition-colors flex items-center justify-center gap-1.5"
+                    className="w-full rounded-2xl bg-purple-900 hover:bg-purple-800 text-white py-2.5 text-xs font-black shadow transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     <span>✅ ยืนยันส่งร้านแล้ว</span>

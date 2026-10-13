@@ -498,40 +498,28 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     });
   };
 
-  // Share Manifest to LINE (Sends both long image + text where supported)
-  const handleShareToLine = async () => {
-    if (!manifestData || !batch) return;
+  // Button 1: Send Compiled Order Text directly to LINE Chat
+  const handleSendTextToLine = async () => {
+    if (!batch) return;
     const shareText = getCompiledOrderText();
 
-    // 1. Always copy text to clipboard as safety net so user can paste if needed
     try {
       await navigator.clipboard.writeText(shareText);
     } catch (e) {}
 
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+  };
+
+  // Button 2: Share Long Manifest Image via Web Share API or download fallback
+  const handleShareImageOnly = async () => {
+    if (!manifestData || !batch) return;
     const safeFileName = `order-manifest-${batch.id.slice(0, 8)}.jpg`;
 
-    // 2. Try Native Web Share API with safe ASCII filename
     if (navigator.share && navigator.canShare) {
       const imageFile = new File([manifestData.blob], safeFileName, {
         type: "image/jpeg",
       });
 
-      // Try sharing both file + text together
-      if (navigator.canShare({ files: [imageFile], text: shareText })) {
-        try {
-          await navigator.share({
-            title: `ออเดอร์ร้าน ${batch.shop.name}`,
-            text: shareText,
-            files: [imageFile],
-          });
-          return;
-        } catch (err: any) {
-          if (err.name === "AbortError") return; // User cancelled share sheet
-          console.warn("Share both failed, falling back to files only", err);
-        }
-      }
-
-      // If browser can share file only
       if (navigator.canShare({ files: [imageFile] })) {
         try {
           await navigator.share({
@@ -540,20 +528,18 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           });
           return;
         } catch (err: any) {
-          if (err.name === "AbortError") return;
-          console.warn("Native file share failed, falling back to download & LINE scheme", err);
+          if (err.name === "AbortError") return; // User cancelled
+          console.warn("Share image failed, falling back to download", err);
         }
       }
     }
 
-    // 3. Fallback: Download image and open LINE app with text
+    // Fallback: download image
     const link = document.createElement("a");
     link.href = manifestData.dataUrl;
     link.download = safeFileName;
     link.click();
-
-    alert("บันทึกรูปภาพสรุปและคัดลอกข้อความแล้ว! กำลังเปิด LINE เพื่อให้คุณส่งให้ร้าน...");
-    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`, "_blank");
+    alert("บันทึกรูปภาพสรุปลงเครื่องเรียบร้อยแล้ว!");
   };
 
   const handleShareBoard = async () => {
