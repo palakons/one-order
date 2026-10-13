@@ -3228,7 +3228,7 @@ export default function AdminClient({
               </div>
             </div>
 
-            {/* Dishes Grid */}
+            {/* Dishes Table (Compact Table / No Cards) */}
             {filteredFrequentDishes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500 space-y-2">
                 <ShoppingBag className="mx-auto h-8 w-8 text-gray-400" />
@@ -3236,96 +3236,115 @@ export default function AdminClient({
                 <p className="text-xs text-gray-400">เมื่อมีคำสั่งซื้อเข้ามาในระบบ รายการเมนูและจำนวนกล่องจะปรากฏที่นี่</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {filteredFrequentDishes.map((dish, idx) => {
-                  const targetShop = shops.find((s) => s.id === dish.shopId);
-                  const isAlreadyInMenu = targetShop?.menuItems?.some(
-                    (m) => m.name.trim().toLowerCase() === dish.dishName.trim().toLowerCase()
-                  );
-                  const isAdding = addingMenuItemShopId === dish.shopId + dish.dishName;
+              <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="py-3 px-3 text-center w-12">#</th>
+                      <th className="py-3 px-3">ร้านค้า</th>
+                      <th className="py-3 px-3">ชื่อเมนู</th>
+                      <th className="py-3 px-3 text-right">ราคา</th>
+                      <th className="py-3 px-3 text-center">จำนวนสั่งสะสม</th>
+                      <th className="py-3 px-3 text-right">ยอดรวม</th>
+                      <th className="py-3 px-3 text-center">เมนูแนะนำของร้าน</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredFrequentDishes.map((dish, idx) => {
+                      const targetShop = shops.find((s) => s.id === dish.shopId);
+                      const isAlreadyInMenu = targetShop?.menuItems?.some(
+                        (m) => m.name.trim().toLowerCase() === dish.dishName.trim().toLowerCase()
+                      );
+                      const isAdding = addingMenuItemShopId === dish.shopId + dish.dishName;
 
-                  return (
-                    <div
-                      key={`${dish.shopId}-${dish.dishName}-${idx}`}
-                      className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
-                    >
-                      <div className="space-y-2">
-                        {/* Rank & Shop Tag */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black ${
-                              idx === 0
-                                ? "bg-amber-100 text-amber-900 border border-amber-300"
-                                : idx === 1
-                                ? "bg-slate-200 text-slate-800"
-                                : idx === 2
-                                ? "bg-orange-100 text-orange-900"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            #{idx + 1}
-                          </span>
-                          <span className="text-[11px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 truncate">
-                            {dish.shopName}
-                          </span>
-                        </div>
-
-                        {/* Dish Name */}
-                        <div>
-                          <h3 className="font-black text-sm text-gray-900 line-clamp-2" title={dish.dishName}>
-                            {dish.dishName}
-                          </h3>
-                          <div className="text-xs font-mono font-bold text-orange-600 mt-0.5">
-                            ฿{dish.latestPrice} / กล่อง
-                          </div>
-                        </div>
-
-                        {/* Order Stats */}
-                        <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-gray-50 text-xs border border-gray-100">
-                          <div>
-                            <span className="text-[10px] text-gray-500 block">จำนวนที่สั่ง:</span>
-                            <span className="font-black text-gray-900 font-mono text-sm">
-                              {dish.totalQuantity} <span className="text-xs font-normal text-gray-500">กล่อง</span>
+                      return (
+                        <tr
+                          key={`${dish.shopId}-${dish.dishName}-${idx}`}
+                          className="hover:bg-purple-50/30 transition-colors"
+                        >
+                          {/* Rank */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black ${
+                                idx === 0
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                  : idx === 1
+                                  ? "bg-slate-200 text-slate-800"
+                                  : idx === 2
+                                  ? "bg-orange-100 text-orange-900"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {idx + 1}
                             </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-gray-500 block">ยอดขายรวม:</span>
-                            <span className="font-black text-emerald-700 font-mono text-sm">
+                          </td>
+
+                          {/* Shop */}
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className="inline-block bg-purple-50 text-purple-900 px-2 py-0.5 rounded-lg border border-purple-100 font-bold text-[11px]">
+                              {dish.shopName}
+                            </span>
+                          </td>
+
+                          {/* Dish Name */}
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-gray-900 text-sm">
+                              {dish.dishName}
+                            </span>
+                          </td>
+
+                          {/* Price */}
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <span className="font-mono font-bold text-orange-600 text-xs">
+                              ฿{dish.latestPrice}
+                            </span>
+                          </td>
+
+                          {/* Total Quantity */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-gray-100 text-gray-800">
+                              {dish.totalQuantity} กล่อง
+                            </span>
+                          </td>
+
+                          {/* Total Revenue */}
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <span className="font-mono font-bold text-emerald-700 text-xs">
                               ฿{dish.totalRevenue.toLocaleString()}
                             </span>
-                          </div>
-                        </div>
-                      </div>
+                          </td>
 
-                      {/* Action */}
-                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-                        {isAlreadyInMenu ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>อยู่ในเมนูแนะนำแล้ว</span>
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isAdding}
-                            onClick={() =>
-                              handleAddDishToShopMenu({
-                                name: dish.dishName,
-                                price: dish.latestPrice,
-                                shopId: dish.shopId,
-                                shopName: dish.shopName,
-                              })
-                            }
-                            className="inline-flex items-center gap-1.5 w-full justify-center rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-3 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98 disabled:opacity-50"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span>{isAdding ? "กำลังบันทึก..." : "➕ เพิ่มเป็นเมนูแนะนำร้าน"}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                          {/* Action */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isAlreadyInMenu ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>ในเมนูแนะนำแล้ว</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isAdding}
+                                onClick={() =>
+                                  handleAddDishToShopMenu({
+                                    name: dish.dishName,
+                                    price: dish.latestPrice,
+                                    shopId: dish.shopId,
+                                    shopName: dish.shopName,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2.5 py-1 text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span>{isAdding ? "กำลังบันทึก..." : "➕ เพิ่มเป็นเมนูแนะนำ"}</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

@@ -1844,6 +1844,45 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             </div>
 
+            {/* Board Price Disclaimer Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/90 text-xs text-amber-950 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
+                <span className="font-bold text-amber-900 truncate">
+                  {lang === "en"
+                    ? "Please verify price with shop before ordering"
+                    : lang === "cn"
+                    ? "下单前请向餐厅核对价格"
+                    : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
+                </span>
+              </div>
+              {activeBatch.shop.lineId ? (
+                <a
+                  href={
+                    activeBatch.shop.lineId.startsWith("http")
+                      ? activeBatch.shop.lineId
+                      : `https://line.me/R/ti/p/~${activeBatch.shop.lineId.replace(/^@/, "")}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
+                  title="เปิดแชท LINE ร้านค้า"
+                >
+                  <span>💬 LINE ร้านค้า</span>
+                  <ExternalLink className="h-2.5 w-2.5 opacity-90" />
+                </a>
+              ) : activeBatch.shop.phone ? (
+                <a
+                  href={`tel:${activeBatch.shop.phone}`}
+                  className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
+                  title="โทรติดต่อร้านค้า"
+                >
+                  <Phone className="h-2.5 w-2.5" />
+                  <span>{activeBatch.shop.phone}</span>
+                </a>
+              ) : null}
+            </div>
+
             {/* 3. The Live Whiteboard Table */}
             <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-xs">
               <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
@@ -2201,14 +2240,46 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           {totalItemBoxes} {t.boxesCount}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 italic">
-                        {lang === "en"
-                          ? "ℹ️ Displayed menu is for reference, please make sure correctness."
-                          : lang === "cn"
-                          ? "ℹ️ 所示菜单仅供参考，请向餐厅确认准确性。"
-                          : "ℹ️ เมนูและราคาที่แสดงใช้สำหรับอ้างอิงเบื้องต้น โปรดตรวจสอบความถูกต้องกับร้านค้า"}
-                      </p>
+                      {/* Compact & Explicit Shop Price Disclaimer */}
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 font-medium">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
+                          <span className="font-bold text-amber-900 truncate">
+                            {lang === "en"
+                              ? "Please verify price with shop before ordering"
+                              : lang === "cn"
+                              ? "下单前请向餐厅核对价格"
+                              : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
+                          </span>
+                        </div>
+                        {activeBatch.shop.lineId ? (
+                          <a
+                            href={
+                              activeBatch.shop.lineId.startsWith("http")
+                                ? activeBatch.shop.lineId
+                                : `https://line.me/R/ti/p/~${activeBatch.shop.lineId.replace(/^@/, "")}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                            title="เปิดแชท LINE ร้านค้า"
+                          >
+                            <span>💬 LINE ร้านค้า</span>
+                            <ExternalLink className="h-2.5 w-2.5 opacity-80" />
+                          </a>
+                        ) : activeBatch.shop.phone ? (
+                          <a
+                            href={`tel:${activeBatch.shop.phone}`}
+                            className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                            title="โทรติดต่อร้านค้า"
+                          >
+                            <Phone className="h-2.5 w-2.5" />
+                            <span>{activeBatch.shop.phone}</span>
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
+
 
                     {/* Quick Pick Menu Items Chips */}
                     {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (

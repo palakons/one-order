@@ -939,6 +939,41 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </div>
               </div>
 
+              {/* Compact & Explicit Shop Price Disclaimer */}
+              <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 font-medium">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
+                  <span className="font-bold text-amber-900 truncate">
+                    โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง
+                  </span>
+                </div>
+                {batch.shop.lineId ? (
+                  <a
+                    href={
+                      batch.shop.lineId.startsWith("http")
+                        ? batch.shop.lineId
+                        : `https://line.me/R/ti/p/~${batch.shop.lineId.replace(/^@/, "")}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                    title="เปิดแชท LINE ร้านค้า"
+                  >
+                    <span>💬 LINE ร้านค้า</span>
+                    <ExternalLink className="h-2.5 w-2.5 opacity-80" />
+                  </a>
+                ) : batch.shop.phone ? (
+                  <a
+                    href={`tel:${batch.shop.phone}`}
+                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                    title="โทรติดต่อร้านค้า"
+                  >
+                    <Phone className="h-2.5 w-2.5" />
+                    <span>{batch.shop.phone}</span>
+                  </a>
+                ) : null}
+              </div>
+
               {/* Row 2: Dish Name & Quick Popular Chips */}
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-gray-700 block">
