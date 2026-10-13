@@ -420,6 +420,35 @@ export default function AdminClient({
   // Collapsible toggle for LINE Notification Pane (Default: Collapsed)
   const [isLinePaneOpen, setIsLinePaneOpen] = useState(false);
 
+  // Collapsible toggle for ThaiLLM Monitor Pane (Default: Collapsed)
+  const [isLlmPaneOpen, setIsLlmPaneOpen] = useState(false);
+  const [llmStatus, setLlmStatus] = useState<{
+    online: boolean;
+    latencyMs: number | null;
+    error: string | null;
+    config: {
+      model: string;
+      apiUrl: string;
+      consumerId: string;
+      rateLimit: string;
+      hasKey: boolean;
+      maskedKey: string;
+      temperature: number;
+      maxTokens: number;
+      reasoningMode: string;
+    };
+    testedAt: string;
+  } | null>(null);
+  const [loadingLlmStatus, setLoadingLlmStatus] = useState(false);
+  const [interactiveTestInput, setInteractiveTestInput] = useState("จิ่มจุ่ม");
+  const [interactiveTestResult, setInteractiveTestResult] = useState<{
+    original: string;
+    sanitized: string;
+    hasTypo: boolean;
+    latencyMs: number;
+  } | null>(null);
+  const [testingInteractiveLlm, setTestingInteractiveLlm] = useState(false);
+
   // System, Firebase & Cloud Storage State
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(
     initialSystemStatus || {
@@ -520,6 +549,7 @@ export default function AdminClient({
         fetchLocations();
         fetchLineStatus();
         fetchSanitizedMenus();
+        fetchLlmStatus();
       }
     } catch (e) {
       console.warn("sessionStorage check failed", e);
@@ -1246,6 +1276,48 @@ export default function AdminClient({
       alert("เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setAddingMenuItemShopId(null);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // ThaiLLM Status, Ping & Diagnostics Functions
+  // -------------------------------------------------------------
+  const fetchLlmStatus = async () => {
+    setLoadingLlmStatus(true);
+    try {
+      const res = await fetch("/api/thaillm/status");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setLlmStatus(data);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch ThaiLLM status:", e);
+    } finally {
+      setLoadingLlmStatus(false);
+    }
+  };
+
+  const handleTestInteractiveLlm = async () => {
+    if (!interactiveTestInput.trim() || testingInteractiveLlm) return;
+    setTestingInteractiveLlm(true);
+    try {
+      const res = await fetch("/api/thaillm/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dishName: interactiveTestInput.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setInteractiveTestResult(data);
+        }
+      }
+    } catch (e) {
+      console.warn("Interactive LLM test error:", e);
+    } finally {
+      setTestingInteractiveLlm(false);
     }
   };
 
@@ -2388,6 +2460,323 @@ export default function AdminClient({
                     {copiedWebhook ? "คัดลอกแล้ว!" : "คัดลอก"}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ========================================================= */}
+        {/* THAILLM (OPENTHAIGPT) STATUS & PING MONITOR PANE */}
+        {/* ========================================================= */}
+        <div className="rounded-2xl sm:rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:border-purple-300 transition-colors">
+          {/* Collapsible Header */}
+          <div
+            onClick={() => setIsLlmPaneOpen((prev) => !prev)}
+            className="p-3.5 sm:p-4.5 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-linear-to-r from-purple-50/50 to-transparent hover:from-purple-50/90 transition-all select-none"
+          >
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              <div className="rounded-xl sm:rounded-2xl bg-purple-100/90 text-purple-800 p-2 sm:p-2.5 shrink-0 shadow-2xs">
+                <Bot className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                      llmStatus?.online
+                        ? "bg-emerald-100/80 text-emerald-800 border border-emerald-300"
+                        : llmStatus?.online === false
+                        ? "bg-rose-100/80 text-rose-800 border border-rose-300"
+                        : "bg-slate-100 text-slate-700 border border-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        llmStatus?.online
+                          ? "bg-emerald-500 animate-pulse"
+                          : llmStatus?.online === false
+                          ? "bg-rose-500"
+                          : "bg-slate-400"
+                      }`}
+                    />
+                    <span>
+                      {llmStatus?.online
+                        ? `Online (${llmStatus.latencyMs} ms)`
+                        : llmStatus?.online === false
+                        ? "Offline / Error"
+                        : "Checking..."}
+                    </span>
+                  </span>
+
+                  <span className="rounded-md bg-purple-100/80 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+                    OpenThaiGPT 8B
+                  </span>
+
+                  <span className="rounded-md bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-mono font-bold hidden sm:inline">
+                    5 req/s (200 req/min)
+                  </span>
+
+                  <span className="text-xs font-black text-slate-900 ml-1">
+                    ThaiLLM Service &amp; Typo Sanitizer
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 mt-0.5">
+                  <span>
+                    Model: <strong className="text-purple-700 font-bold">{llmStatus?.config.model || "openthaigpt-thaillm-8b-instruct-v7.2"}</strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Endpoint: <span className="font-mono">{llmStatus?.config.apiUrl || "http://thaillm.or.th/api/v1/chat/completions"}</span>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    API Key: <span className="font-mono font-bold text-slate-700">{llmStatus?.config.maskedKey || "K25Cnc...2pQe"}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fetchLlmStatus();
+                }}
+                disabled={loadingLlmStatus}
+                className="rounded-xl border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                title="ทดสอบ Ping ThaiLLM"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 text-purple-600 ${loadingLlmStatus ? "animate-spin" : ""}`}
+                />
+                <span>{loadingLlmStatus ? "กำลัง Ping..." : "⚡ ทดสอบ Ping"}</span>
+              </button>
+
+              <span className="text-xs font-bold text-purple-900 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-xl border border-purple-200 transition-colors flex items-center gap-1">
+                <span>{isLlmPaneOpen ? "ย่อเก็บ" : "ขยายดูรายละเอียด"}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                    isLlmPaneOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </span>
+            </div>
+          </div>
+
+          {/* Expanded Content */}
+          {isLlmPaneOpen && (
+            <div className="border-t border-slate-200 p-4 sm:p-5 space-y-5 bg-slate-50/40">
+              {/* 1. Ping & Diagnostics Section */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-purple-600" />
+                      <span>1. สถานะการเชื่อมต่อ &amp; ค่า Latency (Live Ping)</span>
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      ตรวจวัดความเร็วการตอบสนองจริงของเซิร์ฟเวอร์ ThaiLLM API
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={fetchLlmStatus}
+                    disabled={loadingLlmStatus}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-3.5 py-1.5 text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${loadingLlmStatus ? "animate-spin" : ""}`} />
+                    <span>{loadingLlmStatus ? "กำลังทดสอบ..." : "⚡ ส่ง Ping ทดสอบเดี๋ยวนี้"}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[11px] font-bold text-gray-500 block">สถานะเซิร์ฟเวอร์</span>
+                    <span className="text-base font-black flex items-center gap-1.5">
+                      <span className={`h-2.5 w-2.5 rounded-full ${llmStatus?.online ? "bg-emerald-500" : "bg-rose-500"}`} />
+                      <span className={llmStatus?.online ? "text-emerald-700" : "text-rose-700"}>
+                        {llmStatus?.online ? "พร้อมใช้งาน (Online)" : "ขัดข้อง (Offline)"}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">
+                      {llmStatus?.error ? `Error: ${llmStatus.error}` : "HTTP 200 OK"}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[11px] font-bold text-gray-500 block">ความเร็ว Ping (Latency)</span>
+                    <span className="text-base font-black font-mono text-purple-900">
+                      {llmStatus?.latencyMs !== null && llmStatus?.latencyMs !== undefined
+                        ? `${llmStatus.latencyMs} ms`
+                        : "ยังไม่ได้วัด"}
+                    </span>
+                    <span className="text-[10px] text-emerald-600 font-bold block">
+                      {llmStatus?.latencyMs && llmStatus.latencyMs < 500 ? "⚡ ตอบสนองเร็วมาก" : "ปกติ"}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[11px] font-bold text-gray-500 block">ตรวจสอบล่าสุด</span>
+                    <span className="text-xs font-bold text-gray-800 block truncate">
+                      {llmStatus?.testedAt
+                        ? new Date(llmStatus.testedAt).toLocaleTimeString("th-TH") + " น."
+                        : "-"}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block font-mono">
+                      {llmStatus?.testedAt ? llmStatus.testedAt.split("T")[0] : ""}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Configuration Parameters Section */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
+                <div className="border-b border-gray-100 pb-3">
+                  <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                    <Server className="h-4 w-4 text-purple-600" />
+                    <span>2. พารามิเตอร์การตั้งค่าโมเดล (Configuration Parameters)</span>
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    ค่าคอนฟิกที่ระบบใช้เรียกใช้งาน ThaiLLM เพื่อตรวจจับคำพิมพ์ผิด
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-purple-50/40 border border-purple-100">
+                    <span className="text-[10px] font-bold text-gray-500 block">Model ID</span>
+                    <span className="font-mono font-bold text-purple-950 text-xs block truncate mt-0.5" title="openthaigpt-thaillm-8b-instruct-v7.2">
+                      openthaigpt-thaillm-8b-instruct-v7.2
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-purple-50/40 border border-purple-100">
+                    <span className="text-[10px] font-bold text-gray-500 block">Rate Limits</span>
+                    <span className="font-bold text-gray-900 block mt-0.5">
+                      5 req/s (200 req/min)
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-purple-50/40 border border-purple-100">
+                    <span className="text-[10px] font-bold text-gray-500 block">Temperature</span>
+                    <span className="font-mono font-bold text-gray-900 block mt-0.5">
+                      0.1 (เน้นความแม่นยำสูง)
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-purple-50/40 border border-purple-100">
+                    <span className="text-[10px] font-bold text-gray-500 block">Max Tokens</span>
+                    <span className="font-mono font-bold text-gray-900 block mt-0.5">
+                      1,500 tokens
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-gray-500 block">API Endpoint URL:</span>
+                      <span className="font-mono text-gray-900 font-bold break-all">
+                        http://thaillm.or.th/api/v1/chat/completions
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-bold self-start sm:self-auto shrink-0 bg-white px-2 py-0.5 rounded border border-gray-200">
+                      OpenAI Compatible
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-gray-500 block">Consumer ID:</span>
+                      <span className="font-mono text-gray-900 font-bold">
+                        278dcd0f-eb68-4494-9387-e635c99cbb68
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-gray-500">API Key:</span>
+                      <span className="font-mono font-bold text-gray-900 bg-white px-2 py-0.5 rounded border border-gray-200">
+                        {llmStatus?.config.maskedKey || "K25Cnc...2pQe"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Interactive Quick Test Sandbox */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-3">
+                <div className="border-b border-gray-100 pb-2">
+                  <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    <span>3. ทดสอบตรวจแก้คำผิดสด (Live Prompt Sandbox)</span>
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    พิมพ์ชื่อเมนูอาหารที่มีคำสะกดผิด เพื่อทดสอบการประมวลผลของ ThaiLLM ได้ทันที
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={interactiveTestInput}
+                      onChange={(e) => setInteractiveTestInput(e.target.value)}
+                      placeholder="เช่น จิ่มจุ่ม, ข้าวบรอคคอลี่, ผัดซีอิ้ว"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-purple-600"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={testingInteractiveLlm || !interactiveTestInput.trim()}
+                    onClick={handleTestInteractiveLlm}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white px-4 py-2 text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {testingInteractiveLlm ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>กำลังถาม AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                        <span>ส่งทดสอบ AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {interactiveTestResult && (
+                  <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-purple-950 flex items-center gap-1.5">
+                        {interactiveTestResult.hasTypo ? (
+                          <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md font-bold text-[11px] border border-amber-300">
+                            <AlertTriangle className="h-3 w-3 text-amber-600" />
+                            พบคำผิดและแก้ไขแล้ว
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md font-bold text-[11px] border border-emerald-300">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            สะกดถูกต้องแล้ว
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-mono text-gray-500 text-[11px]">
+                        Latency: {interactiveTestResult.latencyMs} ms
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 font-mono line-through">
+                        {interactiveTestResult.original}
+                      </span>
+                      <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="font-black text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-purple-200 shadow-2xs">
+                        {interactiveTestResult.sanitized}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
