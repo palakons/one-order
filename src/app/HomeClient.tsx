@@ -816,10 +816,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     if (!slipPreview) {
       setSubmitError(
         lang === "en"
-          ? "Please attach bank transfer slip (Force Transfer)"
+          ? "Please attach bank transfer slip"
           : lang === "cn"
-          ? "请上传转账凭证截图 (Force Transfer)"
-          : "กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)"
+          ? "请上传转账凭证截图"
+          : "กรุณาแนบรูปสลิปโอนเงิน"
       );
       return;
     }
@@ -1019,7 +1019,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์และส่งเข้าครัวร้านแล้ว 🍳");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์แล้ว");
         setShowSendModal(false);
         setActiveGroup("CLOSED_TODAY");
         await fetchBatches(true);

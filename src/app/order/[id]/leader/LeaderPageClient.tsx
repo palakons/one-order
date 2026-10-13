@@ -358,7 +358,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์และส่งเข้าครัวร้านแล้ว 🍳");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์แล้ว");
         setShowSendModal(false);
         if (data.batch) setBatch(data.batch);
         await fetchBatch();
@@ -886,8 +886,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 {currentPhase > 2 ? "✓" : "2"}
               </span>
               <div className="min-w-0">
-                <p className="text-xs truncate font-black">สั่งร้านเข้าครัว</p>
-                <p className="text-[10px] text-slate-500 truncate hidden sm:block">ส่งสรุปยาว & รอทำ</p>
+                <p className="text-xs truncate font-black">สั่งร้านค้า</p>
+                <p className="text-[10px] text-slate-500 truncate hidden sm:block">ส่งสรุป & รอร้านทำ</p>
               </div>
             </div>
 
@@ -943,12 +943,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
                 <h2 className="text-base sm:text-lg font-black tracking-tight">
                   {allSlipsVerified
-                    ? "สลิปครบแล้ว! พร้อมส่งร้านเข้าครัว 🍳"
+                    ? "สลิปครบแล้ว พร้อมส่งออเดอร์ให้ร้าน 🍱"
                     : `กำลังรวบรวมออเดอร์ (ขาดสลิป ${missingSlipOrders.length} กล่อง)`}
                 </h2>
                 <p className="text-xs text-purple-200">
                   {allSlipsVerified
-                    ? "กดปุ่มเพื่อสร้างใบสรุปยาว (One Long Manifest) และส่งเข้า LINE ร้านอาหาร"
+                    ? "สร้างใบสรุปออเดอร์เพื่อส่งให้ร้านค้าใน LINE"
                     : "ตรวจสอบสลิปของสมาชิก หรือแชร์ชวนเพื่อนเพิ่มก่อนปิดตี้"}
                 </p>
               </div>
@@ -962,7 +962,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 font-black px-4 py-2.5 text-xs sm:text-sm shadow-md active:scale-98 transition-all w-full sm:w-auto cursor-pointer"
                 >
                   <ChefHat className="h-4 w-4" />
-                  <span>🍳 ส่งร้านเข้าครัว (สร้างใบสรุปยาว)</span>
+                  <span>สั่งร้านค้า (สร้างใบสรุปออเดอร์)</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -998,7 +998,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
-                    PHASE 2 • กำลังปรุงอาหาร
+                    PHASE 2 • ร้านกำลังทำอาหาร
                   </span>
                   <span className="text-xs text-amber-200">
                     {activeOrders.length} กล่อง
@@ -1015,8 +1015,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </h2>
                 <p className="text-xs text-amber-100">
                   {isSelfPickup
-                    ? "ออเดอร์ส่งเข้าครัวแล้ว รอเวลาแล้วไปรับที่ร้านได้เลย"
-                    : `ออเดอร์ส่งเข้าครัวแล้ว เมื่ออาหารมาส่งที่โต๊ะ ${buildingName} ชั้น 1 ให้กดถ่ายรูปวางโต๊ะ`}
+                    ? "ส่งออเดอร์ให้ร้านแล้ว รอเวลารับอาหารที่หน้าร้านได้เลย"
+                    : `ส่งออเดอร์ให้ร้านแล้ว เมื่ออาหารมาส่งที่โต๊ะ ${buildingName} ให้กดถ่ายรูปวางโต๊ะ`}
                 </p>
               </div>
 
@@ -1028,7 +1028,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black px-4 py-2.5 text-xs sm:text-sm shadow-lg active:scale-98 transition-all w-full sm:w-auto ring-2 ring-emerald-400/40 cursor-pointer"
                 >
                   <Camera className="h-4 w-4" />
-                  <span>📸 อาหารมาส่งแล้ว: ถ่ายรูปวางโต๊ะ</span>
+                  <span>📸 อาหารมาส่งแล้ว (ถ่ายรูปวางโต๊ะ)</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -1063,10 +1063,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 type="button"
                 onClick={handleOpenSendModal}
                 className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer"
-                title="เปิดดูใบสรุปยาวอีกครั้ง"
+                title="เปิดดูใบสรุปออเดอร์อีกครั้ง"
               >
                 <FileText className="h-3 w-3 text-amber-300" />
-                <span>ดูใบสรุปยาว</span>
+                <span>ดูใบสรุปออเดอร์</span>
               </button>
 
               <button
@@ -1110,7 +1110,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   href={`/delivery/${batch.id}`}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white text-emerald-950 hover:bg-emerald-50 font-black px-3.5 py-2 text-xs sm:text-sm shadow-md transition-all"
                 >
-                  <span>📱 ดูหน้าลูกตี้</span>
+                  <span>📱 หน้ารับอาหาร</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
 

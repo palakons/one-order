@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
     if (!slipImageUrl) {
       return NextResponse.json(
-        { success: false, error: "กรุณาแนบสลิปโอนเงินก่อนยืนยันออเดอร์ (Force Transfer)" },
+        { success: false, error: "กรุณาแนบสลิปโอนเงินก่อนยืนยันออเดอร์" },
         { status: 400 }
       );
     }

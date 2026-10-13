@@ -269,7 +269,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
       return;
     }
     if (!slipPreview) {
-      setSubmitError("กรุณาแนบรูปสลิปโอนเงิน (Force Transfer)");
+      setSubmitError("กรุณาแนบรูปสลิปโอนเงิน");
       return;
     }
 
@@ -460,7 +460,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ส่งเข้าครัวร้านแล้ว");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว!");
         setShowSendModal(false);
         await fetchBatch();
       } else {
