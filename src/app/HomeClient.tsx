@@ -16,7 +16,7 @@ import {
 import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
-import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay, formatTabHeader, addMinutesToTimeString } from "@/lib/utils";
+import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay, formatTabHeader, addMinutesToTimeString, getShortShopName } from "@/lib/utils";
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
 import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
 import confetti from "canvas-confetti";
@@ -1453,19 +1453,32 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     : "M4";
                   const localizedShop = getShopLocalizedInfo(b.shop, lang);
 
+                  const shortShop = getShortShopName(localizedShop.name);
+                  const today = getBangkokDate();
+                  const diffDays = b.date ? -getDaysDifference(b.date, today) : 0;
+                  const futureTag = diffDays > 0 ? ` (+${diffDays})` : "";
+                  const timeDisplay = `${b.cutoffTime || "11:15"}${futureTag}`;
+
                   return (
                     <button
                       key={b.id}
                       type="button"
                       onClick={() => selectBatch(b.id)}
-                      className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                      className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
                         isActive
                           ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
                       }`}
                     >
-                      <span className="font-bold tracking-tight">
-                        {formatTabHeader(localizedShop.name, b.buildingName, b.cutoffTime, b.date, lang)}
+                      <span className="font-bold tracking-tight">{shortShop}</span>
+
+                      {/* Compact green span for building name */}
+                      <span className="rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight leading-none shrink-0">
+                        {bldgCode}
+                      </span>
+
+                      <span className="font-mono text-[11px] font-semibold text-slate-700">
+                        {timeDisplay}
                       </span>
 
                       {/* Badge depending on group */}
