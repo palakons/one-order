@@ -17,8 +17,9 @@ import { compressImage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay, formatTabHeader, addMinutesToTimeString, getShortShopName } from "@/lib/utils";
-import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName } from "@/lib/i18n";
+import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName, Language } from "@/lib/i18n";
 import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
+import { getCssColorFromClass, useAverageColor } from "@/lib/color-utils";
 import confetti from "canvas-confetti";
 import {
   MapPin,
@@ -65,6 +66,110 @@ export type BoardGroup = "OPENING" | "PENDING" | "CLOSED_TODAY" | "ARCHIVED" | "
 interface Props {
   initialBatches: BatchWithDetails[];
   initialLocations?: DeliveryLocation[];
+}
+
+interface BoardTabButtonProps {
+  batch: BatchWithDetails;
+  isActive: boolean;
+  locations: DeliveryLocation[];
+  lang: Language;
+  onSelect: (id: string) => void;
+}
+
+function BoardTabButton({ batch: b, isActive, locations, lang, onSelect }: BoardTabButtonProps) {
+  const shopAccentColor = useAverageColor(
+    b.shop?.menuImageUrl,
+    b.shop?.name ? b.shop.name + (b.shop.cuisine || "") : undefined,
+    b.shop?.accentColor
+  );
+
+  const bldgLoc = getLocationForBatch(b, locations);
+  const bldgColor = getCssColorFromClass(bldgLoc?.color, "#059669");
+  const bldgCode =
+    bldgLoc?.shortCode ||
+    (b.buildingName
+      ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
+      : "M4");
+
+  const localizedShop = getShopLocalizedInfo(b.shop, lang);
+  const shortShop = getShortShopName(localizedShop.name);
+  const today = getBangkokDate();
+  const diffDays = b.date ? -getDaysDifference(b.date, today) : 0;
+  const futureTag = diffDays > 0 ? ` (+${diffDays})` : "";
+  const timeDisplay = `${b.cutoffTime || "11:15"}${futureTag}`;
+  const isMet = b.currentTotalAmount >= b.targetMinAmount;
+
+  return (
+    <button
+      key={b.id}
+      type="button"
+      onClick={() => onSelect(b.id)}
+      style={{
+        borderLeftColor: shopAccentColor,
+        borderRightColor: bldgColor,
+      }}
+      className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-t-xl rounded-b-none px-3 py-2 text-xs transition-all border border-b-0 cursor-pointer border-l-4 border-r-4 ${
+        isActive
+          ? "bg-white border-t-slate-300 border-b-white text-purple-950 font-black shadow-xs -mb-[1px] z-10 ring-1 ring-purple-100"
+          : "bg-slate-100/80 border-t-slate-200 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900"
+      }`}
+    >
+      {/* Shop color dot indicator */}
+      <span
+        className="h-2 w-2 rounded-full shrink-0 shadow-2xs"
+        style={{ backgroundColor: shopAccentColor }}
+      />
+
+      <span className="font-bold tracking-tight">{shortShop}</span>
+
+      {/* Building short code with building's dynamic accent color */}
+      <span
+        style={{
+          borderColor: bldgColor,
+          color: bldgColor,
+          backgroundColor: `${bldgColor}18`,
+        }}
+        className="rounded-md border px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight leading-none shrink-0"
+      >
+        {bldgCode}
+      </span>
+
+      <span className="font-mono text-[11px] font-semibold text-slate-700">
+        {timeDisplay}
+      </span>
+
+      {/* Status Badges: PENDING, ORDERED, COMPLETED or Goal Badge */}
+      {b.status === "PENDING" ? (
+        <span className="rounded-md bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold shrink-0 animate-pulse">
+          ⚠️ {lang === "en" ? "Pending" : lang === "cn" ? "待处理" : "รอตรวจสอบ"}
+        </span>
+      ) : b.status === "ORDERED" ? (
+        <span className="rounded-md bg-sky-100 border border-sky-300 text-sky-800 px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+          🛵 {lang === "en" ? "Ordered" : lang === "cn" ? "已下单" : "ส่งร้านแล้ว"}
+        </span>
+      ) : b.status === "COMPLETED" ? (
+        <span className="rounded-md bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+          🍱 {lang === "en" ? "Delivered" : lang === "cn" ? "已送达" : "ถึงแล้ว"}
+        </span>
+      ) : b.isDeleted ? (
+        <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold shrink-0">
+          {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
+        </span>
+      ) : (
+        <span
+          className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold shrink-0 ${
+            isMet
+              ? "bg-emerald-600 text-white"
+              : b.currentTotalAmount > 0
+              ? "bg-amber-100 text-amber-900 border border-amber-300"
+              : "bg-slate-200 text-slate-600"
+          }`}
+        >
+          ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
+        </span>
+      )}
+    </button>
+  );
 }
 
 export default function HomeClient({ initialBatches, initialLocations }: Props) {
@@ -1194,6 +1299,12 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     ? getLocationForBatch(activeBatch, locations)
     : locations[0] || CAMPUS_LOCATIONS[0];
   const activeLocalizedLocation = getLocalizedLocation(activeLocation, lang);
+  const activeShopAccentColor = useAverageColor(
+    activeBatch?.shop?.menuImageUrl,
+    activeBatch?.shop?.name ? activeBatch.shop.name + (activeBatch.shop.cuisine || "") : undefined,
+    activeBatch?.shop?.accentColor
+  );
+  const activeBldgColor = getCssColorFromClass(activeLocation?.color, "#059669");
   const activeShopMapUrl = activeBatch
     ? activeBatch.shop.gmapUrl ||
       `https://maps.google.com/?q=${encodeURIComponent(
@@ -1578,76 +1689,16 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           ) : (
             currentGroupBatches.length > 0 && (
               <div className="flex items-end gap-1 overflow-x-auto border-b border-slate-200 pt-2 px-1 -mb-px">
-                {currentGroupBatches.map((b) => {
-                  const isActive = b.id === activeBatchId;
-                  const isMet = b.currentTotalAmount >= b.targetMinAmount;
-                  const bldgLoc = getLocationForBatch(b, locations);
-                  const bldgCode = bldgLoc?.shortCode || (b.buildingName
-                    ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
-                    : "M4");
-                  const localizedShop = getShopLocalizedInfo(b.shop, lang);
-
-                  const shortShop = getShortShopName(localizedShop.name);
-                  const today = getBangkokDate();
-                  const diffDays = b.date ? -getDaysDifference(b.date, today) : 0;
-                  const futureTag = diffDays > 0 ? ` (+${diffDays})` : "";
-                  const timeDisplay = `${b.cutoffTime || "11:15"}${futureTag}`;
-
-                  return (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => selectBatch(b.id)}
-                      className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-t-xl rounded-b-none px-3 py-2 text-xs transition-all border border-b-0 cursor-pointer ${
-                        isActive
-                          ? "bg-white border-slate-300 border-b-white text-purple-950 font-black shadow-xs -mb-[1px] z-10 ring-1 ring-purple-100"
-                          : "bg-slate-100/80 border-slate-200 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900"
-                      }`}
-                    >
-                      <span className="font-bold tracking-tight">{shortShop}</span>
-
-                      {/* Compact green span for building short code */}
-                      <span className="rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight leading-none shrink-0">
-                        {bldgCode}
-                      </span>
-
-                      <span className="font-mono text-[11px] font-semibold text-slate-700">
-                        {timeDisplay}
-                      </span>
-
-                      {/* Status Badges: PENDING, ORDERED, COMPLETED or Goal Badge */}
-                      {b.status === "PENDING" ? (
-                        <span className="rounded-md bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold shrink-0 animate-pulse">
-                          ⚠️ {lang === "en" ? "Pending" : lang === "cn" ? "待处理" : "รอตรวจสอบ"}
-                        </span>
-                      ) : b.status === "ORDERED" ? (
-                        <span className="rounded-md bg-sky-100 border border-sky-300 text-sky-800 px-1.5 py-0.5 text-[10px] font-bold shrink-0">
-                          🛵 {lang === "en" ? "Ordered" : lang === "cn" ? "已下单" : "ส่งร้านแล้ว"}
-                        </span>
-                      ) : b.status === "COMPLETED" ? (
-                        <span className="rounded-md bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] font-bold shrink-0">
-                          🍱 {lang === "en" ? "Delivered" : lang === "cn" ? "已送达" : "ถึงแล้ว"}
-                        </span>
-                      ) : b.isDeleted ? (
-                        <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold shrink-0">
-                          {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
-                        </span>
-                      ) : (
-                        <span
-                          className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold shrink-0 ${
-                            isMet
-                              ? "bg-emerald-600 text-white"
-                              : b.currentTotalAmount > 0
-                              ? "bg-amber-100 text-amber-900 border border-amber-300"
-                              : "bg-slate-200 text-slate-600"
-                          }`}
-                        >
-                          ฿{b.currentTotalAmount}/{b.targetMinAmount} {isMet ? "🎉" : ""}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                {currentGroupBatches.map((b) => (
+                  <BoardTabButton
+                    key={b.id}
+                    batch={b}
+                    isActive={b.id === activeBatchId}
+                    locations={locations}
+                    lang={lang}
+                    onSelect={selectBatch}
+                  />
+                ))}
               </div>
             )
           )}
@@ -1832,7 +1883,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             </p>
           </div>
         ) : activeBatch ? (
-          <div id="board-pane" className="space-y-2.5 sm:space-y-3">
+          <div
+            id="board-pane"
+            style={{
+              borderLeftColor: activeShopAccentColor,
+              borderRightColor: activeBldgColor,
+              background: `linear-gradient(to right, ${activeShopAccentColor}0d, transparent 15%, transparent 85%, ${activeBldgColor}0d)`,
+            }}
+            className="space-y-2.5 sm:space-y-3 rounded-2xl border-l-[6px] border-r-[6px] border-y border-y-slate-200/80 p-3 sm:p-4 shadow-sm bg-white/60 transition-all duration-300"
+          >
             {/* Status Announcement Banner (e.g. PENDING, food delayed, shop closed) */}
             {activeBatch.status === "PENDING" && (
               <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-3.5 text-amber-950 shadow-xs flex items-start gap-2.5 animate-pulse">
@@ -1881,7 +1940,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Card 1: Shop */}
               <div
-                className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between"
+                style={{ borderLeftColor: activeShopAccentColor }}
+                className="rounded-xl border border-slate-200 border-l-[3px] bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
                   <span className="flex items-center gap-1 text-purple-900 shrink-0">
@@ -1910,13 +1970,23 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
 
               {/* Card 2: Drop off location */}
-              <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between">
+              <div
+                style={{ borderRightColor: activeBldgColor }}
+                className="rounded-xl border border-slate-200 border-r-[3px] bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between"
+              >
                 <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
                   <span className="flex items-center gap-1 text-emerald-800 shrink-0">
                     <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-600 shrink-0" />
                     <span className="truncate">{t.dropoffPoint}</span>
                   </span>
-                  <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 text-[9px] sm:text-[10px] font-mono font-bold shrink-0">
+                  <span
+                    style={{
+                      borderColor: activeBldgColor,
+                      color: activeBldgColor,
+                      backgroundColor: `${activeBldgColor}18`,
+                    }}
+                    className="rounded border px-1 py-0.2 text-[9px] sm:text-[10px] font-mono font-bold shrink-0"
+                  >
                     {activeLocation.shortCode || "M4"}
                   </span>
                 </div>

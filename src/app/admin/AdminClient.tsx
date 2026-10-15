@@ -72,66 +72,8 @@ interface Props {
   initialSystemStatus?: SystemStatus;
 }
 
-function getDeterministicColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash % 360);
-  return `hsl(${hue}, 65%, 45%)`;
-}
+import { getDeterministicColor, useAverageColor } from "@/lib/color-utils";
 
-function useAverageColor(imageUrl?: string, fallbackSeed?: string, explicitColor?: string) {
-  const [color, setColor] = useState<string | null>(explicitColor || null);
-
-  useEffect(() => {
-    if (explicitColor) {
-      setColor(explicitColor);
-      return;
-    }
-    if (!imageUrl) {
-      setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
-      return;
-    }
-
-    let isMounted = true;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = imageUrl;
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, 1, 1);
-          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-          if (isMounted) {
-            setColor(`rgb(${r}, ${g}, ${b})`);
-          }
-        }
-      } catch {
-        if (isMounted) {
-          setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
-        }
-      }
-    };
-
-    img.onerror = () => {
-      if (isMounted) {
-        setColor(fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
-      }
-    };
-
-    return () => {
-      isMounted = false;
-    };
-  }, [imageUrl, fallbackSeed, explicitColor]);
-
-  return color || (fallbackSeed ? getDeterministicColor(fallbackSeed) : "#7c3aed");
-}
 
 interface ShopAdminCardProps {
   shop: Shop;
