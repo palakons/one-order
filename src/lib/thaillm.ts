@@ -355,15 +355,15 @@ export async function recommendMenuWithThaiLLM({
  */
 export async function craftAnnouncementWithThaiLLM(params: {
   shopName: string;
-  situation: string; // e.g. "อาหารล่าช้ากว่ากำหนด (คิวแน่น)", "ร้านปิดกะทันหัน / วัตถุดิบหมด"
+  situation?: string; // e.g. "อาหารล่าช้ากว่ากำหนด (คิวแน่น)", "ร้านปิดกะทันหัน / วัตถุดิบหมด"
   rawNote?: string;
   batchStatus?: string;
   isSentToShop?: boolean;
   buildingName?: string;
   totalOrders?: number;
   totalBoxes?: number;
-  length?: "brief" | "medium" | "long";
-  tone?: "official" | "casual" | "friendly";
+  length?: "extreme_short" | "brief" | "medium" | "long";
+  tone?: "official" | "casual" | "friendly" | "extreme_friendly";
 }): Promise<{ success: boolean; message: string; error?: string }> {
   const {
     shopName,
@@ -379,21 +379,33 @@ export async function craftAnnouncementWithThaiLLM(params: {
 
   // Fallback template builder if LLM is unavailable or times out
   const buildFallback = () => {
-    const note = (rawNote || situation).trim();
+    const note = (rawNote || situation || "อัปเดตสถานะออเดอร์").trim();
     const sentStatusText = isSentToShop ? "ส่งออเดอร์ให้ร้านแล้ว" : "อยู่ระหว่างประสานงานส่งออเดอร์กับทางร้าน";
+    
+    if (length === "extreme_short") {
+      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay")) return `ร้าน ${shopName}: อาหารเลทนิดนึง กำลังตาม`;
+      return `ร้าน ${shopName}: ${note}`;
+    }
+
+    if (tone === "extreme_friendly") {
+      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay")) {
+        return `เค้าขอโทษน้าทุกคนน 🥺🥺 ร้าน ${shopName} วันนี้คนแน่นมาก อาหารมาช้ากว่าเดิมนิดนึง เดี๋ยวเค้าคอยตามติดให้ตลอดเลยน้าา ขอบคุณทุกคนที่รอน้าา ❤️`;
+      }
+      return `แจ้งเพื่อนๆ น้าา 🥰 ร้าน ${shopName}: ${note} เดี๋ยวเค้าช่วยคุยกับร้านดูแลให้อย่างดีที่สุดเลยน้าา ✨`;
+    }
     if (tone === "casual") {
-      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("ช้า")) {
+      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay")) {
         return `ร้าน ${shopName} แจ้งว่าอาหารอาจช้ากว่าเดิมนิดนึงนะ กำลังเร่งตามให้อยู่จ้า`;
       }
       return `ร้าน ${shopName}: ${note} กำลังประสานงานให้อยู่นะ`;
     }
     if (tone === "friendly") {
-      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("ช้า")) {
+      if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay")) {
         return `ขออภัยเพื่อนๆ ด้วยน้า ร้าน ${shopName} (${buildingName || "M4"}) วันนี้คิวแน่น อาหารอาจจะช้ากว่าปกตินิดนึง หัวหน้าตี้คอยตามให้ตลอดจ้า`;
       }
       return `แจ้งข่าวร้าน ${shopName} น้า: ${note} ตอนนี้หัวหน้าตี้กำลังช่วยคุยกับที่ร้านให้อย่างเต็มที่เลยจ้า`;
     }
-    if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("ช้า")) {
+    if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay")) {
       return `⚠️ แจ้งสถานะออเดอร์ร้าน ${shopName} (${buildingName || "M4"}): ทางร้านแจ้งว่าอาหารอาจล่าช้ากว่ากำหนดเดิมเล็กน้อย หัวหน้าตี้กำลังติดตามคิวให้อย่างใกล้ชิดครับ/ค่ะ`;
     }
     if (note.includes("ปิด") || note.includes("หมด") || note.includes("close")) {
@@ -408,18 +420,24 @@ export async function craftAnnouncementWithThaiLLM(params: {
       : "สถานะระบบ: ยังไม่ได้ส่งออเดอร์ให้ร้านค้า (หัวหน้าตี้กำลังรวบรวม/ประสานงานรายละเอียดกับทางร้าน)";
 
     const lengthGuide =
-      length === "brief"
-        ? "ความยาวระดับสั้นกระชับมาก (Brief): 1 ประโยคสั้นๆ ตรงประเด็นทันที ไม่เกิน 20-30 คำ"
+      length === "extreme_short"
+        ? "ความยาวระดับสั้นพิเศษมากที่สุด (Extreme Short): ข้อความสั้นจิ๋ว กะทัดรัดขั้นสุด เพียง 5-12 คำเท่านั้น (วลีเดียวจบ ได้ใจความไวที่สุด)"
+        : length === "brief"
+        ? "ความยาวระดับสั้นกระชับ (Brief): 1 ประโยคสั้นๆ ตรงประเด็นทันที ไม่เกิน 20-30 คำ"
         : length === "long"
         ? "ความยาวระดับละเอียด (Long): 3-4 ประโยค อธิบายสถานการณ์ ที่มา ความคืบหน้า และสิ่งที่สมาชิกรอได้ชัดเจน ไม่เกิน 80-100 คำ"
         : "ความยาวระดับปานกลาง (Medium): 2 ประโยคกำลังดี กระชับ ได้ใจความครบถ้วน ไม่เกิน 40-50 คำ";
 
     const toneGuide =
-      tone === "casual"
+      tone === "extreme_friendly"
+        ? "ระดับภาษาแบบเป็นมิตรน่ารักสุดขีด (Extreme Friendly): อบอุ่น นุ่มนวล เทคแคร์แบบขั้นสุด มีความเอ็นดู ขอโทษอย่างจริงใจ แทนตัวเองแบบน่ารัก (เช่น เค้า/เรา) มีคำลงท้ายหวานๆ (น้าา/จ้าา/งับ/🥺/❤️/✨) เข้าใจหัวอกคนหิวเป็นที่สุด"
+        : tone === "casual"
         ? "ระดับภาษาแบบเป็นกันเอง (Casual): ภาษาพูดสบายๆ เหมือนเพื่อนในมหาวิทยาลัยคุยกัน แต่ยังมีความชัดเจนและรับผิดชอบ (ห้ามเล่นมุกหรือล้อเลียน)"
         : tone === "friendly"
         ? "ระดับภาษาแบบอบอุ่นเป็นมิตร (Friendly): ใส่ใจ เข้าอกเข้าใจสูง อบอุ่น มีคำลงท้ายน่ารัก เช่น น้า/จ้า/ครับ แต่ยังตรงประเด็นและมีความรับผิดชอบ"
         : "ระดับภาษาแบบกึ่งทางการ (Official): สุภาพ หนักแน่น สุขุม (Stoic) กึ่งทางการ เป็นระเบียบและมีความเข้าอกเข้าใจทั้งต่อผู้รอและร้านค้า";
+
+    const situationText = situation ? `- สถานการณ์ที่เลือก: ${situation}` : "- สถานการณ์: ตามรายละเอียดของหัวหน้าตี้";
 
     const prompt = `คุณคือผู้ช่วยสื่อสารของระบบสั่งอาหารรวม VEATEC สถาบันวิทยสิริเมธี (VISTEC)
 จงร่าง "ข้อความประกาศแจ้งเตือนสถานะอาหาร" ให้แก่เพื่อนๆ สมาชิกที่สั่งอาหารในตี้
@@ -428,7 +446,7 @@ export async function craftAnnouncementWithThaiLLM(params: {
 - ร้านอาหาร: ${shopName}
 - จุดส่งอาหาร: ตึก ${buildingName || "M4"} ${totalBoxes ? `(รวม ${totalBoxes} กล่อง)` : ""}
 - สถานะปัจจุบันของตี้: ${batchStatus || "PENDING"} (${sentContext})
-- สถานการณ์ที่เลือก: ${situation}
+${situationText}
 ${rawNote ? `- รายละเอียดเพิ่มเติมจากหัวหน้าตี้: "${rawNote.trim()}"` : ""}
 
 ข้อกำหนดระดับภาษาและความยาว:

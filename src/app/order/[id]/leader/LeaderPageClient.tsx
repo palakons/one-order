@@ -72,10 +72,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
   // AI Announcement Crafter & Pending Status State
   const [showAiModal, setShowAiModal] = useState(false);
-  const [aiSituation, setAiSituation] = useState("อาหารล่าช้ากว่ากำหนด (คิวแน่น)");
+  const [aiSituation, setAiSituation] = useState<string>("อาหารล่าช้ากว่ากำหนด (คิวแน่น)");
   const [aiCustomNote, setAiCustomNote] = useState("");
-  const [aiLength, setAiLength] = useState<"brief" | "medium" | "long">("brief");
-  const [aiTone, setAiTone] = useState<"official" | "casual" | "friendly">("official");
+  const [aiLength, setAiLength] = useState<"extreme_short" | "brief" | "medium" | "long">("brief");
+  const [aiTone, setAiTone] = useState<"official" | "casual" | "friendly" | "extreme_friendly">("official");
   const [isCraftingAi, setIsCraftingAi] = useState(false);
   const [craftedMessage, setCraftedMessage] = useState("");
   const [submittingPending, setSubmittingPending] = useState(false);
@@ -288,7 +288,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shopName: batch.shop.name,
-          situation: aiSituation,
+          situation: aiSituation.trim() || undefined,
           rawNote: aiCustomNote.trim() || undefined,
           batchStatus: batch.status,
           isSentToShop: batch.status === "ORDERED" || batch.status === "DELIVERING" || batch.status === "COMPLETED",
@@ -1781,29 +1781,52 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
             {/* Modal Body */}
             <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 text-xs text-slate-700">
-              {/* Situation Presets */}
+              {/* Situation Presets with Toggle on/off */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-900 block">เลือกสถานการณ์ที่เกิดขึ้น:</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-900 block">
+                    เลือกสถานการณ์ที่เกิดขึ้น (แตะซ้ำเพื่อเปิด/ปิด):
+                  </label>
+                  {aiSituation && (
+                    <button
+                      type="button"
+                      onClick={() => setAiSituation("")}
+                      className="text-[10px] text-amber-700 hover:underline font-semibold"
+                    >
+                      ยกเลิกที่เลือก
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {[
                     "อาหารล่าช้ากว่ากำหนด (คิวแน่น)",
                     "ร้านปิดกะทันหัน / วัตถุดิบหมด",
                     "ร้านขอปรับเปลี่ยนเมนูบางรายการ",
                     "ฝนตกหนัก / ไรเดอร์ส่งช้า",
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setAiSituation(preset)}
-                      className={`text-left px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                        aiSituation === preset
-                          ? "bg-amber-100 border-amber-400 text-amber-950 font-bold shadow-2xs"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
+                  ].map((preset) => {
+                    const isSelected = aiSituation === preset;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setAiSituation(isSelected ? "" : preset)}
+                        className={`text-left px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
+                          isSelected
+                            ? "bg-amber-100 border-amber-400 text-amber-950 font-bold shadow-2xs"
+                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>{preset}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold transition-colors ${
+                            isSelected ? "bg-amber-600 text-white" : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          {isSelected ? "เลือกอยู่ ✓" : "แตะเลือก"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1821,15 +1844,16 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 />
               </div>
 
-              {/* Radio Group: Length (Brief / Med / Long) */}
+              {/* Radio Group: Length (Extreme Short / Brief / Med / Long) */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-900 block">
                   ความยาวข้อความ (Length):
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
+                    { id: "extreme_short", label: "สั้นจิ๋ว (Extreme)", desc: "5-10 คำ ไวสุด" },
                     { id: "brief", label: "กระชับ (Brief)", desc: "1 ประโยคสั้น" },
-                    { id: "medium", label: "ปานกลาง (Med)", desc: "2 ประโยค" },
+                    { id: "medium", label: "ปานกลาง (Med)", desc: "2 ประโยค พอดี" },
                     { id: "long", label: "ละเอียด (Long)", desc: "3-4 ประโยค" },
                   ].map((item) => (
                     <label
@@ -1846,27 +1870,28 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                           name="aiLength"
                           value={item.id}
                           checked={aiLength === item.id}
-                          onChange={() => setAiLength(item.id as "brief" | "medium" | "long")}
+                          onChange={() => setAiLength(item.id as "extreme_short" | "brief" | "medium" | "long")}
                           className="h-3.5 w-3.5 text-purple-700 focus:ring-purple-500 accent-purple-800"
                         />
-                        <span className="text-[11px] font-bold">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-tight">{item.label}</span>
                       </div>
-                      <span className="text-[9.5px] text-slate-500 pl-5">{item.desc}</span>
+                      <span className="text-[9.5px] text-slate-500 pl-5 mt-0.5">{item.desc}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Radio Group: Tone (Official / Casual / Friendly) */}
+              {/* Radio Group: Tone (Official / Casual / Friendly / Extreme Friendly) */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-900 block">
                   โทนและระดับภาษา (Tone):
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
-                    { id: "official", label: "กึ่งทางการ (Official)", desc: "สุภาพ หนักแน่น สุขุม" },
+                    { id: "official", label: "กึ่งทางการ (Official)", desc: "สุภาพ สุขุม หนักแน่น" },
                     { id: "casual", label: "กันเอง (Casual)", desc: "สบายๆ เหมือนเพื่อน" },
                     { id: "friendly", label: "อบอุ่น (Friendly)", desc: "เป็นมิตร เข้าอกเข้าใจ" },
+                    { id: "extreme_friendly", label: "น่ารักสุด (Extreme)", desc: "อ้อน นุ่มนวล เทคแคร์ ✨" },
                   ].map((item) => (
                     <label
                       key={item.id}
@@ -1882,12 +1907,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                           name="aiTone"
                           value={item.id}
                           checked={aiTone === item.id}
-                          onChange={() => setAiTone(item.id as "official" | "casual" | "friendly")}
+                          onChange={() => setAiTone(item.id as "official" | "casual" | "friendly" | "extreme_friendly")}
                           className="h-3.5 w-3.5 text-amber-600 focus:ring-amber-500 accent-amber-600"
                         />
-                        <span className="text-[11px] font-bold">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-tight">{item.label}</span>
                       </div>
-                      <span className="text-[9.5px] text-slate-500 pl-5">{item.desc}</span>
+                      <span className="text-[9.5px] text-slate-500 pl-5 mt-0.5">{item.desc}</span>
                     </label>
                   ))}
                 </div>

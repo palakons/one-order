@@ -21,17 +21,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "shopName is required" }, { status: 400 });
     }
 
+    const validLengths = ["extreme_short", "brief", "medium", "long"];
+    const validTones = ["official", "casual", "friendly", "extreme_friendly"];
+
     const result = await craftAnnouncementWithThaiLLM({
       shopName: String(shopName),
-      situation: String(situation || "food delayed"),
+      situation: situation ? String(situation) : undefined,
       rawNote: rawNote ? String(rawNote) : undefined,
       batchStatus: batchStatus ? String(batchStatus) : undefined,
       isSentToShop: typeof isSentToShop === "boolean" ? isSentToShop : undefined,
       buildingName: buildingName ? String(buildingName) : undefined,
       totalOrders: typeof totalOrders === "number" ? totalOrders : undefined,
       totalBoxes: typeof totalBoxes === "number" ? totalBoxes : undefined,
-      length: length === "long" || length === "medium" || length === "brief" ? length : "brief",
-      tone: tone === "casual" || tone === "friendly" || tone === "official" ? tone : "official",
+      length: validLengths.includes(length) ? length : "brief",
+      tone: validTones.includes(tone) ? tone : "official",
     });
 
     return NextResponse.json(result);
