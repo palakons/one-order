@@ -54,11 +54,13 @@ import {
   Sparkles,
   QrCode,
   Calendar,
+  Truck,
+  Package,
 } from "lucide-react";
 import DishAutocompleteInput from "@/components/DishAutocompleteInput";
 import AIMenuSuggester from "@/components/AIMenuSuggester";
 
-export type BoardGroup = "OPENING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
+export type BoardGroup = "OPENING" | "PENDING" | "CLOSED_TODAY" | "ARCHIVED" | "DELETED";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -99,24 +101,33 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return true;
   }, [todayStr]);
 
-  // 2. Closed boards for today (Today, cutoff expired or status not OPEN, not deleted)
-  const isClosedTodayBatch = useCallback((b: BatchWithDetails) => {
+  // 2. Pending delivery boards (Today, cutoff expired or ordered/pending/delivering, NOT yet COMPLETED/delivered or CANCELLED, not deleted)
+  const isPendingDeliveryBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
     if (diff !== 0) return false;
-    if (b.status !== "OPEN") return true;
+    if (b.status === "COMPLETED" || b.status === "CANCELLED") return false;
+    if (b.status === "ORDERED" || b.status === "DELIVERING" || b.status === "PENDING") return true;
     const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
     return timeInfo.isExpired;
   }, [todayStr]);
 
-  // 3. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted)
+  // 3. Closed boards for today (Today, marked delivered/completed or cancelled, not deleted)
+  const isClosedTodayBatch = useCallback((b: BatchWithDetails) => {
+    if (b.isDeleted) return false;
+    const diff = getDaysDifference(b.date, todayStr);
+    if (diff !== 0) return false;
+    return b.status === "COMPLETED" || b.status === "CANCELLED";
+  }, [todayStr]);
+
+  // 4. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted)
   const isArchivedBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
     return diff >= 1 && diff <= 7;
   }, [todayStr]);
 
-  // 4. Deleted boards (more than 7 days: diff > 7 or marked isDeleted)
+  // 5. Deleted boards (more than 7 days: diff > 7 or marked isDeleted)
   const isDeletedBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return true;
     const diff = getDaysDifference(b.date, todayStr);
@@ -134,6 +145,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         return a.createdAt.localeCompare(b.createdAt);
       });
   }, [batches, isOpeningBatch]);
+  const pendingBatches = useMemo(() => batches.filter(isPendingDeliveryBatch), [batches, isPendingDeliveryBatch]);
   const closedTodayBatches = useMemo(() => batches.filter(isClosedTodayBatch), [batches, isClosedTodayBatch]);
   const archivedBatches = useMemo(() => batches.filter(isArchivedBatch), [batches, isArchivedBatch]);
   const deletedBatches = useMemo(() => batches.filter(isDeletedBatch), [batches, isDeletedBatch]);
@@ -144,6 +156,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     switch (activeGroup) {
       case "OPENING":
         return openingBatches;
+      case "PENDING":
+        return pendingBatches;
       case "CLOSED_TODAY":
         return closedTodayBatches;
       case "ARCHIVED":
@@ -153,7 +167,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       default:
         return openingBatches;
     }
-  }, [activeGroup, openingBatches, closedTodayBatches, archivedBatches, deletedBatches]);
+  }, [activeGroup, openingBatches, pendingBatches, closedTodayBatches, archivedBatches, deletedBatches]);
 
   const [activeBatchId, setActiveBatchId] = useState<string>(() => {
     const valid = initialBatches
@@ -275,6 +289,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     }
     let targetBatches: BatchWithDetails[] = [];
     if (group === "OPENING") targetBatches = openingBatches;
+    else if (group === "PENDING") targetBatches = pendingBatches;
     else if (group === "CLOSED_TODAY") targetBatches = closedTodayBatches;
     else if (group === "DELETED") targetBatches = deletedBatches;
 
@@ -297,7 +312,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           } else if (found.status !== "OPEN" || getTimeRemaining(found.cutoffTime, found.date).isExpired) {
             const diff = getDaysDifference(found.date, getBangkokDate());
             if (diff === 0) {
-              setActiveGroup("CLOSED_TODAY");
+              if (found.status === "COMPLETED" || found.status === "CANCELLED") {
+                setActiveGroup("CLOSED_TODAY");
+              } else {
+                setActiveGroup("PENDING");
+              }
             } else {
               setActiveGroup("ARCHIVED");
               setArchivedSelectedBatchId(urlBatchId);
@@ -1269,7 +1288,26 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </span>
             </button>
 
-            {/* Group 2: Closed Today */}
+            {/* Group 2: Pending Delivery (Cutoff passed or Ordered, not yet completed) */}
+            <button
+              type="button"
+              onClick={() => handleSelectGroup("PENDING")}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                activeGroup === "PENDING"
+                  ? "bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-400"
+                  : "bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100 hover:text-amber-950"
+              }`}
+            >
+              <Truck className="h-3.5 w-3.5 text-amber-900" />
+              <span>{t.groupPending}</span>
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                activeGroup === "PENDING" ? "bg-slate-950/20 text-slate-950" : "bg-amber-200/80 text-amber-900"
+              }`}>
+                {pendingBatches.length}
+              </span>
+            </button>
+
+            {/* Group 3: Closed Today */}
             <button
               type="button"
               onClick={() => handleSelectGroup("CLOSED_TODAY")}
@@ -1616,6 +1654,27 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         </div>
 
         {/* Top Banner when viewing non-opening groups */}
+        {activeBatch && activeGroup === "PENDING" && (
+          <div className="flex items-center justify-between rounded-xl bg-amber-500/15 border border-amber-300 text-amber-950 px-4 py-2.5 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-amber-800 shrink-0" />
+              <span>
+                <strong>{t.groupPending}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)}) • {lang === "en" ? "Waiting for delivery by leader" : lang === "cn" ? "等待发起人送达" : "กำลังดำเนินการ / รอส่งมอบจากผู้เปิดกระดาน"}
+              </span>
+            </div>
+            {openingBatches.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectGroup("OPENING")}
+                className="rounded-lg bg-amber-900/10 hover:bg-amber-900/20 text-amber-950 px-3 py-1 font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>{t.backToLive}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {activeBatch && activeGroup === "ARCHIVED" && (
           <div className="flex items-center justify-between rounded-xl bg-slate-900 text-slate-100 px-4 py-2.5 text-xs shadow-xs">
             <div className="flex items-center gap-2">
@@ -1642,7 +1701,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-amber-300 shrink-0" />
               <span>
-                <strong>{t.groupClosedToday}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)}) • {lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรับออเดอร์สำหรับรอบนี้แล้ว"}
+                <strong>{t.groupClosedToday}:</strong> {activeShopInfo?.name || activeBatch.shop.name} ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)}) • {lang === "en" ? "Closed / Delivered" : lang === "cn" ? "已送达/已关闭" : "ปิดรอบ / ส่งมอบเรียบร้อยแล้ว"}
               </span>
             </div>
             {openingBatches.length > 0 && (
@@ -1685,6 +1744,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
               {activeGroup === "OPENING" ? (
                 <Clock className="h-6 w-6 text-amber-600" />
+              ) : activeGroup === "PENDING" ? (
+                <Truck className="h-6 w-6 text-amber-600" />
               ) : activeGroup === "CLOSED_TODAY" ? (
                 <Clock className="h-6 w-6 text-slate-500" />
               ) : (
@@ -1694,6 +1755,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             <h3 className="text-base font-bold text-slate-900">
               {activeGroup === "OPENING"
                 ? t.noOpeningBoards
+                : activeGroup === "PENDING"
+                ? t.noPendingBoards
                 : activeGroup === "CLOSED_TODAY"
                 ? t.noClosedTodayBoards
                 : t.noDeletedBoards}
