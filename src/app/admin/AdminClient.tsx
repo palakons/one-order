@@ -63,7 +63,7 @@ import {
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
 import { compressImage } from "@/lib/services";
-import { DAYS_OF_WEEK, formatOpenDaysText } from "@/lib/shop-utils";
+import { DAYS_OF_WEEK, formatOpenDaysText, getBangkokDayOfWeek } from "@/lib/shop-utils";
 
 interface Props {
   initialBatches: BatchWithDetails[];
@@ -138,15 +138,20 @@ interface ShopAdminCardProps {
   onEdit: (shop: Shop) => void;
   onDelete: (id: string, name: string) => void;
   onZoomQr: (data: { url: string; title: string; number?: string; accountName?: string }) => void;
+  onSyncHours?: (shopId: string, shopName: string) => Promise<void>;
+  isSyncingHours?: boolean;
 }
 
-function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps) {
+function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr, onSyncHours, isSyncingHours }: ShopAdminCardProps) {
   const accentColor = useAverageColor(shop.menuImageUrl, shop.name + shop.cuisine, shop.accentColor);
   const qrUrl =
     shop.promptpayQrUrl ||
     (shop.promptpayNumber ? `https://promptpay.io/${shop.promptpayNumber.replace(/\D/g, "")}.png` : null);
   const isActive = shop.isActive !== false;
   const daysText = formatOpenDaysText(shop.openDays);
+
+  const bkkDay = getBangkokDayOfWeek();
+  const googleHoursText = shop.googleOpeningHours?.weekdayDescriptions?.[bkkDay === 0 ? 6 : bkkDay - 1];
 
   return (
     <div
@@ -303,20 +308,59 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr }: ShopAdminCardProps)
           </div>
         )}
 
-        {/* Google Maps link badge */}
-        {shop.gmapUrl && (
-          <div className="pt-0.5">
-            <a
-              href={shop.gmapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:underline"
-            >
-              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-              <span className="truncate">ดูเมนูจาก Google Maps ↗</span>
-            </a>
+        {/* Google Maps link & Synced Hours */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-rose-500" />
+              <span>Google Maps Places API</span>
+            </span>
+            {onSyncHours && (
+              <button
+                type="button"
+                onClick={() => onSyncHours(shop.id, shop.name)}
+                disabled={isSyncingHours}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                title="ดึงเวลาเปิด-ปิดจริงจาก Google Places API (Free Tier แคชวันละ 1 ครั้ง)"
+              >
+                <RefreshCw className={`h-2.5 w-2.5 text-purple-700 ${isSyncingHours ? "animate-spin" : ""}`} />
+                <span>{isSyncingHours ? "กำลังซิงค์..." : "ซิงค์เวลา"}</span>
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Today's Synced Hours */}
+          {googleHoursText ? (
+            <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-medium font-mono">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+              <span className="truncate">📍 {googleHoursText}</span>
+            </div>
+          ) : (
+            <div className="text-[10px] text-slate-400 italic">
+              ยังไม่ได้ซิงค์เวลาจาก Google Maps (กดปุ่ม &ldquo;ซิงค์เวลา&rdquo; ด้านบน)
+            </div>
+          )}
+
+          {shop.googleLastSyncedDate && (
+            <div className="text-[9px] text-slate-400 font-mono">
+              แคชล่าสุด: {shop.googleLastSyncedDate} (โควตาฟรี 1 ครั้ง/วัน)
+            </div>
+          )}
+
+          {shop.gmapUrl && (
+            <div className="pt-1 border-t border-slate-200/60">
+              <a
+                href={shop.gmapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:underline"
+              >
+                <ExternalLink className="h-2.5 w-2.5 text-rose-500" />
+                <span className="truncate">เปิดดูหน้าหมุดร้านบน Google Maps ↗</span>
+              </a>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Actions */}
@@ -524,6 +568,7 @@ export default function AdminClient({
   const [newDishName, setNewDishName] = useState("");
   const [newDishPrice, setNewDishPrice] = useState("");
   const [savingShop, setSavingShop] = useState(false);
+  const [syncingShopHoursId, setSyncingShopHoursId] = useState<string | null>(null);
   const [zoomedQr, setZoomedQr] = useState<{
     url: string;
     title: string;
@@ -955,6 +1000,28 @@ export default function AdminClient({
       }
     } catch (e: any) {
       alert("Error: " + e.message);
+    }
+  };
+
+  const handleSyncShopHours = async (shopId: string, shopName: string) => {
+    try {
+      setSyncingShopHoursId(shopId);
+      const res = await fetch(`/api/shops/${shopId}/sync-hours`, { method: "POST" });
+      const data = await res.json();
+      if (data.success && data.googleOpeningHours) {
+        setShops((prev) =>
+          prev.map((s) => (s.id === shopId ? { ...s, googleOpeningHours: data.googleOpeningHours } : s))
+        );
+        const bkkDay = getBangkokDayOfWeek();
+        const todayDesc = data.googleOpeningHours.weekdayDescriptions?.[bkkDay === 0 ? 6 : bkkDay - 1];
+        alert(`✅ ซิงค์เวลาจาก Google Maps สำหรับร้าน "${shopName}" สำเร็จ!\n\n📍 เวลาเปิดวันนี้: ${todayDesc || "ไม่ระบุ"}\n(ข้อมูลถูกบันทึกและแคชเพื่อประหยัดโควตา Free Tier เรียบร้อยแล้ว)`);
+      } else {
+        alert(`⚠️ ไม่สามารถซิงค์เวลาได้: ${data.error || data.message || "ไม่พบข้อมูลบน Google Maps"}`);
+      }
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดในการเชื่อมต่อ Google Places API: ${err.message}`);
+    } finally {
+      setSyncingShopHoursId(null);
     }
   };
 
@@ -3286,6 +3353,8 @@ export default function AdminClient({
                     onEdit={handleOpenEditShop}
                     onDelete={handleDeleteShop}
                     onZoomQr={setZoomedQr}
+                    onSyncHours={handleSyncShopHours}
+                    isSyncingHours={syncingShopHoursId === s.id}
                   />
                 ))}
               </div>
@@ -4240,6 +4309,65 @@ export default function AdminClient({
                 <p className="text-[11px] text-gray-500 mt-0.5">
                   หากเว้นว่าง ระบบจะสร้างลิงก์ค้นหาร้านบน Google Maps ระยอง ให้อัตโนมัติ
                 </p>
+
+                {/* Google Maps Places API Hours Info inside Modal */}
+                {editingShopId && (() => {
+                  const currentShop = shops.find((s) => s.id === editingShopId);
+                  const bkkDay = getBangkokDayOfWeek();
+                  const hoursList = currentShop?.googleOpeningHours?.weekdayDescriptions || [];
+                  const lastSynced = currentShop?.googleLastSyncedDate;
+
+                  return (
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-rose-500" />
+                          <span>เวลาทำการจาก Google Maps Places API</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSyncShopHours(editingShopId, shopName)}
+                          disabled={syncingShopHoursId === editingShopId}
+                          className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white hover:bg-purple-50 text-purple-900 px-2.5 py-1 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-3 w-3 text-purple-700 ${syncingShopHoursId === editingShopId ? "animate-spin" : ""}`} />
+                          <span>{syncingShopHoursId === editingShopId ? "กำลังซิงค์..." : "ซิงค์จาก Maps เดี๋ยวนี้"}</span>
+                        </button>
+                      </div>
+
+                      {hoursList.length > 0 ? (
+                        <div className="space-y-1 pt-1 border-t border-slate-200/80">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+                            {hoursList.map((line, idx) => {
+                              const isToday = (idx === 6 && bkkDay === 0) || idx === bkkDay - 1;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`px-2 py-1 rounded-md font-mono ${
+                                    isToday
+                                      ? "bg-emerald-100/80 text-emerald-950 font-bold border border-emerald-300"
+                                      : "bg-white text-slate-600 border border-slate-100"
+                                  }`}
+                                >
+                                  {isToday ? "👉 " : ""}{line}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {lastSynced && (
+                            <p className="text-[10px] text-slate-400 font-mono pt-1">
+                              ซิงค์ล่าสุดเมื่อ: {lastSynced} (ระบบแคชวันละ 1 ครั้งตามโควตาฟรี)
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 italic">
+                          ยังไม่มีข้อมูลเวลาเปิด-ปิดจาก Google Maps — คุณสามารถกดปุ่ม <strong>&ldquo;ซิงค์จาก Maps เดี๋ยวนี้&rdquo;</strong> เพื่อดึงข้อมูลจริงได้ทันที
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Shop Active Status & Open Days (Mon - Sun) */}
