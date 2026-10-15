@@ -140,9 +140,20 @@ interface ShopAdminCardProps {
   onZoomQr: (data: { url: string; title: string; number?: string; accountName?: string }) => void;
   onSyncHours?: (shopId: string, shopName: string) => Promise<void>;
   isSyncingHours?: boolean;
+  onToggleActive?: (shop: Shop) => Promise<void>;
+  isTogglingActive?: boolean;
 }
 
-function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr, onSyncHours, isSyncingHours }: ShopAdminCardProps) {
+function ShopAdminCard({
+  shop,
+  onEdit,
+  onDelete,
+  onZoomQr,
+  onSyncHours,
+  isSyncingHours,
+  onToggleActive,
+  isTogglingActive,
+}: ShopAdminCardProps) {
   const accentColor = useAverageColor(shop.menuImageUrl, shop.name + shop.cuisine, shop.accentColor);
   const qrUrl =
     shop.promptpayQrUrl ||
@@ -331,8 +342,8 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr, onSyncHours, isSyncin
 
           {/* Today's Synced Hours */}
           {googleHoursText ? (
-            <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-medium font-mono">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-semibold font-mono bg-emerald-50/80 p-1.5 rounded-lg border border-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
               <span className="truncate">📍 {googleHoursText}</span>
             </div>
           ) : (
@@ -341,9 +352,33 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr, onSyncHours, isSyncin
             </div>
           )}
 
+          {/* Full Weekday Schedule if available */}
+          {shop.googleOpeningHours?.weekdayDescriptions && shop.googleOpeningHours.weekdayDescriptions.length > 0 && (
+            <div className="pt-1 border-t border-slate-200/60 space-y-0.5">
+              <span className="text-[10px] font-bold text-slate-600 block">ตารางวันและเวลาเปิด-ปิด (Google Maps):</span>
+              <div className="grid grid-cols-1 gap-0.5 text-[10px] font-mono text-slate-600">
+                {shop.googleOpeningHours.weekdayDescriptions.map((desc, idx) => {
+                  const isToday = (idx === 6 && bkkDay === 0) || idx === bkkDay - 1;
+                  return (
+                    <div
+                      key={idx}
+                      className={`px-1.5 py-0.5 rounded text-[9.5px] truncate ${
+                        isToday
+                          ? "bg-emerald-100 text-emerald-900 font-bold border border-emerald-300"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      {isToday ? "👉 " : "• "}{desc}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {shop.googleLastSyncedDate && (
-            <div className="text-[9px] text-slate-400 font-mono">
-              แคชล่าสุด: {shop.googleLastSyncedDate} (โควตาฟรี 1 ครั้ง/วัน)
+            <div className="text-[9px] text-slate-400 font-mono pt-0.5">
+              แคชล่าสุด: {shop.googleLastSyncedDate} (ระบบอัปเดตจาก Places API)
             </div>
           )}
 
@@ -364,23 +399,43 @@ function ShopAdminCard({ shop, onEdit, onDelete, onZoomQr, onSyncHours, isSyncin
       </div>
 
       {/* Actions */}
-      <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => onEdit(shop)}
-          className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
-        >
-          <Edit className="h-3 w-3" />
-          <span>แก้ไขร้าน</span>
-        </button>
+      <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onEdit(shop)}
+            className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+          >
+            <Edit className="h-3 w-3" />
+            <span>แก้ไขร้าน</span>
+          </button>
+
+          {/* Bring Shop Offline / Online Toggle Button */}
+          {onToggleActive && (
+            <button
+              type="button"
+              disabled={isTogglingActive}
+              onClick={() => onToggleActive(shop)}
+              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer ${
+                isActive
+                  ? "border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800"
+                  : "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
+              }`}
+              title={isActive ? "ปิดรับออเดอร์ร้านนี้ชั่วคราว (Bring Offline)" : "เปิดรับออเดอร์ร้านนี้ (Bring Online)"}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-amber-500" : "bg-emerald-500"}`} />
+              <span>{isActive ? "พักร้าน (Offline)" : "เปิดร้าน (Online)"}</span>
+            </button>
+          )}
+        </div>
 
         <button
           type="button"
           onClick={() => onDelete(shop.id, shop.name)}
-          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 text-xs font-bold transition-colors cursor-pointer"
         >
           <Trash2 className="h-3 w-3" />
-          <span>ลบร้าน</span>
+          <span>ลบ</span>
         </button>
       </div>
     </div>
@@ -569,6 +624,7 @@ export default function AdminClient({
   const [newDishPrice, setNewDishPrice] = useState("");
   const [savingShop, setSavingShop] = useState(false);
   const [syncingShopHoursId, setSyncingShopHoursId] = useState<string | null>(null);
+  const [togglingShopActiveId, setTogglingShopActiveId] = useState<string | null>(null);
   const [zoomedQr, setZoomedQr] = useState<{
     url: string;
     title: string;
@@ -1022,6 +1078,36 @@ export default function AdminClient({
       alert(`เกิดข้อผิดพลาดในการเชื่อมต่อ Google Places API: ${err.message}`);
     } finally {
       setSyncingShopHoursId(null);
+    }
+  };
+
+  const handleToggleShopActive = async (shop: Shop) => {
+    const nextActive = shop.isActive === false ? true : false;
+    const actionText = nextActive ? "เปิดรับออเดอร์ร้านนี้ (Bring Online)" : "พักร้านชั่วคราว (Bring Offline)";
+    if (!confirm(`ต้องการ${actionText} สำหรับร้าน "${shop.name}" ใช่หรือไม่?`)) return;
+
+    try {
+      setTogglingShopActiveId(shop.id);
+      const res = await fetch("/api/shops", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...shop,
+          isActive: nextActive,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShops((prev) =>
+          prev.map((s) => (s.id === shop.id ? { ...s, isActive: nextActive } : s))
+        );
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาดในการเปลี่ยนสถานะร้านค้า");
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setTogglingShopActiveId(null);
     }
   };
 
@@ -3355,6 +3441,8 @@ export default function AdminClient({
                     onZoomQr={setZoomedQr}
                     onSyncHours={handleSyncShopHours}
                     isSyncingHours={syncingShopHoursId === s.id}
+                    onToggleActive={handleToggleShopActive}
+                    isTogglingActive={togglingShopActiveId === s.id}
                   />
                 ))}
               </div>
@@ -4372,11 +4460,12 @@ export default function AdminClient({
 
               {/* Shop Active Status & Open Days (Mon - Sun) */}
               <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                {/* Status Toggle (Bring Offline / Online) */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200/70 pb-3">
                   <div>
-                    <span className="text-xs font-bold text-gray-900 block">สถานะเปิด/ปิดร้าน (Shop Active Status)</span>
+                    <span className="text-xs font-bold text-gray-900 block">สถานะเปิด/พักร้าน (Shop Active / Offline)</span>
                     <span className="text-[11px] text-gray-500">
-                      {shopIsActive ? "เปิดรับออเดอร์ในระบบปกติ" : "ปิดรับออเดอร์ชั่วคราว (หัวหน้าตี้จะไม่สามารถเปิดตี้ร้านนี้ได้)"}
+                      {shopIsActive ? "ร้านเปิดรับออเดอร์ในระบบปกติ" : "พักร้านชั่วคราว (Bring Shop Offline — สมาชิกจะไม่สามารถเปิดตี้ร้านนี้ได้)"}
                     </span>
                   </div>
                   <button
@@ -4385,74 +4474,47 @@ export default function AdminClient({
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       shopIsActive
                         ? "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        : "bg-amber-600 text-white shadow-xs hover:bg-amber-700"
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${shopIsActive ? "bg-white animate-pulse" : "bg-gray-500"}`} />
-                    <span>{shopIsActive ? "🟢 เปิดใช้งาน (Active)" : "⚪ ปิดร้านชั่วคราว (Inactive)"}</span>
+                    <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                    <span>{shopIsActive ? "🟢 เปิดใช้งาน (Online)" : "⏸️ พักร้านชั่วคราว (Offline)"}</span>
                   </button>
                 </div>
 
-                {/* Day of Week Selector */}
+                {/* Opening Hours Info - Strictly Synced from Google Maps (No Manual Editing) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-900">
-                      วันเปิดทำการ (Open Days Mon - Sun)
+                    <label className="text-xs font-bold text-gray-900 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-purple-700" />
+                      <span>วันและเวลาเปิด-ปิดร้าน (อ้างอิงจาก Google Maps เท่านั้น)</span>
                     </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setShopOpenDays([1, 2, 3, 4, 5])}
-                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
-                      >
-                        จ.-ศ.
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShopOpenDays([1, 2, 3, 4, 5, 6, 0])}
-                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
-                      >
-                        ทุกวัน
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShopOpenDays([6, 0])}
-                        className="text-[10px] font-bold text-purple-700 hover:underline px-1.5 py-0.5 rounded bg-purple-50"
-                      >
-                        ส.-อา.
-                      </button>
-                    </div>
+                    <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-md">
+                      🔒 ล็อกการแก้ไข (ซิงค์จาก Maps เท่านั้น)
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {DAYS_OF_WEEK.map((d) => {
-                      const isSelected = shopOpenDays.includes(d.day);
-                      return (
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    เพื่อความถูกต้องของข้อมูล ระบบไม่อนุญาตให้แก้ไขเวลาเปิด-ปิดด้วยตนเอง ข้อมูลจะถูกซิงค์ตรงจาก Google Maps Places API เพื่อให้มั่นใจว่าเป็นเวลาทำการจริงของร้าน
+                  </p>
+
+                  <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-gray-700">
+                        วันทำการปัจจุบันในระบบ: <strong className="text-purple-900">{formatOpenDaysText(shopOpenDays)}</strong>
+                      </span>
+                      {editingShopId && (
                         <button
-                          key={d.day}
                           type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setShopOpenDays(shopOpenDays.filter((x) => x !== d.day));
-                            } else {
-                              setShopOpenDays([...shopOpenDays, d.day]);
-                            }
-                          }}
-                          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center border transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-purple-900 text-white border-purple-900 shadow-xs scale-102"
-                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                          }`}
+                          onClick={() => handleSyncShopHours(editingShopId, shopName)}
+                          disabled={syncingShopHoursId === editingShopId}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline cursor-pointer"
                         >
-                          <span className="text-[11px] font-bold">{d.short}</span>
-                          <span className={`text-[9px] ${isSelected ? "text-purple-200" : "text-gray-400"}`}>{d.en}</span>
+                          <RefreshCw className={`h-3 w-3 ${syncingShopHoursId === editingShopId ? "animate-spin" : ""}`} />
+                          <span>{syncingShopHoursId === editingShopId ? "กำลังซิงค์..." : "ซิงค์จาก Maps เดี๋ยวนี้"}</span>
                         </button>
-                      );
-                    })}
-                  </div>
-                  <div className="text-[11px] text-gray-500 font-medium flex items-center justify-between">
-                    <span>วันเปิดทำการ: <strong className="text-gray-800">{formatOpenDaysText(shopOpenDays)}</strong></span>
-                    <span className="text-[10px] text-purple-700 font-semibold">📍 ระบบอัปเดตวันและเวลาเปิด-ปิดอัตโนมัติจาก Google Maps เมื่อเปิดตี้</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
