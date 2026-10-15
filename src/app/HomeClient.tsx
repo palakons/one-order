@@ -138,7 +138,12 @@ function BoardTabButton({ batch: b, isActive, locations, lang, onSelect }: Board
         {timeDisplay}
       </span>
 
-      {/* Status Badges: PENDING, ORDERED, COMPLETED or Goal Badge */}
+      {/* Status Badges: TEST, PENDING, ORDERED, COMPLETED or Goal Badge */}
+      {b.isTest && (
+        <span className="rounded-md bg-purple-100 border border-purple-400 text-purple-900 px-1.5 py-0.5 text-[10px] font-black shrink-0">
+          🧪 TEST
+        </span>
+      )}
       {b.status === "PENDING" ? (
         <span className="rounded-md bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold shrink-0 animate-pulse">
           ⚠️ {lang === "en" ? "Pending" : lang === "cn" ? "待处理" : "รอตรวจสอบ"}
@@ -1647,6 +1652,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           }`}
                         >
                           <span>{localizedShop.name}</span>
+                          {b.isTest && (
+                            <span className="rounded bg-purple-100 border border-purple-400 text-purple-900 px-1 py-0.2 text-[10px] font-black shrink-0">
+                              🧪 TEST
+                            </span>
+                          )}
                           <span className={`rounded px-1 py-0.2 text-[10px] font-mono ${
                             isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                           }`}>
@@ -1917,6 +1927,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             {/* Board Status Pill Row */}
             <div className="flex items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-1.5 flex-wrap">
+                {activeBatch.isTest && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-400 px-2.5 py-0.5 text-xs font-black text-purple-950 shadow-2xs">
+                    <span>🧪 TEST / กระดานทดสอบ (ไม่นำไปรวมสถิติ)</span>
+                  </span>
+                )}
                 {activeBatch.status === "PENDING" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />

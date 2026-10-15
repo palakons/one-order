@@ -559,6 +559,10 @@ export async function sendBatchReminderToLine(
     return { success: false, message: "ไม่พบกระดานที่ระบุ" };
   }
 
+  if (batch.isTest) {
+    return { success: true, message: "กระดานนี้ตั้งเป็นโหมดทดสอบ (Test Board) ระบบจำลองการทำงานและบล็อกการส่ง LINE จริงเรียบร้อยแล้ว ✅" };
+  }
+
   const summaryText = formatBatchOrderSummaryText(batch, appUrl);
   const manifestPhotoUrl = `${appUrl}/api/batches/${batch.id}/photo?type=manifest`;
 

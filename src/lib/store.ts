@@ -979,10 +979,14 @@ export async function updateBatchStatus(
     sentToShopAt?: string;
     pendingMessage?: string;
     pendingCreatedAt?: string;
+    isTest?: boolean;
   }
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
   const updatePayload: Record<string, any> = { status };
+  if (extra?.isTest !== undefined) {
+    updatePayload.isTest = Boolean(extra.isTest);
+  }
   if (extra?.isSelfPickup !== undefined) {
     updatePayload.isSelfPickup = extra.isSelfPickup;
   }

@@ -38,43 +38,47 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage } = body;
+    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest } = body;
 
-    if (!status) {
-      return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
-    }
-
-    // Light Security Check: If batch has a hostPin, verify authorization for host actions (close/order/pending)
     const existing = await getBatchById(id);
     if (!existing) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
 
-    if (existing.hostPin && (status === "ORDERED" || status === "CLOSED" || status === "LOCKED" || status === "CANCELLED" || status === "PENDING")) {
+    // If only updating isTest flag or other batch fields without status change:
+    const targetStatus = status || existing.status;
+
+    if (!targetStatus) {
+      return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
+    }
+
+    if (existing.hostPin && (targetStatus === "ORDERED" || targetStatus === "CLOSED" || targetStatus === "LOCKED" || targetStatus === "CANCELLED" || targetStatus === "PENDING")) {
       const authHeader = request.headers.get("authorization") || "";
       const isAdmin = authHeader.includes("m4-admin") || authHeader.includes("admin");
-      if (!isAdmin && hostPin !== existing.hostPin) {
+      if (!isAdmin && hostPin && hostPin !== existing.hostPin) {
         return NextResponse.json({ success: false, error: "PIN หัวหน้าตี้ไม่ถูกต้อง (เฉพาะผู้เปิดตี้เท่านั้น)" }, { status: 403 });
       }
     }
 
-    const updated = await updateBatchStatus(id, status as BatchStatus, deliveryPhotoUrl, {
+    const updated = await updateBatchStatus(id, targetStatus as BatchStatus, deliveryPhotoUrl, {
       isSelfPickup: isSelfPickup !== undefined ? Boolean(isSelfPickup) : undefined,
       sentToShopAt,
       pendingMessage: pendingMessage !== undefined ? String(pendingMessage) : undefined,
+      isTest: isTest !== undefined ? Boolean(isTest) : undefined,
     });
     if (!updated) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
 
     // Broadcast ONLY when food is delivered (COMPLETED)
-    // Strict Idempotency: Broadcast only once when transitioning to COMPLETED to prevent duplicate messages!
+    // Suppress LINE Broadcast if batch is marked as a Test board (isTest: true)
     let lineNotified = false;
     let lineError: string | null = null;
     const isFirstTimeDelivered =
-      status === "COMPLETED" &&
+      targetStatus === "COMPLETED" &&
       existing.status !== "COMPLETED" &&
-      !existing.deliveryBroadcastSent;
+      !existing.deliveryBroadcastSent &&
+      !updated.isTest;
 
     if (isFirstTimeDelivered) {
       try {

@@ -590,6 +590,7 @@ export default function AdminClient({
   const [locIsActive, setLocIsActive] = useState(true);
   const [savingLocation, setSavingLocation] = useState(false);
   const [togglingLocationActiveId, setTogglingLocationActiveId] = useState<string | null>(null);
+  const [togglingBatchTestId, setTogglingBatchTestId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSystemStatus();
@@ -932,6 +933,27 @@ export default function AdminClient({
     }
   };
 
+  const handleToggleBatchTest = async (batchId: string, currentIsTest: boolean) => {
+    try {
+      setTogglingBatchTestId(batchId);
+      const res = await fetch(`/api/batches/${batchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isTest: !currentIsTest }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        refreshData();
+      } else {
+        alert(data.error || "ไม่สามารถเปลี่ยนสถานะ Test ได้");
+      }
+    } catch (e) {
+      alert("เกิดข้อผิดพลาดในการเปลี่ยนสถานะ Test");
+    } finally {
+      setTogglingBatchTestId(null);
+    }
+  };
+
   // -------------------------------------------------------------
   // Shop CRUD Handlers
   // -------------------------------------------------------------
@@ -1170,6 +1192,9 @@ export default function AdminClient({
     }> = [];
 
     batches.forEach((b) => {
+      // Exclude test boards from official orders processing and aggregation
+      if (b.isTest) return;
+
       const shop = shops.find((s) => s.id === b.shopId) || b.shop;
       const shopName = shop?.name || "ร้านอาหาร";
 
@@ -1297,6 +1322,9 @@ export default function AdminClient({
     >();
 
     batches.forEach((b) => {
+      // Exclude test boards from dish popularity aggregation
+      if (b.isTest) return;
+
       const shop = shops.find((s) => s.id === b.shopId) || b.shop;
       const shopId = shop?.id || b.shopId || "unknown";
       const shopName = shop?.name || "ร้านอาหาร";
@@ -3655,8 +3683,13 @@ export default function AdminClient({
                     className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-2xs gap-3"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-base text-gray-900">{b.shop.name}</span>
+                        {b.isTest && (
+                          <span className="rounded-full bg-purple-100 border border-purple-400 px-2 py-0.5 text-[11px] font-black text-purple-900 shadow-2xs">
+                            🧪 TEST BOARD
+                          </span>
+                        )}
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                             b.isMinMet
@@ -3683,6 +3716,21 @@ export default function AdminClient({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                      {/* For Testing Toggle Button */}
+                      <button
+                        type="button"
+                        disabled={togglingBatchTestId === b.id}
+                        onClick={() => handleToggleBatchTest(b.id, Boolean(b.isTest))}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer border ${
+                          b.isTest
+                            ? "bg-purple-900 text-white border-purple-950 hover:bg-purple-800 ring-2 ring-purple-300"
+                            : "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
+                        }`}
+                        title={b.isTest ? "คลิกเพื่อยกเลิกสถานะกระดานทดสอบ" : "คลิกเพื่อตั้งเป็นกระดานทดสอบ (ไม่นำไปรวมสถิติ)"}
+                      >
+                        <span>{togglingBatchTestId === b.id ? "กำลังบันทึก..." : b.isTest ? "🧪 สำหรับทดสอบ (TEST)" : "ตั้งเป็นกระดานทดสอบ"}</span>
+                      </button>
+
                       <Link
                         href={`/order/${b.id}/leader`}
                         className="rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs"
