@@ -52,8 +52,8 @@ export function recordThaiLLMCall(status: number | "error") {
 }
 
 export function stripThinkingAndCodeBlocks(raw: string): string {
-  // Strip <think>...</think> tag from reasoning models
-  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // Strip <think>...</think> tags or unclosed <think>... from reasoning models
+  let text = raw.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
 
   // Strip markdown code fences if wrapped in ```json ... ``` or ``` ... ```
   const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -414,12 +414,12 @@ ${rawNote ? `- รายละเอียดเพิ่มเติมจา�
         messages: [
           {
             role: "system",
-            content: "คุณคือระบบร่างข้อความประกาศสั้นทางการภาษาไทยของสถาบันการศึกษา น้ำเสียงสุขุม สุภาพ กระชับ เข้าอกเข้าใจ ตรงประเด็น ไม่มีเรื่องตลกหรือสำนวนเกินจริง",
+            content: "คุณคือระบบร่างข้อความประกาศสั้นทางการภาษาไทยของสถาบันการศึกษา น้ำเสียงสุขุม สุภาพ กระชับ เข้าอกเข้าใจ ตรงประเด็น ไม่มีเรื่องตลกหรือสำนวนเกินจริง จงตอบเฉพาะข้อความประกาศที่จะนำไปแสดงเท่านั้น ไม่ต้องเขียนกระบวนการคิดหรือแท็ก <think>",
           },
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
-        max_tokens: 140,
+        max_tokens: 350,
       }),
       signal: controller.signal,
     });

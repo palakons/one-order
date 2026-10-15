@@ -11,7 +11,11 @@ export async function POST(
     const force = Boolean(body.force);
 
     const result = await syncShopOpeningHoursFromGoogle(id, force);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      googleOpeningHours: result.shop?.googleOpeningHours,
+      openDays: result.shop?.openDays,
+    });
   } catch (error: any) {
     console.error("POST /api/shops/[id]/sync-hours error:", error);
     return NextResponse.json(
