@@ -277,11 +277,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   // Helper: Format Board Info Snippet
   const buildBoardInfoSnippet = (b = batch) => {
     if (!b) return "";
+    const shopName = b.shop?.name || "ร้านอาหาร";
     const leaderName = b.hostName || "หัวหน้าตี้";
     const locName = b.buildingName || "ตึก M4";
     const orderTimeDisplay = b.cutoffTime ? `ส่งร้านรอบ ${b.cutoffTime}` : "";
     const boardUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${b.id}` : `https://veatec.vercel.app/order/${b.id}`;
-    return `\n\n👤 หัวหน้าตี้: ${leaderName}\n⏰ เวลา: ${orderTimeDisplay}\n📍 จุดส่ง: ${locName}\n🔗 ลิงก์กระดาน: ${boardUrl}`;
+    return `\n\n🏪 ร้าน: ${shopName}\n👤 หัวหน้าตี้: ${leaderName}\n⏰ เวลา: ${orderTimeDisplay}\n📍 จุดส่ง: ${locName}\n🔗 ลิงก์กระดาน: ${boardUrl}`;
   };
 
   // Craft Tactful Message via ThaiLLM
@@ -1932,7 +1933,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </div>
               </div>
 
-              {/* Toggle: Add Board Info (Leader, Time, Bldg, URL) */}
+              {/* Toggle: Add Board Info (Shop, Leader, Time, Bldg, URL) */}
               <div className="flex items-center justify-between p-2.5 rounded-2xl border border-purple-200 bg-purple-50/60 transition-all">
                 <div className="flex items-center gap-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-900 text-white shrink-0">
@@ -1943,7 +1944,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                       แนบข้อมูลกระดาน (Add Board Info)
                     </span>
                     <span className="text-[10px] text-slate-500 block leading-tight mt-0.5">
-                      เพิ่มชื่อหัวหน้าตี้, รอบเวลา, ตึกส่ง, ลิงก์กระดาน สำหรับแชร์เข้ากลุ่ม LINE
+                      เพิ่มชื่อร้าน, ชื่อหัวหน้าตี้, รอบเวลา, ตึกส่ง, ลิงก์กระดาน สำหรับแชร์เข้ากลุ่ม LINE
                     </span>
                   </div>
                 </div>
@@ -1961,7 +1962,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                       } else {
                         // Strip snippet if present
                         const cleaned = craftedMessage
-                          .replace(/\n\n👤 หัวหน้าตี้:[\s\S]*?(?:🔗 ลิงก์กระดาน:.*|$)/g, "")
+                          .replace(/\n\n(?:🏪 ร้าน:[\s\S]*?|👤 หัวหน้าตี้:[\s\S]*?)(?:🔗 ลิงก์กระดาน:.*|$)/g, "")
                           .trim();
                         setCraftedMessage(cleaned);
                       }
