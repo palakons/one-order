@@ -919,7 +919,10 @@ export default function AdminClient({
     try {
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer m4-admin",
+        },
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
@@ -938,7 +941,10 @@ export default function AdminClient({
       setTogglingBatchTestId(batchId);
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer m4-admin",
+        },
         body: JSON.stringify({ isTest: !currentIsTest }),
       });
       const data = await res.json();

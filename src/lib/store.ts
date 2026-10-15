@@ -885,7 +885,31 @@ export async function getBatchById(id: string, sanitize = false, forceFresh = fa
 
   const allBatches = await getBatches(false, forceFresh);
   const found = allBatches.find((b) => b.id === id);
-  return sanitize && found ? sanitizeBatchDetails(found) : found;
+  if (found) {
+    return sanitize ? sanitizeBatchDetails(found) : found;
+  }
+
+  // Fallback: If not found in allBatches (e.g. edge-case cache or pagination), try fetching document directly from Firestore
+  if (isFirebaseConfigured && db) {
+    try {
+      const docSnap = await trackedGetDoc(doc(db, "batches", id));
+      if (docSnap.exists()) {
+        const batchData = docSnap.data() as Batch;
+        const [ordersSnap, shopsSnap] = await Promise.all([
+          trackedGetDocs(collection(db, "orders")),
+          trackedGetDocs(collection(db, "shops")),
+        ]);
+        const orders = ordersSnap.docs.map((d) => d.data() as Order).filter((o) => o.batchId === id);
+        const shops = shopsSnap.docs.map((d) => d.data() as Shop);
+        const enriched = enrichBatchFromData(batchData, shops, orders);
+        return sanitize ? sanitizeBatchDetails(enriched) : enriched;
+      }
+    } catch (err) {
+      console.warn("Direct Firestore getDoc fallback failed for batch:", id, err);
+    }
+  }
+
+  return undefined;
 }
 
 function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {

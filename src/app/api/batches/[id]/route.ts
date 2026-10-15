@@ -40,7 +40,10 @@ export async function PATCH(
     const body = await request.json();
     const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest } = body;
 
-    const existing = await getBatchById(id);
+    let existing = await getBatchById(id, false, true);
+    if (!existing) {
+      existing = await getBatchById(id, false, false);
+    }
     if (!existing) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
