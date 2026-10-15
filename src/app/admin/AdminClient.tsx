@@ -4781,12 +4781,10 @@ export default function AdminClient({
                   </label>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     {[
-                      { name: "IST / M4", color: "bg-[#432874]", hex: "#432874" },
-                      { name: "MSE", color: "bg-[#F5A81C]", hex: "#F5A81C" },
-                      { name: "ESE", color: "bg-[#9B1238]", hex: "#9B1238" },
-                      { name: "BSE", color: "bg-[#009245]", hex: "#009245" },
-                      { name: "Dorm", color: "bg-[#2563eb]", hex: "#2563eb" },
-                      { name: "Hub", color: "bg-[#0d9488]", hex: "#0d9488" },
+                      { name: "M1 - ESE", color: "bg-[#9B1238]", hex: "#9B1238" },
+                      { name: "M2 - MSE", color: "bg-[#F5A81C]", hex: "#F5A81C" },
+                      { name: "M3 - BSE", color: "bg-[#009245]", hex: "#009245" },
+                      { name: "M4 - IST", color: "bg-[#432874]", hex: "#432874" },
                     ].map((ci) => (
                       <button
                         key={ci.color}
