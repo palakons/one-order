@@ -419,7 +419,7 @@ ${rawNote ? `- รายละเอียดเพิ่มเติมจา�
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
-        max_tokens: 350,
+        max_tokens: 1024,
       }),
       signal: controller.signal,
     });
