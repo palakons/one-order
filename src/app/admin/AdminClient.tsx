@@ -4211,30 +4211,17 @@ export default function AdminClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700">เบอร์โทรร้านค้า *</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="08x-xxx-xxxx"
-                    value={shopPhone}
-                    onChange={(e) => setShopPhone(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-700">LINE ID ร้าน (ไม่จำเป็นต้องใส่)</label>
-                  <input
-                    type="text"
-                    placeholder="shop_line_id (ไม่จำเป็น)"
-                    value={shopLineId}
-                    onChange={(e) => setShopLineId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-0.5">ระบบเน้นใช้ QR พร้อมเพย์และเบอร์โทรร้านเป็นหลัก</p>
-                </div>
+              <div>
+                <label className="text-xs font-bold text-gray-700">เบอร์โทรร้านค้า *</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="08x-xxx-xxxx"
+                  value={shopPhone}
+                  onChange={(e) => setShopPhone(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">ใช้สำหรับติดต่อร้านค้าและแสดงปุ่มโทรออกในระบบ (ระบบไม่ใช้ LINE ID ร้านค้าแล้ว)</p>
               </div>
 
               {/* Google Maps URL */}
@@ -4411,7 +4398,12 @@ export default function AdminClient({
 
               {/* Menu items */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-700">รายการเมนูอาหารเริ่มต้น ({shopMenuItems.length})</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-900">
+                    รายการเมนูอาหาร ({shopMenuItems.length}) — <span className="text-purple-700">สามารถกดปุ่ม [พร้อมขาย / ปิดเมนู] ได้ที่นี่</span>
+                  </label>
+                  <span className="text-[10px] text-gray-400">เมนูที่ปิดจะไม่ขึ้นให้ลูกค้ากดสั่งหรือ AI แนะนำ</span>
+                </div>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {shopMenuItems.map((dish, idx) => (
                     <div
