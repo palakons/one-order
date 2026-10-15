@@ -74,6 +74,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiSituation, setAiSituation] = useState("อาหารล่าช้ากว่ากำหนด (คิวแน่น)");
   const [aiCustomNote, setAiCustomNote] = useState("");
+  const [aiLength, setAiLength] = useState<"brief" | "medium" | "long">("brief");
+  const [aiTone, setAiTone] = useState<"official" | "casual" | "friendly">("official");
   const [isCraftingAi, setIsCraftingAi] = useState(false);
   const [craftedMessage, setCraftedMessage] = useState("");
   const [submittingPending, setSubmittingPending] = useState(false);
@@ -293,6 +295,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           buildingName: batch.buildingName || "M4",
           totalOrders: currentActiveOrders.length,
           totalBoxes: calculatedBoxes,
+          length: aiLength,
+          tone: aiTone,
         }),
       });
       const data = await res.json();
@@ -1815,6 +1819,78 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   onChange={(e) => setAiCustomNote(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
+              </div>
+
+              {/* Radio Group: Length (Brief / Med / Long) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900 block">
+                  ความยาวข้อความ (Length):
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "brief", label: "กระชับ (Brief)", desc: "1 ประโยคสั้น" },
+                    { id: "medium", label: "ปานกลาง (Med)", desc: "2 ประโยค" },
+                    { id: "long", label: "ละเอียด (Long)", desc: "3-4 ประโยค" },
+                  ].map((item) => (
+                    <label
+                      key={item.id}
+                      className={`flex flex-col p-2 rounded-xl border cursor-pointer transition-all ${
+                        aiLength === item.id
+                          ? "bg-purple-50 border-purple-600 ring-1 ring-purple-500 text-purple-950 font-bold shadow-2xs"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="radio"
+                          name="aiLength"
+                          value={item.id}
+                          checked={aiLength === item.id}
+                          onChange={() => setAiLength(item.id as "brief" | "medium" | "long")}
+                          className="h-3.5 w-3.5 text-purple-700 focus:ring-purple-500 accent-purple-800"
+                        />
+                        <span className="text-[11px] font-bold">{item.label}</span>
+                      </div>
+                      <span className="text-[9.5px] text-slate-500 pl-5">{item.desc}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Radio Group: Tone (Official / Casual / Friendly) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900 block">
+                  โทนและระดับภาษา (Tone):
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "official", label: "กึ่งทางการ (Official)", desc: "สุภาพ หนักแน่น สุขุม" },
+                    { id: "casual", label: "กันเอง (Casual)", desc: "สบายๆ เหมือนเพื่อน" },
+                    { id: "friendly", label: "อบอุ่น (Friendly)", desc: "เป็นมิตร เข้าอกเข้าใจ" },
+                  ].map((item) => (
+                    <label
+                      key={item.id}
+                      className={`flex flex-col p-2 rounded-xl border cursor-pointer transition-all ${
+                        aiTone === item.id
+                          ? "bg-amber-50 border-amber-500 ring-1 ring-amber-400 text-amber-950 font-bold shadow-2xs"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="radio"
+                          name="aiTone"
+                          value={item.id}
+                          checked={aiTone === item.id}
+                          onChange={() => setAiTone(item.id as "official" | "casual" | "friendly")}
+                          className="h-3.5 w-3.5 text-amber-600 focus:ring-amber-500 accent-amber-600"
+                        />
+                        <span className="text-[11px] font-bold">{item.label}</span>
+                      </div>
+                      <span className="text-[9.5px] text-slate-500 pl-5">{item.desc}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {/* Button: Trigger AI Crafter */}

@@ -4,7 +4,18 @@ import { craftAnnouncementWithThaiLLM } from "@/lib/thaillm";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shopName, situation, rawNote, batchStatus, isSentToShop, buildingName, totalOrders, totalBoxes } = body;
+    const {
+      shopName,
+      situation,
+      rawNote,
+      batchStatus,
+      isSentToShop,
+      buildingName,
+      totalOrders,
+      totalBoxes,
+      length,
+      tone,
+    } = body;
 
     if (!shopName) {
       return NextResponse.json({ success: false, error: "shopName is required" }, { status: 400 });
@@ -19,6 +30,8 @@ export async function POST(request: Request) {
       buildingName: buildingName ? String(buildingName) : undefined,
       totalOrders: typeof totalOrders === "number" ? totalOrders : undefined,
       totalBoxes: typeof totalBoxes === "number" ? totalBoxes : undefined,
+      length: length === "long" || length === "medium" || length === "brief" ? length : "brief",
+      tone: tone === "casual" || tone === "friendly" || tone === "official" ? tone : "official",
     });
 
     return NextResponse.json(result);
