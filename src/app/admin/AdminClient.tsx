@@ -4322,8 +4322,9 @@ export default function AdminClient({
                       );
                     })}
                   </div>
-                  <div className="text-[11px] text-gray-500 font-medium">
-                    สรุปวันทำการ: <strong className="text-gray-800">{formatOpenDaysText(shopOpenDays)}</strong>
+                  <div className="text-[11px] text-gray-500 font-medium flex items-center justify-between">
+                    <span>วันเปิดทำการ: <strong className="text-gray-800">{formatOpenDaysText(shopOpenDays)}</strong></span>
+                    <span className="text-[10px] text-purple-700 font-semibold">📍 ระบบอัปเดตวันและเวลาเปิด-ปิดอัตโนมัติจาก Google Maps เมื่อเปิดตี้</span>
                   </div>
                 </div>
               </div>

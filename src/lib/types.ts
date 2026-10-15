@@ -26,6 +26,13 @@ export interface Shop {
   defaultCutoffTime: string; // e.g. "11:15"
   isActive?: boolean; // Active toggle (defaults to true)
   openDays?: number[]; // [0, 1, 2, 3, 4, 5, 6] (0 = Sun, 1 = Mon, ..., 6 = Sat)
+  googlePlaceId?: string; // Google Places ID (cached)
+  googleOpeningHours?: {
+    openNow?: boolean;
+    weekdayDescriptions?: string[];
+    nextCloseTime?: string;
+  };
+  googleLastSyncedDate?: string; // YYYY-MM-DD
   menuItems: MenuItem[];
 }
 

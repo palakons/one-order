@@ -407,6 +407,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [openNotes, setOpenNotes] = useState("");
   const [creatingBoard, setCreatingBoard] = useState(false);
   const [openBoardError, setOpenBoardError] = useState<string | null>(null);
+  const [syncingGoogleHours, setSyncingGoogleHours] = useState(false);
   const [submittedOrderNotice, setSubmittedOrderNotice] = useState<{
     orderNumber: number;
     boxLabel: string;
@@ -561,6 +562,42 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     fetchShops();
     fetchLocations();
     setShowOpenBoardModal(true);
+  };
+
+  // Hybrid Google Places Opening Hours Sync (Max 1 per day per shop)
+  const handleShopChangeWithGoogleSync = async (selectedShopId: string) => {
+    setOpenShopId(selectedShopId);
+    const targetShop = availableShops.find((s) => s.id === selectedShopId);
+    if (targetShop?.minDeliveryAmount) {
+      setOpenTargetMin(String(targetShop.minDeliveryAmount));
+    }
+
+    if (!selectedShopId) return;
+
+    // Check if shop was already synced today
+    const today = getBangkokDate();
+    if (targetShop?.googleLastSyncedDate === today) {
+      return; // Already synced today, 0 requests needed
+    }
+
+    setSyncingGoogleHours(true);
+    try {
+      const res = await fetch(`/api/shops/${selectedShopId}/sync-hours`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: false }),
+      });
+      const data = await res.json();
+      if (data.success && data.shop) {
+        setAvailableShops((prev) =>
+          prev.map((s) => (s.id === selectedShopId ? { ...s, ...data.shop } : s))
+        );
+      }
+    } catch (e) {
+      console.warn("Google Maps sync error:", e);
+    } finally {
+      setSyncingGoogleHours(false);
+    }
   };
 
   const handleCreateBoard = async (e: React.FormEvent) => {
@@ -3168,20 +3205,16 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               <div className="space-y-2">
                 <label className="font-bold text-slate-800 flex items-center justify-between">
                   <span>{t.stepShop} <span className="text-rose-500">*</span></span>
-                  <span className="text-[10px] text-slate-500 font-normal">
-                    {lang === "en" ? "Available in system" : lang === "cn" ? "系统内餐厅" : "ร้านที่มีในระบบ"}
+                  <span className="text-[10px] text-slate-500 font-normal flex items-center gap-1">
+                    {syncingGoogleHours && (
+                      <span className="text-purple-700 animate-pulse font-semibold">🔄 กำลังอัปเดตเวลาทำการจาก Google Maps...</span>
+                    )}
+                    <span>{lang === "en" ? "Available in system" : lang === "cn" ? "系统内餐厅" : "ร้านที่มีในระบบ"}</span>
                   </span>
                 </label>
                 <select
                   value={openShopId}
-                  onChange={(e) => {
-                    const sId = e.target.value;
-                    setOpenShopId(sId);
-                    const s = availableShops.find((x) => x.id === sId);
-                    if (s?.minDeliveryAmount) {
-                      setOpenTargetMin(String(s.minDeliveryAmount));
-                    }
-                  }}
+                  onChange={(e) => handleShopChangeWithGoogleSync(e.target.value)}
                   required
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 >
@@ -3245,6 +3278,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     );
                   }
 
+                  const googleHoursText = selectedShop.googleOpeningHours?.weekdayDescriptions?.[bkkDay === 0 ? 6 : bkkDay - 1];
+
                   return (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-2 text-xs text-emerald-900 flex items-center gap-2 animate-in fade-in">
                       <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-0.5" />
@@ -3252,7 +3287,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <span className="font-bold text-emerald-950">
                           {lang === "en" ? "Open today" : lang === "cn" ? "今日正常接单" : "ร้านเปิดรับออเดอร์วันนี้"}
                         </span>
-                        <span className="text-emerald-700 ml-1.5">&bull; วันทำการ: {daysText}</span>
+                        {googleHoursText ? (
+                          <span className="text-emerald-800 font-medium ml-1.5 font-mono">📍 {googleHoursText}</span>
+                        ) : (
+                          <span className="text-emerald-700 ml-1.5">&bull; วันทำการ: {daysText}</span>
+                        )}
                         <span className="text-emerald-700 ml-1.5">&bull; ขั้นต่ำ ฿{selectedShop.minDeliveryAmount || 200}</span>
                       </div>
                     </div>
