@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       photoUrl,
       color,
       mapUrl,
+      isActive,
     } = body;
 
     if (!name || !shortCode || !deskDetail) {
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
         "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=600&q=80",
       color: color || "bg-purple-900",
       mapUrl: mapUrl ? String(mapUrl).trim() : `https://maps.google.com/?q=${encodeURIComponent(name + " VISTEC Rayong")}`,
+      isActive: typeof isActive === "boolean" ? isActive : true,
     };
 
     const saved = await saveDeliveryLocation(newLocation);

@@ -9,11 +9,15 @@ export function getDeterministicColor(str: string): string {
   return `hsl(${hue}, 65%, 45%)`;
 }
 
-// Convert Tailwind bg color classes like "bg-[#B4213A]" or "bg-purple-900" to CSS color value
+// Convert Tailwind bg color classes like "bg-[#B4213A]", "bg-purple-900" or raw hex "#432874" to CSS color value
 export function getCssColorFromClass(colorClass?: string, fallback = "#7c3aed"): string {
   if (!colorClass) return fallback;
+  const str = colorClass.trim();
+  if (str.startsWith("#") || str.startsWith("rgb") || str.startsWith("hsl")) {
+    return str;
+  }
   // Match arbitrary hex bg-[#xxxxxx] or bg-[rgb(...)]
-  const hexMatch = colorClass.match(/bg-\[(#[a-fA-F0-9]{3,8}|[^\]]+)\]/);
+  const hexMatch = str.match(/bg-\[(#[a-fA-F0-9]{3,8}|[^\]]+)\]/);
   if (hexMatch) return hexMatch[1];
 
   // Tailwind standard color map fallback

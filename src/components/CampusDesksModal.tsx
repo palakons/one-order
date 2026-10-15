@@ -101,12 +101,18 @@ export default function CampusDesksModal({ onClose, selectedId, onSelect }: Prop
 
                 {/* Content */}
                 <div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+                  <div className="flex items-center justify-between gap-1">
+                    <h3 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors truncate">
                       {locInfo.name}
                     </h3>
-                    <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                      {t.dropoffPoint}
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                        loc.isActive !== false
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {loc.isActive !== false ? (lang === "en" ? "Active" : lang === "cn" ? "开启" : "เปิดรับ") : (lang === "en" ? "Disabled" : lang === "cn" ? "暂未开放" : "ปิดชั่วคราว")}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-600 leading-relaxed">

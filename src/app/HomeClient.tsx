@@ -3502,14 +3502,16 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   required
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-600"
                 >
-                  {locations.map((loc) => {
-                    const locInfo = getLocalizedLocation(loc, lang);
-                    return (
-                      <option key={loc.id} value={loc.id}>
-                        {locInfo.name} — {locInfo.deskDetail}
-                      </option>
-                    );
-                  })}
+                  {locations
+                    .filter((loc) => loc.isActive !== false)
+                    .map((loc) => {
+                      const locInfo = getLocalizedLocation(loc, lang);
+                      return (
+                        <option key={loc.id} value={loc.id}>
+                          {locInfo.name} — {locInfo.deskDetail}
+                        </option>
+                      );
+                    })}
                 </select>
                 <p className="text-[11px] text-slate-500">
                   {t.buildingRiderNotice}

@@ -586,8 +586,10 @@ export default function AdminClient({
   const [locDeskDetailCn, setLocDeskDetailCn] = useState("");
   const [locPhotoUrl, setLocPhotoUrl] = useState("");
   const [locMapUrl, setLocMapUrl] = useState("");
-  const [locColor, setLocColor] = useState("bg-purple-900");
+  const [locColor, setLocColor] = useState("bg-[#432874]");
+  const [locIsActive, setLocIsActive] = useState(true);
   const [savingLocation, setSavingLocation] = useState(false);
+  const [togglingLocationActiveId, setTogglingLocationActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSystemStatus();
@@ -1630,7 +1632,8 @@ export default function AdminClient({
     setLocDeskDetailCn("");
     setLocPhotoUrl("");
     setLocMapUrl("");
-    setLocColor("bg-purple-900");
+    setLocColor("bg-[#432874]");
+    setLocIsActive(false); // New locations default to disabled unless explicitly enabled
     setShowLocationModal(true);
   };
 
@@ -1645,8 +1648,39 @@ export default function AdminClient({
     setLocDeskDetailCn(loc.deskDetailCn || "");
     setLocPhotoUrl(loc.photoUrl);
     setLocMapUrl(loc.mapUrl || "");
-    setLocColor(loc.color || "bg-purple-900");
+    setLocColor(loc.color || "bg-[#432874]");
+    setLocIsActive(loc.isActive !== false);
     setShowLocationModal(true);
+  };
+
+  const handleToggleLocationActive = async (loc: DeliveryLocation) => {
+    const nextActive = loc.isActive === false ? true : false;
+    const actionText = nextActive ? "เปิดใช้งานจุดส่งนี้" : "ปิดใช้งานจุดส่งนี้ (Disabled)";
+    if (!confirm(`ต้องการ${actionText} "${loc.name}" ใช่หรือไม่?`)) return;
+
+    try {
+      setTogglingLocationActiveId(loc.id);
+      const res = await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...loc,
+          isActive: nextActive,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLocations((prev) =>
+          prev.map((l) => (l.id === loc.id ? { ...l, isActive: nextActive } : l))
+        );
+      } else {
+        alert(data.error || "Failed to update location status");
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setTogglingLocationActiveId(null);
+    }
   };
 
   const handleDeleteLocation = async (id: string, name: string) => {
@@ -1684,8 +1718,9 @@ export default function AdminClient({
         deskDetailEn: locDeskDetailEn.trim() || locDeskDetail.trim(),
         deskDetailCn: locDeskDetailCn.trim() || locDeskDetail.trim(),
         photoUrl: locPhotoUrl.trim() || undefined,
-        color: locColor || "bg-purple-900",
+        color: locColor || "bg-[#432874]",
         mapUrl: locMapUrl.trim() || undefined,
+        isActive: locIsActive,
       };
 
       const res = await fetch("/api/locations", {
@@ -3479,9 +3514,20 @@ export default function AdminClient({
                         </div>
                       </div>
 
-                      <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold">
-                        {loc.shortCode}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                            loc.isActive !== false
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : "bg-slate-100 text-slate-500 border border-slate-200"
+                          }`}
+                        >
+                          {loc.isActive !== false ? "🟢 เปิดใช้งาน" : "⏸️ ปิดใช้งาน"}
+                        </span>
+                        <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold">
+                          {loc.shortCode}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Desk details */}
@@ -3535,24 +3581,39 @@ export default function AdminClient({
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleOpenEditLocation(loc)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+                      onClick={() => handleToggleLocationActive(loc)}
+                      disabled={togglingLocationActiveId === loc.id}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                        loc.isActive !== false
+                          ? "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300"
+                          : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      }`}
                     >
-                      <Edit className="h-3 w-3" />
-                      <span>แก้ไขจุดส่ง</span>
+                      <span className={`h-1.5 w-1.5 rounded-full ${loc.isActive !== false ? "bg-amber-500" : "bg-emerald-500"}`} />
+                      <span>{loc.isActive !== false ? "ปิดรับจุดนี้" : "เปิดรับจุดนี้"}</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteLocation(loc.id, loc.name)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      <span>ลบ</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditLocation(loc)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        <Edit className="h-3 w-3" />
+                        <span>แก้ไข</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLocation(loc.id, loc.name)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -4689,6 +4750,67 @@ export default function AdminClient({
                 <p className="mt-1 text-[11px] text-gray-500">
                   ระบบจะนำลิงก์นี้ไปสร้างเป็น QR Code บนภาพใบสรุปยาว และใส่ในข้อความแชร์ออเดอร์เข้า LINE
                 </p>
+              </div>
+
+              {/* Status Toggle & CI Color in Location Modal */}
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 block">สถานะเปิด/ปิดรับจุดส่งนี้</span>
+                    <span className="text-[11px] text-gray-500">
+                      {locIsActive ? "เปิดรับออเดอร์ (หัวหน้าตี้สามารถเลือกจุดส่งนี้ได้)" : "ปิดชั่วคราว (Disabled — ไม่แสดงให้เลือกเปิดตี้)"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLocIsActive(!locIsActive)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      locIsActive
+                        ? "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
+                        : "bg-slate-300 text-slate-700 shadow-xs hover:bg-slate-400"
+                    }`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${locIsActive ? "bg-white animate-pulse" : "bg-slate-500"}`} />
+                    <span>{locIsActive ? "🟢 เปิดใช้งาน (Active)" : "⏸️ ปิดรับ (Disabled)"}</span>
+                  </button>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200/80">
+                  <label className="text-xs font-bold text-gray-700 block mb-1.5">
+                    สีประจำอาคาร / สถาบัน (VISTEC CI Color)
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    {[
+                      { name: "IST / M4", color: "bg-[#432874]", hex: "#432874" },
+                      { name: "MSE", color: "bg-[#F5A81C]", hex: "#F5A81C" },
+                      { name: "ESE", color: "bg-[#9B1238]", hex: "#9B1238" },
+                      { name: "BSE", color: "bg-[#009245]", hex: "#009245" },
+                      { name: "Dorm", color: "bg-[#2563eb]", hex: "#2563eb" },
+                      { name: "Hub", color: "bg-[#0d9488]", hex: "#0d9488" },
+                    ].map((ci) => (
+                      <button
+                        key={ci.color}
+                        type="button"
+                        onClick={() => setLocColor(ci.color)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                          locColor === ci.color
+                            ? "border-slate-900 ring-2 ring-purple-300 bg-white text-slate-900"
+                            : "border-slate-200 bg-white/70 text-slate-600 hover:bg-white"
+                        }`}
+                      >
+                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: ci.hex }} />
+                        <span>{ci.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={locColor}
+                    onChange={(e) => setLocColor(e.target.value)}
+                    placeholder="เช่น bg-[#432874] หรือ bg-purple-900 หรือ #432874"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-mono text-gray-900"
+                  />
+                </div>
               </div>
 
               {/* Photo Upload */}

@@ -13,93 +13,99 @@ export interface DeliveryLocation {
   photoUrl: string;
   color: string;
   mapUrl?: string; // Google Maps link for the drop-off location
+  isActive?: boolean; // When false, leaders cannot create new boards for this drop-off point
 }
 
 export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
   {
     id: "loc-m4",
-    name: "ตึก M4",
-    nameEn: "Bldg M4",
-    nameCn: "M4 栋",
+    name: "M4 - IST (อาคารกลาง / ล็อบบี้)",
+    nameEn: "M4 - IST (Central Lobby)",
+    nameCn: "M4 - IST (中央大厅)",
     shortCode: "M4",
-    description: "ล็อบบี้ ตึก M4 (จุดรับอาหารกลาง)",
-    descriptionEn: "Bldg M4 Lobby (Main Food Drop-off)",
-    descriptionCn: "M4 栋大厅 (主要取餐区)",
+    description: "ล็อบบี้ ตึก M4 - IST (จุดรับอาหารกลาง)",
+    descriptionEn: "Bldg M4 - IST Lobby (Main Food Drop-off)",
+    descriptionCn: "M4 - IST 栋大厅 (主要取餐区)",
     deskDetail: "เคาน์เตอร์ชั้น 1 - โต๊ะวางอาหาร Delivery ตึก M4",
     deskDetailEn: "1st Floor Counter - Bldg M4 Delivery Table",
     deskDetailCn: "一楼前台 - M4 栋外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#B4213A]",
+    color: "bg-[#432874]", // VISTEC IST Signature Purple
     mapUrl: "https://maps.google.com/?q=VISTEC+M4+Rayong",
+    isActive: true, // Only M4 is enabled by default
   },
   {
     id: "loc-mse",
-    name: "ตึก MSE",
-    nameEn: "Bldg MSE",
-    nameCn: "MSE 栋",
+    name: "MSE (วัสดุศาสตร์)",
+    nameEn: "MSE (Materials Science)",
+    nameCn: "MSE (材料科学与工程)",
     shortCode: "MSE",
-    description: "Materials Science & Engineering",
+    description: "School of Materials Science & Engineering",
     descriptionEn: "Materials Science & Engineering",
     descriptionCn: "材料科学与工程学院",
     deskDetail: "โถงชั้น 1 โต๊ะรับ Delivery อาคาร MSE",
     deskDetailEn: "1st Floor Lobby - MSE Delivery Table",
     deskDetailCn: "一楼大厅 - MSE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#0284c7]",
+    color: "bg-[#F5A81C]", // VISTEC MSE Signature Yellow/Gold
     mapUrl: "https://maps.google.com/?q=VISTEC+MSE+Rayong",
+    isActive: false, // Disabled
   },
   {
     id: "loc-ese",
-    name: "ตึก ESE",
-    nameEn: "Bldg ESE",
-    nameCn: "ESE 栋",
+    name: "ESE (พลังงานศาสตร์)",
+    nameEn: "ESE (Energy Science)",
+    nameCn: "ESE (能源科学与工程)",
     shortCode: "ESE",
-    description: "Energy Science & Engineering",
+    description: "School of Energy Science & Engineering",
     descriptionEn: "Energy Science & Engineering",
     descriptionCn: "能源科学与工程学院",
     deskDetail: "โถงชั้น 1 โต๊ะรับ Delivery อาคาร ESE",
     deskDetailEn: "1st Floor Lobby - ESE Delivery Table",
     deskDetailCn: "一楼大厅 - ESE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#059669]",
+    color: "bg-[#9B1238]", // VISTEC ESE Signature Maroon / Crimson Red
     mapUrl: "https://maps.google.com/?q=VISTEC+ESE+Rayong",
+    isActive: false, // Disabled
   },
   {
     id: "loc-ist",
-    name: "ตึก IST",
-    nameEn: "Bldg IST",
-    nameCn: "IST 栋",
+    name: "IST (สารสนเทศ & คอมพิวเตอร์)",
+    nameEn: "IST (Information Science)",
+    nameCn: "IST (信息科学与技术)",
     shortCode: "IST",
-    description: "Information Science & Technology",
+    description: "School of Information Science & Technology",
     descriptionEn: "Information Science & Technology",
     descriptionCn: "信息科学与技术学院",
     deskDetail: "โถงชั้น 1 โต๊ะรับ Delivery อาคาร IST",
     deskDetailEn: "1st Floor Lobby - IST Delivery Table",
     deskDetailCn: "一楼大厅 - IST 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#7c3aed]",
+    color: "bg-[#432874]", // VISTEC IST Signature Purple
     mapUrl: "https://maps.google.com/?q=VISTEC+IST+Rayong",
+    isActive: false, // Disabled
   },
   {
     id: "loc-bse",
-    name: "ตึก BSE",
-    nameEn: "Bldg BSE",
-    nameCn: "BSE 栋",
+    name: "BSE (ชีวโมเลกุล)",
+    nameEn: "BSE (Biomolecular Science)",
+    nameCn: "BSE (生物分子科学与工程)",
     shortCode: "BSE",
-    description: "Biomolecular Science & Engineering",
+    description: "School of Biomolecular Science & Engineering",
     descriptionEn: "Biomolecular Science & Engineering",
     descriptionCn: "生物分子科学与工程学院",
     deskDetail: "โถงชั้น 1 โต๊ะรับ Delivery อาคาร BSE",
     deskDetailEn: "1st Floor Lobby - BSE Delivery Table",
     deskDetailCn: "一楼大厅 - BSE 外卖取餐台",
     photoUrl: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#ea580c]",
+    color: "bg-[#009245]", // VISTEC BSE Signature Emerald Green
     mapUrl: "https://maps.google.com/?q=VISTEC+BSE+Rayong",
+    isActive: false, // Disabled
   },
   {
     id: "loc-dorm",
-    name: "หอพักนักศึกษา",
-    nameEn: "Student Dorm",
+    name: "หอพักนักศึกษา (Student Dorm)",
+    nameEn: "Student Dormitory",
     nameCn: "学生宿舍",
     shortCode: "Dorm",
     description: "VISTEC Student Dormitory",
@@ -109,14 +115,15 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     deskDetailEn: "Front Counter - Dormitory Lobby Table",
     deskDetailCn: "宿舍大堂前台取餐桌",
     photoUrl: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80",
-    color: "bg-[#4f46e5]",
+    color: "bg-[#2563eb]",
     mapUrl: "https://maps.google.com/?q=VISTEC+Student+Dormitory+Rayong",
+    isActive: false, // Disabled
   },
   {
     id: "loc-hub",
-    name: "ตึก Hub / สำนักอธิการฯ",
-    nameEn: "Hub Building",
-    nameCn: "Hub 行政楼",
+    name: "Hub / สำนักอธิการฯ (Admin Hub)",
+    nameEn: "Administration Hub",
+    nameCn: "行政楼与学习中心",
     shortCode: "Hub",
     description: "Administration Hub & Learning Center",
     descriptionEn: "Administration Hub & Learning Center",
@@ -127,6 +134,7 @@ export const CAMPUS_LOCATIONS: DeliveryLocation[] = [
     photoUrl: "https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=600&q=80",
     color: "bg-[#0d9488]",
     mapUrl: "https://maps.google.com/?q=VISTEC+Administration+Hub+Rayong",
+    isActive: false, // Disabled
   },
 ];
 
