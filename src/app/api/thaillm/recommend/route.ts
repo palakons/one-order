@@ -22,23 +22,29 @@ export async function POST(request: Request) {
     if (menuItems.length === 0 && shopId) {
       const shops = await getShops(false);
       const targetShop = shops.find((s) => s.id === shopId);
+      const disabledNames = new Set<string>();
       if (targetShop) {
         if (!shopName) shopName = targetShop.name;
         (targetShop.menuItems || []).forEach((m) => {
+          if (m.isAvailable === false) {
+            disabledNames.add(m.name.trim().toLowerCase());
+            return;
+          }
           if (m.name) {
             menuItems.push({ name: m.name, price: m.price || 0 });
           }
         });
       }
 
-      // Also supplement with crowdsourced items for this shop
+      // Also supplement with crowdsourced items for this shop (unless disabled)
       const batches = await getBatches(false);
       batches.forEach((b) => {
         if ((b.shopId || b.shop?.id) === shopId) {
           (b.orders || []).forEach((ord) => {
             if (ord.deletedAt) return;
             (ord.items || []).forEach((it) => {
-              if (it.name && !menuItems.some((m: any) => m.name.toLowerCase() === it.name.trim().toLowerCase())) {
+              const cleanName = (it.name || "").trim().toLowerCase();
+              if (cleanName && !disabledNames.has(cleanName) && !menuItems.some((m: any) => m.name.toLowerCase() === cleanName)) {
                 menuItems.push({ name: it.name.trim(), price: it.price || 0 });
               }
             });

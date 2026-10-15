@@ -517,9 +517,9 @@ export default function AdminClient({
   const [shopDefaultCutoff, setShopDefaultCutoff] = useState("11:15");
   const [shopIsActive, setShopIsActive] = useState(true);
   const [shopOpenDays, setShopOpenDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [shopMenuItems, setShopMenuItems] = useState<Array<{ name: string; price: number; popular: boolean }>>([
-    { name: "ข้าวกะเพราหมูกรอบ", price: 60, popular: true },
-    { name: "ข้าวหมูกระเทียม", price: 55, popular: false },
+  const [shopMenuItems, setShopMenuItems] = useState<Array<{ name: string; price: number; popular: boolean; isAvailable?: boolean }>>([
+    { name: "ข้าวกะเพราหมูกรอบ", price: 60, popular: true, isAvailable: true },
+    { name: "ข้าวหมูกระเทียม", price: 55, popular: false, isAvailable: true },
   ]);
   const [newDishName, setNewDishName] = useState("");
   const [newDishPrice, setNewDishPrice] = useState("");
@@ -936,6 +936,7 @@ export default function AdminClient({
         name: m.name,
         price: m.price,
         popular: Boolean(m.popular),
+        isAvailable: m.isAvailable !== false,
       }))
     );
     setShowShopModal(true);
@@ -961,10 +962,16 @@ export default function AdminClient({
     if (!newDishName.trim() || !newDishPrice) return;
     setShopMenuItems((prev) => [
       ...prev,
-      { name: newDishName.trim(), price: Number(newDishPrice), popular: false },
+      { name: newDishName.trim(), price: Number(newDishPrice), popular: false, isAvailable: true },
     ]);
     setNewDishName("");
     setNewDishPrice("");
+  };
+
+  const handleToggleDishAvailable = (idx: number) => {
+    setShopMenuItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, isAvailable: it.isAvailable === false ? true : false } : it))
+    );
   };
 
   const handleRemoveDish = (idx: number) => {
@@ -1000,6 +1007,7 @@ export default function AdminClient({
           name: it.name,
           price: it.price,
           popular: it.popular,
+          isAvailable: it.isAvailable !== false,
         })),
       };
 
@@ -4217,14 +4225,15 @@ export default function AdminClient({
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700">LINE ID ร้าน</label>
+                  <label className="text-xs font-bold text-gray-700">LINE ID ร้าน (ไม่จำเป็นต้องใส่)</label>
                   <input
                     type="text"
-                    placeholder="shop_line_id"
+                    placeholder="shop_line_id (ไม่จำเป็น)"
                     value={shopLineId}
                     onChange={(e) => setShopLineId(e.target.value)}
                     className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900"
                   />
+                  <p className="text-[10px] text-gray-400 mt-0.5">ระบบเน้นใช้ QR พร้อมเพย์และเบอร์โทรร้านเป็นหลัก</p>
                 </div>
               </div>
 
@@ -4403,19 +4412,42 @@ export default function AdminClient({
               {/* Menu items */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700">รายการเมนูอาหารเริ่มต้น ({shopMenuItems.length})</label>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {shopMenuItems.map((dish, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-1 text-xs"
+                      className={`flex items-center justify-between rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                        dish.isAvailable !== false
+                          ? "bg-gray-50 border-gray-200"
+                          : "bg-rose-50/60 border-rose-200 text-gray-400"
+                      }`}
                     >
-                      <span className="font-semibold text-gray-800">{dish.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-purple-900">฿{dish.price}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDishAvailable(idx)}
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0 transition-all cursor-pointer ${
+                            dish.isAvailable !== false
+                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                              : "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                          }`}
+                          title="กดเพื่อเปิด/ปิดเมนูนี้"
+                        >
+                          {dish.isAvailable !== false ? "✓ พร้อมขาย" : "✕ ปิดเมนู"}
+                        </button>
+                        <span className={`font-semibold truncate ${dish.isAvailable !== false ? "text-gray-800" : "text-gray-400 line-through"}`}>
+                          {dish.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`font-bold ${dish.isAvailable !== false ? "text-purple-900" : "text-gray-400"}`}>
+                          ฿{dish.price}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveDish(idx)}
                           className="text-gray-400 hover:text-rose-600 p-1 cursor-pointer"
+                          title="ลบเมนูนี้"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>

@@ -69,11 +69,16 @@ export async function GET(request: Request) {
         }
       >();
 
-      // A. Populate from Shop's official menuItems
+      // A. Populate from Shop's official menuItems (ignoring disabled menuItems)
+      const disabledNamesByShop = new Set<string>();
       shops.forEach((shop) => {
         (shop.menuItems || []).forEach((m) => {
           const rawName = (m.name || "").trim();
           if (!rawName) return;
+          if (m.isAvailable === false) {
+            disabledNamesByShop.add(`${shop.id}:::${rawName.toLowerCase()}`);
+            return;
+          }
 
           const keyLookup = `${shop.id}:::${rawName.toLowerCase()}`;
           const sanitized = sanitizedMap.get(keyLookup);
@@ -96,7 +101,7 @@ export async function GET(request: Request) {
         });
       });
 
-      // B. Populate & Aggregate from Crowdsourced Orders
+      // B. Populate & Aggregate from Crowdsourced Orders (skipping items disabled by shop)
       batches.forEach((b) => {
         const shop = shops.find((s) => s.id === b.shopId) || b.shop;
         const shopId = shop?.id || b.shopId || "unknown";
@@ -107,10 +112,12 @@ export async function GET(request: Request) {
           (ord.items || []).forEach((it) => {
             const rawName = (it.name || "").trim();
             if (!rawName) return;
+            if (disabledNamesByShop.has(`${shopId}:::${rawName.toLowerCase()}`)) return;
 
             const keyLookup = `${shopId}:::${rawName.toLowerCase()}`;
             const sanitized = sanitizedMap.get(keyLookup);
             const cleanName = sanitized ? sanitized.sanitizedName.trim() : rawName;
+            if (disabledNamesByShop.has(`${shopId}:::${cleanName.toLowerCase()}`)) return;
             const hasTypo = sanitized ? sanitized.hasTypo && cleanName !== rawName : false;
 
             const aggKey = `${shopId}:::${cleanName.toLowerCase()}`;

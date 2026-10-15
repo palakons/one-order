@@ -641,6 +641,26 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
           </div>
         </div>
 
+        {/* Status Announcement Banner (e.g. PENDING, food delayed, shop closed) */}
+        {batch.status === "PENDING" && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-3.5 text-amber-950 shadow-xs flex items-start gap-2.5 animate-pulse">
+            <span className="text-lg leading-none shrink-0">⚠️</span>
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-amber-900">ประกาศด่วนจากหัวหน้าตี้</span>
+                {batch.pendingCreatedAt && (
+                  <span className="text-[10px] font-mono text-amber-700">
+                    {new Date(batch.pendingCreatedAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm font-semibold text-amber-900 leading-snug">
+                {batch.pendingMessage || "ทางร้านแจ้งว่าอาหารอาจล่าช้ากว่ากำหนด หรืออยู่ระหว่างการประสานงานกับทางร้านค้า"}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 1. Header Card: Shop Info, Drop-off & Quick Contacts (Ultra-compact & Space-saving) */}
         <div className="rounded-2xl border border-purple-200 bg-white p-3 sm:p-3.5 shadow-2xs space-y-2">
           {/* Row 1: Shop Name, Location & Quick Actions */}
@@ -665,18 +685,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 >
                   <Phone className="h-3 w-3 text-emerald-700" />
                   <span>{batch.shop.phone}</span>
-                </a>
-              )}
-
-              {batch.shop.lineId && (
-                <a
-                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
-                  title="เปิด LINE ร้าน"
-                >
-                  <span>💬 LINE ร้าน</span>
                 </a>
               )}
 
@@ -949,31 +957,29 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง
                   </span>
                 </div>
-                {batch.shop.lineId ? (
-                  <a
-                    href={
-                      batch.shop.lineId.startsWith("http")
-                        ? batch.shop.lineId
-                        : `https://line.me/R/ti/p/~${batch.shop.lineId.replace(/^@/, "")}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                    title="เปิดแชท LINE ร้านค้า"
-                  >
-                    <span>💬 LINE ร้านค้า</span>
-                    <ExternalLink className="h-2.5 w-2.5 opacity-80" />
-                  </a>
-                ) : batch.shop.phone ? (
-                  <a
-                    href={`tel:${batch.shop.phone}`}
-                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                    title="โทรติดต่อร้านค้า"
-                  >
-                    <Phone className="h-2.5 w-2.5" />
-                    <span>{batch.shop.phone}</span>
-                  </a>
-                ) : null}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(batch.shop.promptpayQrUrl || batch.shop.promptpayNumber) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPromptPayModal(true)}
+                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      title="ดู QR พร้อมเพย์ร้านค้า"
+                    >
+                      <CreditCard className="h-2.5 w-2.5" />
+                      <span>QR ร้าน</span>
+                    </button>
+                  )}
+                  {batch.shop.phone && (
+                    <a
+                      href={`tel:${batch.shop.phone}`}
+                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                      title="โทรติดต่อร้านค้า"
+                    >
+                      <Phone className="h-2.5 w-2.5" />
+                      <span>{batch.shop.phone}</span>
+                    </a>
+                  )}
+                </div>
               </div>
 
               {/* Row 2: Dish Name & Quick Popular Chips */}

@@ -347,3 +347,92 @@ export async function recommendMenuWithThaiLLM({
     };
   }
 }
+
+/**
+ * AI Announcement Crafter for Group Leaders
+ * Turns informal or raw leader notes (e.g. "คนเยอะ ร้านบอกช้า 20 นาที")
+ * into brief, polite, and tactful broadcast messages for campus members.
+ */
+export async function craftAnnouncementWithThaiLLM(params: {
+  shopName: string;
+  situation: string; // e.g. "food delayed 20 mins", "shop out of basil", "shop closed early"
+  rawNote?: string;
+}): Promise<{ success: boolean; message: string; error?: string }> {
+  const { shopName, situation, rawNote } = params;
+
+  // Fallback template builder if LLM is unavailable or times out
+  const buildFallback = () => {
+    const note = (rawNote || situation).trim();
+    if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("delay")) {
+      return `📢 แจ้งเตือนจากตี้ร้าน ${shopName}: ขณะนี้คิวที่ร้านค่อนข้างแน่น อาหารอาจจะล่าช้ากว่ากำหนดเดิมเล็กน้อย ขออภัยในความไม่สะดวกครับ/ค่ะ`;
+    }
+    if (note.includes("ปิด") || note.includes("หมด") || note.includes("close")) {
+      return `📢 แจ้งเตือนจากตี้ร้าน ${shopName}: เนื่องจากทางร้านแจ้ง${note} จึงขอแจ้งให้ทุกท่านทราบ ขออภัยในความล่าช้า/ไม่สะดวกครับ/ค่ะ`;
+    }
+    return `📢 แจ้งเตือนตี้ร้าน ${shopName}: ${note} (อยู่ระหว่างการประสานงาน)`;
+  };
+
+  try {
+    const prompt = `คุณคือผู้ช่วยสื่อสารของกลุ่มหัวหน้าตี้สั่งอาหารในมหาวิทยาลัย VISTEC
+ช่วยเรียบเรียงข้อความแจ้งเตือนสั้นๆ สุภาพ และชัดเจน เพื่อประกาศให้เพื่อนๆ ในตี้ทราบ
+
+ข้อมูล:
+- ร้านค้า: ${shopName}
+- สถานการณ์: ${situation}
+${rawNote ? `- รายละเอียดเพิ่มเติมจากหัวหน้าตี้: "${rawNote}"` : ""}
+
+เงื่อนไข:
+1. ตอบเป็นข้อความภาษาไทยความยาว 1-2 ประโยคกระชับ ไม่เยิ่นเย้อ
+2. ใช้น้ำเสียงสุภาพ เข้าอกเข้าใจ (tactful) แต่ตรงประเด็น
+3. มีอิโมจิประกอบอย่างเหมาะสม เช่น ⚠️ ⏳ 🍱
+4. ตอบเฉพาะข้อความประกาศโดยตรง ไม่ต้องมีคำเกริ่น ไม่ต้องมีเครื่องหมายคำพูด`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch(THAILLM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${THAILLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: THAILLM_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "คุณคือผู้ช่วยสื่อสารภาษาไทยที่เชี่ยวชาญการแจ้งข่าวสารอย่างกระชับ สุภาพ และชัดเจน",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 150,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    recordThaiLLMCall(res.status);
+
+    if (!res.ok) {
+      console.warn(`[ThaiLLM Craft] API call failed with status ${res.status}`);
+      return { success: true, message: buildFallback() };
+    }
+
+    const data = await res.json();
+    let content = data.choices?.[0]?.message?.content?.trim() || "";
+    content = stripThinkingAndCodeBlocks(content);
+    // Remove surrounding quotes if model added them
+    content = content.replace(/^["'“]|["'”]$/g, "").trim();
+
+    if (!content) {
+      return { success: true, message: buildFallback() };
+    }
+
+    return { success: true, message: content };
+  } catch (err: any) {
+    recordThaiLLMCall("error");
+    return { success: true, message: buildFallback() };
+  }
+}
+

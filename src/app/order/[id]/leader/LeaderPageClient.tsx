@@ -38,6 +38,7 @@ import {
   ArrowRight,
   Bell,
   FileText,
+  Sparkles,
 } from "lucide-react";
 
 interface Props {
@@ -68,6 +69,14 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const [manifestData, setManifestData] = useState<{ blob: Blob; dataUrl: string } | null>(null);
   const [copiedText, setCopiedText] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // AI Announcement Crafter & Pending Status State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiSituation, setAiSituation] = useState("อาหารล่าช้ากว่ากำหนด (คิวแน่น)");
+  const [aiCustomNote, setAiCustomNote] = useState("");
+  const [isCraftingAi, setIsCraftingAi] = useState(false);
+  const [craftedMessage, setCraftedMessage] = useState("");
+  const [submittingPending, setSubmittingPending] = useState(false);
 
   // Delivery Evidence Photo State
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -258,6 +267,65 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       alert("ไม่สามารถเปลี่ยนสถานะได้");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  // Craft Tactful Message via ThaiLLM
+  const handleCraftWithAi = async () => {
+    if (!batch) return;
+    setIsCraftingAi(true);
+    try {
+      const res = await fetch("/api/thaillm/craft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopName: batch.shop.name,
+          situation: aiSituation,
+          rawNote: aiCustomNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.message) {
+        setCraftedMessage(data.message);
+      } else {
+        alert(data.error || "ไม่สามารถให้ AI เรียบเรียงได้ในขณะนี้");
+      }
+    } catch (e) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI");
+    } finally {
+      setIsCraftingAi(false);
+    }
+  };
+
+  // Publish Pending Notice to Board & LINE
+  const handlePublishPendingNotice = async (clearOnly = false) => {
+    if (!batch) return;
+    setSubmittingPending(true);
+    const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || batch.hostPin : batch.hostPin;
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: clearOnly ? "ORDERED" : "PENDING",
+          pendingMessage: clearOnly ? "" : craftedMessage.trim() || aiCustomNote.trim() || aiSituation,
+          hostPin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(clearOnly ? "ยกเลิกสถานะรอตรวจสอบแล้ว" : "ประกาศแจ้งเตือนและขึ้นสถานะรอตรวจสอบ (PENDING) เรียบร้อยแล้ว ⚠️");
+        setShowAiModal(false);
+        setCraftedMessage("");
+        setAiCustomNote("");
+        await fetchBatch();
+      } else {
+        alert(data.error || "ไม่สามารถบันทึกได้");
+      }
+    } catch (e) {
+      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+    } finally {
+      setSubmittingPending(false);
     }
   };
 
@@ -475,7 +543,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         await navigator.share({
           title: `VEATEC - สั่งข้าวตี้ ${shopName}`,
           text,
-          url: shareUrl,
         });
         return;
       } catch (e) {}
@@ -723,18 +790,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {batch.shop.lineId && (
-                <a
-                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors"
-                  title="เปิด LINE ร้าน"
-                >
-                  <span>💬 LINE ร้าน</span>
-                </a>
-              )}
-
               {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
                 <button
                   type="button"
@@ -802,41 +857,83 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-0.5 text-[11px]">
+            <div className="flex items-center justify-between pt-0.5 text-[11px] flex-wrap gap-2">
               <span className="flex items-center gap-1 font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
                 <Clock className="h-3 w-3 text-purple-900" />
                 <span>{timeInfo.text} • {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}</span>
               </span>
 
-              {/* Board Control Buttons */}
-              {batch.status === "OPEN" ? (
+              {/* Board Control Buttons & AI Crafter */}
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
-                  disabled={updatingStatus}
-                  onClick={() => handleToggleBoardStatus("CLOSED")}
-                  className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                  onClick={() => setShowAiModal(true)}
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 transition-colors shadow-2xs cursor-pointer"
+                  title="แจ้งเหตุฉุกเฉิน / อาหารเลท ด้วย AI"
                 >
-                  <Lock className="h-3 w-3 text-rose-600" />
-                  <span>ปิดรับออเดอร์</span>
+                  <Sparkles className="h-3 w-3 text-amber-600" />
+                  <span>{batch.status === "PENDING" ? "แก้ไขประกาศแจ้งเตือน" : "แจ้งเตือนเลท / ร้านปิด (AI)"}</span>
                 </button>
-              ) : batch.status === "CLOSED" ? (
-                <button
-                  type="button"
-                  disabled={updatingStatus}
-                  onClick={() => handleToggleBoardStatus("OPEN")}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                >
-                  <Unlock className="h-3 w-3 text-emerald-600" />
-                  <span>เปิดรับต่อ</span>
-                </button>
-              ) : (
-                <span className="text-[11px] font-bold text-slate-500">
-                  {batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : ""}
-                </span>
-              )}
+
+                {batch.status === "OPEN" ? (
+                  <button
+                    type="button"
+                    disabled={updatingStatus}
+                    onClick={() => handleToggleBoardStatus("CLOSED")}
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    <Lock className="h-3 w-3 text-rose-600" />
+                    <span>ปิดรับออเดอร์</span>
+                  </button>
+                ) : batch.status === "CLOSED" ? (
+                  <button
+                    type="button"
+                    disabled={updatingStatus}
+                    onClick={() => handleToggleBoardStatus("OPEN")}
+                    className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    <Unlock className="h-3 w-3 text-emerald-600" />
+                    <span>เปิดรับต่อ</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {batch.status === "PENDING" ? "⚠️ รอตรวจสอบ (PENDING)" : batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : ""}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Active PENDING notice banner in Leader UI */}
+        {batch.status === "PENDING" && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 sm:p-4 text-amber-950 shadow-xs flex items-start justify-between gap-3 animate-pulse">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <span className="text-xl shrink-0">⚠️</span>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-900">ประกาศด่วนจากหัวหน้าตี้ (กำลังแสดงบนกระดาน)</span>
+                  {batch.pendingCreatedAt && (
+                    <span className="text-[10px] font-mono text-amber-700">
+                      {new Date(batch.pendingCreatedAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm font-semibold text-amber-900 leading-snug">
+                  {batch.pendingMessage || "ทางร้านแจ้งว่าอาหารอาจล่าช้ากว่ากำหนด"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={submittingPending}
+              onClick={() => handlePublishPendingNotice(true)}
+              className="rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-950 px-2.5 py-1 text-xs font-bold shrink-0 transition-colors cursor-pointer"
+            >
+              ยกเลิกประกาศ
+            </button>
+          </div>
+        )}
 
         {/* 2. Chronological 3-Phase Stepper */}
         <div className="rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs">
@@ -1052,15 +1149,16 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {batch.shop.lineId && (
-                <a
-                  href={`https://line.me/R/ti/p/~${batch.shop.lineId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors"
+              {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPromptPayModal(true)}
+                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                  title="ดู QR พร้อมเพย์ร้านค้า"
                 >
-                  <span>💬 LINE ร้าน</span>
-                </a>
+                  <CreditCard className="h-3 w-3 text-purple-300" />
+                  <span>QR ร้าน</span>
+                </button>
               )}
 
               <button
@@ -1637,6 +1735,123 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   ส่งแล้ว (ไม่แนบรูป)
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: AI Announcement Crafter & PENDING Status */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative max-h-[92vh] max-w-lg w-full rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-amber-100 bg-amber-50/70">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">ผู้ช่วยร่างประกาศแจ้งเตือน (AI Crafter)</h3>
+                  <p className="text-[11px] text-slate-500">เรียบเรียงข้อความสุภาพ รวดเร็ว และตั้งสถานะรอตรวจสอบ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 text-xs text-slate-700">
+              {/* Situation Presets */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900 block">เลือกสถานการณ์ที่เกิดขึ้น:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {[
+                    "อาหารล่าช้ากว่ากำหนด (คิวแน่น)",
+                    "ร้านปิดกะทันหัน / วัตถุดิบหมด",
+                    "ร้านขอปรับเปลี่ยนเมนูบางรายการ",
+                    "ฝนตกหนัก / ไรเดอร์ส่งช้า",
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAiSituation(preset)}
+                      className={`text-left px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        aiSituation === preset
+                          ? "bg-amber-100 border-amber-400 text-amber-950 font-bold shadow-2xs"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Leader's Raw Notes */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900 block">
+                  รายละเอียดเพิ่มเติม (คำสั้นๆ จากหัวหน้าตี้):
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น ป้าบอกคนเยอะ ขอส่งเลท 20 นาที หรือ กะเพราหมดขอเปลี่ยนเป็นหมูกระเทียม"
+                  value={aiCustomNote}
+                  onChange={(e) => setAiCustomNote(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Button: Trigger AI Crafter */}
+              <button
+                type="button"
+                disabled={isCraftingAi}
+                onClick={handleCraftWithAi}
+                className="w-full py-2.5 rounded-xl bg-linear-to-r from-purple-900 to-indigo-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95 transition-all cursor-pointer disabled:opacity-60 active:scale-98"
+              >
+                <Sparkles className={`h-3.5 w-3.5 ${isCraftingAi ? "animate-spin" : ""}`} />
+                <span>{isCraftingAi ? "กำลังให้ AI เรียบเรียง..." : "✨ ให้ AI เรียบเรียงข้อความให้สุภาพ"}</span>
+              </button>
+
+              {/* Crafted Message Box */}
+              <div className="space-y-1.5 pt-1">
+                <label className="font-bold text-slate-900 flex items-center justify-between">
+                  <span>ข้อความที่จะแสดงบนกระดาน (แก้ไขได้):</span>
+                  {craftedMessage && (
+                    <span className="text-[10px] font-normal text-emerald-700">เรียบเรียงโดย OpenThaiGPT</span>
+                  )}
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="ข้อความประกาศจะปรากฏที่นี่ หรือพิมพ์เองได้โดยตรง..."
+                  value={craftedMessage}
+                  onChange={(e) => setCraftedMessage(e.target.value)}
+                  className="w-full rounded-xl border border-amber-300 bg-amber-50/50 p-2.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={submittingPending || (!craftedMessage.trim() && !aiCustomNote.trim() && !aiSituation)}
+                onClick={() => handlePublishPendingNotice(false)}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <span>⚠️ ประกาศแจ้งเตือน (PENDING)</span>
+              </button>
             </div>
           </div>
         </div>

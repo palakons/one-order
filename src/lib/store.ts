@@ -974,12 +974,21 @@ export async function updateBatchStatus(
   batchId: string,
   status: BatchStatus,
   deliveryPhotoUrl?: string,
-  extra?: { isSelfPickup?: boolean; sentToShopAt?: string }
+  extra?: {
+    isSelfPickup?: boolean;
+    sentToShopAt?: string;
+    pendingMessage?: string;
+    pendingCreatedAt?: string;
+  }
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
   const updatePayload: Record<string, any> = { status };
   if (extra?.isSelfPickup !== undefined) {
     updatePayload.isSelfPickup = extra.isSelfPickup;
+  }
+  if (extra?.pendingMessage !== undefined) {
+    updatePayload.pendingMessage = extra.pendingMessage;
+    updatePayload.pendingCreatedAt = extra.pendingCreatedAt || new Date().toISOString();
   }
   if (extra?.sentToShopAt) {
     updatePayload.sentToShopAt = extra.sentToShopAt;

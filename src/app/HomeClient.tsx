@@ -172,10 +172,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   });
   const [showArchiveModal, setShowArchiveModal] = useState(false);
 
-  // 3-parameter filter state for Past 7 Days (Archived)
+  // 3-parameter filter & sort state for Past 7 Days (Archived)
   const [archivedFilterDate, setArchivedFilterDate] = useState<string>("ALL");
   const [archivedFilterShop, setArchivedFilterShop] = useState<string>("ALL");
   const [archivedFilterBuilding, setArchivedFilterBuilding] = useState<string>("ALL");
+  const [archivedSortBy, setArchivedSortBy] = useState<"DATE" | "SHOP" | "BUILDING">("DATE");
   const [archivedSelectedBatchId, setArchivedSelectedBatchId] = useState<string | null>(null);
 
   // Available filter options for Archived batches
@@ -216,15 +217,28 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return Array.from(buildingsSet);
   }, [archivedBatches]);
 
-  // Filtered archived batches based on the 3 parameters
+  // Filtered and sorted archived batches based on parameters & sort toggle
   const filteredArchivedBatches = useMemo(() => {
-    return archivedBatches.filter((b) => {
+    const list = archivedBatches.filter((b) => {
       if (archivedFilterDate !== "ALL" && b.date !== archivedFilterDate) return false;
       if (archivedFilterShop !== "ALL" && b.shop.id !== archivedFilterShop && b.shopId !== archivedFilterShop && b.shop.name !== archivedFilterShop) return false;
       if (archivedFilterBuilding !== "ALL" && b.buildingName !== archivedFilterBuilding) return false;
       return true;
     });
-  }, [archivedBatches, archivedFilterDate, archivedFilterShop, archivedFilterBuilding]);
+
+    return list.sort((a, b) => {
+      if (archivedSortBy === "SHOP") {
+        return (a.shop?.name || "").localeCompare(b.shop?.name || "", "th");
+      }
+      if (archivedSortBy === "BUILDING") {
+        return (a.buildingName || "").localeCompare(b.buildingName || "", "th");
+      }
+      // Default: DATE (newest date and cutoff time first)
+      const dateA = `${a.date || ""} ${a.cutoffTime || ""}`;
+      const dateB = `${b.date || ""} ${b.cutoffTime || ""}`;
+      return dateB.localeCompare(dateA);
+    });
+  }, [archivedBatches, archivedFilterDate, archivedFilterShop, archivedFilterBuilding, archivedSortBy]);
 
   // If active archived batch is filtered out, clear selection
   useEffect(() => {
@@ -670,7 +684,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         await navigator.share({
           title: `VEATEC - สั่งข้าวตี้ ${shopName}`,
           text,
-          url: shareUrl,
         });
         return;
       } catch (e) {}
@@ -1355,8 +1368,49 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </div>
                 </div>
 
-                {/* Filter Results & Board Selection */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {/* Sort Toggle for 7-Day History */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/70">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-500">
+                      {lang === "en" ? "Sort by:" : lang === "cn" ? "排序方式:" : "เรียงตาม:"}
+                    </span>
+                    <div className="inline-flex rounded-lg bg-slate-200/70 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setArchivedSortBy("DATE")}
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ${
+                          archivedSortBy === "DATE"
+                            ? "bg-white text-purple-950 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        ⏰ {lang === "en" ? "Newest" : lang === "cn" ? "最新" : "เวลา (ใหม่สุด)"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setArchivedSortBy("SHOP")}
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ${
+                          archivedSortBy === "SHOP"
+                            ? "bg-white text-purple-950 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        🏬 {lang === "en" ? "Shop A-Z" : lang === "cn" ? "餐厅名称" : "ชื่อร้าน"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setArchivedSortBy("BUILDING")}
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ${
+                          archivedSortBy === "BUILDING"
+                            ? "bg-white text-purple-950 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        📍 {lang === "en" ? "Building" : lang === "cn" ? "楼宇" : "ตึก / จุดส่ง"}
+                      </button>
+                    </div>
+                  </div>
+
                   <span className="text-[11px] font-bold text-slate-500">
                     {lang === "en"
                       ? `Matching boards (${filteredArchivedBatches.length}):`
@@ -1364,6 +1418,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       ? `匹配拼单 (${filteredArchivedBatches.length}):`
                       : `กระดานที่ตรงเงื่อนไข (${filteredArchivedBatches.length}):`}
                   </span>
+                </div>
+
+                {/* Filter Results & Board Selection */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
 
                   {filteredArchivedBatches.length === 0 ? (
                     <span className="text-xs text-slate-400 italic">
@@ -1444,13 +1502,14 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
           ) : (
             currentGroupBatches.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {currentGroupBatches.map((b, idx) => {
+              <div className="flex items-end gap-1 overflow-x-auto border-b border-slate-200 pt-2 px-1 -mb-px">
+                {currentGroupBatches.map((b) => {
                   const isActive = b.id === activeBatchId;
                   const isMet = b.currentTotalAmount >= b.targetMinAmount;
-                  const bldgCode = b.buildingName
+                  const bldgLoc = getLocationForBatch(b, locations);
+                  const bldgCode = bldgLoc?.shortCode || (b.buildingName
                     ? getLocalizedBuildingName(b.buildingName, lang).replace("Bldg ", "").replace(" 栋", "")
-                    : "M4";
+                    : "M4");
                   const localizedShop = getShopLocalizedInfo(b.shop, lang);
 
                   const shortShop = getShortShopName(localizedShop.name);
@@ -1464,15 +1523,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       key={b.id}
                       type="button"
                       onClick={() => selectBatch(b.id)}
-                      className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                      className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-t-xl rounded-b-none px-3 py-2 text-xs transition-all border border-b-0 cursor-pointer ${
                         isActive
-                          ? "bg-white border-purple-400 text-purple-950 shadow-xs font-black ring-1 ring-purple-200"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:text-slate-900"
+                          ? "bg-white border-slate-300 border-b-white text-purple-950 font-black shadow-xs -mb-[1px] z-10 ring-1 ring-purple-100"
+                          : "bg-slate-100/80 border-slate-200 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900"
                       }`}
                     >
                       <span className="font-bold tracking-tight">{shortShop}</span>
 
-                      {/* Compact green span for building name */}
+                      {/* Compact green span for building short code */}
                       <span className="rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight leading-none shrink-0">
                         {bldgCode}
                       </span>
@@ -1481,14 +1540,26 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         {timeDisplay}
                       </span>
 
-                      {/* Badge depending on group */}
-                      {b.isDeleted ? (
-                        <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
+                      {/* Status Badges: PENDING, ORDERED, COMPLETED or Goal Badge */}
+                      {b.status === "PENDING" ? (
+                        <span className="rounded-md bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold shrink-0 animate-pulse">
+                          ⚠️ {lang === "en" ? "Pending" : lang === "cn" ? "待处理" : "รอตรวจสอบ"}
+                        </span>
+                      ) : b.status === "ORDERED" ? (
+                        <span className="rounded-md bg-sky-100 border border-sky-300 text-sky-800 px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+                          🛵 {lang === "en" ? "Ordered" : lang === "cn" ? "已下单" : "ส่งร้านแล้ว"}
+                        </span>
+                      ) : b.status === "COMPLETED" ? (
+                        <span className="rounded-md bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+                          🍱 {lang === "en" ? "Delivered" : lang === "cn" ? "已送达" : "ถึงแล้ว"}
+                        </span>
+                      ) : b.isDeleted ? (
+                        <span className="rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold shrink-0">
                           {b.date} • {lang === "en" ? "Purged" : lang === "cn" ? "已删除" : "ลบแล้ว"}
                         </span>
                       ) : (
                         <span
-                          className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                          className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold shrink-0 ${
                             isMet
                               ? "bg-emerald-600 text-white"
                               : b.currentTotalAmount > 0
@@ -1662,6 +1733,50 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           </div>
         ) : activeBatch ? (
           <div id="board-pane" className="space-y-2.5 sm:space-y-3">
+            {/* Status Announcement Banner (e.g. PENDING, food delayed, shop closed) */}
+            {activeBatch.status === "PENDING" && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-3.5 text-amber-950 shadow-xs flex items-start gap-2.5 animate-pulse">
+                <span className="text-lg leading-none shrink-0">⚠️</span>
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-amber-900">
+                      {lang === "en" ? "Leader Notice / Under Review" : lang === "cn" ? "团长特别通知" : "ประกาศด่วนจากหัวหน้าตี้"}
+                    </span>
+                    {activeBatch.pendingCreatedAt && (
+                      <span className="text-[10px] font-mono text-amber-700">
+                        {new Date(activeBatch.pendingCreatedAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-amber-900 leading-snug">
+                    {activeBatch.pendingMessage || "ทางร้านแจ้งว่าอาหารอาจล่าช้ากว่ากำหนด หรืออยู่ระหว่างการประสานงานกับทางร้านค้า"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Board Status Pill Row */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {activeBatch.status === "PENDING" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />
+                    <span>⚠️ {lang === "en" ? "Pending / Notice" : lang === "cn" ? "待处理 / 变更" : "รอตรวจสอบ / มีประกาศ"}</span>
+                  </span>
+                )}
+                {activeBatch.status === "ORDERED" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 border border-sky-300 px-2.5 py-0.5 text-xs font-bold text-sky-800">
+                    <span>🛵 {lang === "en" ? "Sent to Shop" : lang === "cn" ? "已送店制作" : "ส่งร้านแล้ว (กำลังปรุง)"}</span>
+                  </span>
+                )}
+                {activeBatch.status === "COMPLETED" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                    <span>🍱 {lang === "en" ? "Delivered to Table" : lang === "cn" ? "已送达取餐台" : "ส่งถึงโต๊ะแล้ว"}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* 2. Order Pane Header: 3 Squeezed Cards in 1 Row (Shop, Drop-off, Leader) */}
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Card 1: Shop */}
@@ -1903,31 +2018,29 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
                 </span>
               </div>
-              {activeBatch.shop.lineId ? (
-                <a
-                  href={
-                    activeBatch.shop.lineId.startsWith("http")
-                      ? activeBatch.shop.lineId
-                      : `https://line.me/R/ti/p/~${activeBatch.shop.lineId.replace(/^@/, "")}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
-                  title="เปิดแชท LINE ร้านค้า"
-                >
-                  <span>💬 LINE ร้านค้า</span>
-                  <ExternalLink className="h-2.5 w-2.5 opacity-90" />
-                </a>
-              ) : activeBatch.shop.phone ? (
-                <a
-                  href={`tel:${activeBatch.shop.phone}`}
-                  className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
-                  title="โทรติดต่อร้านค้า"
-                >
-                  <Phone className="h-2.5 w-2.5" />
-                  <span>{activeBatch.shop.phone}</span>
-                </a>
-              ) : null}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptPayModal(true)}
+                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                    title="ดู QR พร้อมเพย์ร้านค้า"
+                  >
+                    <QrCode className="h-3 w-3" />
+                    <span>QR ร้านค้า</span>
+                  </button>
+                )}
+                {activeBatch.shop.phone && (
+                  <a
+                    href={`tel:${activeBatch.shop.phone}`}
+                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
+                    title="โทรติดต่อร้านค้า"
+                  >
+                    <Phone className="h-2.5 w-2.5" />
+                    <span>{activeBatch.shop.phone}</span>
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* 3. The Live Whiteboard Table */}
@@ -2299,31 +2412,29 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
                           </span>
                         </div>
-                        {activeBatch.shop.lineId ? (
-                          <a
-                            href={
-                              activeBatch.shop.lineId.startsWith("http")
-                                ? activeBatch.shop.lineId
-                                : `https://line.me/R/ti/p/~${activeBatch.shop.lineId.replace(/^@/, "")}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                            title="เปิดแชท LINE ร้านค้า"
-                          >
-                            <span>💬 LINE ร้านค้า</span>
-                            <ExternalLink className="h-2.5 w-2.5 opacity-80" />
-                          </a>
-                        ) : activeBatch.shop.phone ? (
-                          <a
-                            href={`tel:${activeBatch.shop.phone}`}
-                            className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                            title="โทรติดต่อร้านค้า"
-                          >
-                            <Phone className="h-2.5 w-2.5" />
-                            <span>{activeBatch.shop.phone}</span>
-                          </a>
-                        ) : null}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
+                            <button
+                              type="button"
+                              onClick={() => setShowPromptPayModal(true)}
+                              className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                              title="ดู QR พร้อมเพย์ร้านค้า"
+                            >
+                              <QrCode className="h-2.5 w-2.5" />
+                              <span>QR ร้าน</span>
+                            </button>
+                          )}
+                          {activeBatch.shop.phone && (
+                            <a
+                              href={`tel:${activeBatch.shop.phone}`}
+                              className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                              title="โทรติดต่อร้านค้า"
+                            >
+                              <Phone className="h-2.5 w-2.5" />
+                              <span>{activeBatch.shop.phone}</span>
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
 

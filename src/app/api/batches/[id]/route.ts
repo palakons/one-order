@@ -38,19 +38,19 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt } = body;
+    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage } = body;
 
     if (!status) {
       return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
     }
 
-    // Light Security Check: If batch has a hostPin, verify authorization for host actions (close/order)
+    // Light Security Check: If batch has a hostPin, verify authorization for host actions (close/order/pending)
     const existing = await getBatchById(id);
     if (!existing) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
 
-    if (existing.hostPin && (status === "ORDERED" || status === "CLOSED" || status === "LOCKED" || status === "CANCELLED")) {
+    if (existing.hostPin && (status === "ORDERED" || status === "CLOSED" || status === "LOCKED" || status === "CANCELLED" || status === "PENDING")) {
       const authHeader = request.headers.get("authorization") || "";
       const isAdmin = authHeader.includes("m4-admin") || authHeader.includes("admin");
       if (!isAdmin && hostPin !== existing.hostPin) {
@@ -61,6 +61,7 @@ export async function PATCH(
     const updated = await updateBatchStatus(id, status as BatchStatus, deliveryPhotoUrl, {
       isSelfPickup: isSelfPickup !== undefined ? Boolean(isSelfPickup) : undefined,
       sentToShopAt,
+      pendingMessage: pendingMessage !== undefined ? String(pendingMessage) : undefined,
     });
     if (!updated) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });

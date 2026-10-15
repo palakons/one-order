@@ -5,6 +5,7 @@ export interface MenuItem {
   price: number;
   category?: string;
   popular?: boolean;
+  isAvailable?: boolean; // If false, dish is disabled/hidden from suggestion, autocomplete, and ordering
 }
 
 export interface Shop {
@@ -58,7 +59,7 @@ export interface Order {
   deletedReason?: string; // Reason if cancelled by host
 }
 
-export type BatchStatus = "OPEN" | "LOCKED" | "CLOSED" | "ORDERED" | "DELIVERING" | "COMPLETED" | "CANCELLED";
+export type BatchStatus = "OPEN" | "LOCKED" | "CLOSED" | "ORDERED" | "DELIVERING" | "PENDING" | "COMPLETED" | "CANCELLED";
 
 export interface Batch {
   id: string;
@@ -76,6 +77,8 @@ export interface Batch {
   buildingId?: string; // Specific building ID (e.g. "loc-m4")
   buildingName?: string; // Specific building name (e.g. "ตึก M4")
   sentToShopAt?: string; // ISO string when Host clicked "Send to Shop"
+  pendingMessage?: string; // Alert message crafted by leader/AI e.g. food delayed or shop closed
+  pendingCreatedAt?: string; // ISO string when pending message was posted
   notes?: string;
   deliveryPhotoUrl?: string; // Shop drop-off photo evidence on campus desk
   deliveryPhotoPath?: string; // Stored path e.g. "delivery/delivery_123.jpg"
