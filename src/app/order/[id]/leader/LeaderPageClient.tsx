@@ -274,6 +274,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const handleCraftWithAi = async () => {
     if (!batch) return;
     setIsCraftingAi(true);
+    const currentActiveOrders = (batch.orders || []).filter((o) => !o.deletedAt);
+    const calculatedBoxes = currentActiveOrders.reduce(
+      (sum, ord) => sum + (ord.items?.reduce((s, it) => s + (it.quantity || 1), 0) || 0),
+      0
+    );
+
     try {
       const res = await fetch("/api/thaillm/craft", {
         method: "POST",
@@ -282,6 +288,11 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
           shopName: batch.shop.name,
           situation: aiSituation,
           rawNote: aiCustomNote.trim() || undefined,
+          batchStatus: batch.status,
+          isSentToShop: batch.status === "ORDERED" || batch.status === "DELIVERING" || batch.status === "COMPLETED",
+          buildingName: batch.buildingName || "M4",
+          totalOrders: currentActiveOrders.length,
+          totalBoxes: calculatedBoxes,
         }),
       });
       const data = await res.json();

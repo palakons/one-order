@@ -355,37 +355,50 @@ export async function recommendMenuWithThaiLLM({
  */
 export async function craftAnnouncementWithThaiLLM(params: {
   shopName: string;
-  situation: string; // e.g. "food delayed 20 mins", "shop out of basil", "shop closed early"
+  situation: string; // e.g. "อาหารล่าช้ากว่ากำหนด (คิวแน่น)", "ร้านปิดกะทันหัน / วัตถุดิบหมด"
   rawNote?: string;
+  batchStatus?: string;
+  isSentToShop?: boolean;
+  buildingName?: string;
+  totalOrders?: number;
+  totalBoxes?: number;
 }): Promise<{ success: boolean; message: string; error?: string }> {
-  const { shopName, situation, rawNote } = params;
+  const { shopName, situation, rawNote, batchStatus, isSentToShop, buildingName, totalBoxes } = params;
 
   // Fallback template builder if LLM is unavailable or times out
   const buildFallback = () => {
     const note = (rawNote || situation).trim();
-    if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("delay")) {
-      return `📢 แจ้งเตือนจากตี้ร้าน ${shopName}: ขณะนี้คิวที่ร้านค่อนข้างแน่น อาหารอาจจะล่าช้ากว่ากำหนดเดิมเล็กน้อย ขออภัยในความไม่สะดวกครับ/ค่ะ`;
+    const sentStatusText = isSentToShop ? "ส่งออเดอร์ให้ร้านแล้ว" : "อยู่ระหว่างประสานงานส่งออเดอร์กับทางร้าน";
+    if (note.includes("ช้า") || note.includes("เลท") || note.includes("delay") || situation.includes("ช้า")) {
+      return `⚠️ แจ้งสถานะออเดอร์ร้าน ${shopName} (${buildingName || "M4"}): ทางร้านแจ้งว่าอาหารอาจล่าช้ากว่ากำหนดเดิมเล็กน้อย หัวหน้าตี้กำลังติดตามคิวให้อย่างใกล้ชิดครับ/ค่ะ`;
     }
     if (note.includes("ปิด") || note.includes("หมด") || note.includes("close")) {
-      return `📢 แจ้งเตือนจากตี้ร้าน ${shopName}: เนื่องจากทางร้านแจ้ง${note} จึงขอแจ้งให้ทุกท่านทราบ ขออภัยในความล่าช้า/ไม่สะดวกครับ/ค่ะ`;
+      return `⚠️ แจ้งสถานะออเดอร์ร้าน ${shopName} (${buildingName || "M4"}): ทางร้านแจ้ง${note} หัวหน้าตี้กำลังประสานงานปรับเปลี่ยนรายการกับทางร้านเพื่อเร่งจัดส่งครับ/ค่ะ`;
     }
-    return `📢 แจ้งเตือนตี้ร้าน ${shopName}: ${note} (อยู่ระหว่างการประสานงาน)`;
+    return `⚠️ แจ้งสถานะออเดอร์ร้าน ${shopName} (${buildingName || "M4"}): ${sentStatusText} — ${note}`;
   };
 
   try {
-    const prompt = `คุณคือผู้ช่วยสื่อสารของกลุ่มหัวหน้าตี้สั่งอาหารในมหาวิทยาลัย VISTEC
-ช่วยเรียบเรียงข้อความแจ้งเตือนสั้นๆ สุภาพ และชัดเจน เพื่อประกาศให้เพื่อนๆ ในตี้ทราบ
+    const sentContext = isSentToShop
+      ? "สถานะระบบ: ออเดอร์ถูกส่งไปยังร้านค้าแล้ว ทางร้านกำลังจัดทำหรืออยู่ระหว่างจัดส่ง"
+      : "สถานะระบบ: ยังไม่ได้ส่งออเดอร์ให้ร้านค้า (หัวหน้าตี้กำลังรวบรวม/ประสานงานรายละเอียดกับทางร้าน)";
 
-ข้อมูล:
-- ร้านค้า: ${shopName}
-- สถานการณ์: ${situation}
-${rawNote ? `- รายละเอียดเพิ่มเติมจากหัวหน้าตี้: "${rawNote}"` : ""}
+    const prompt = `คุณคือผู้ดูแลระบบสื่อสารทางการของระบบสั่งอาหารรวม VEATEC สถาบันวิทยสิริเมธี (VISTEC)
+จงร่าง "ข้อความประกาศสั้นทางการ (Stoic & Empathetic Official Announcement)" ให้แก่เพื่อนๆ สมาชิกที่สั่งอาหารในตี้
 
-เงื่อนไข:
-1. ตอบเป็นข้อความภาษาไทยความยาว 1-2 ประโยคกระชับ ไม่เยิ่นเย้อ
-2. ใช้น้ำเสียงสุภาพ เข้าอกเข้าใจ (tactful) แต่ตรงประเด็น
-3. มีอิโมจิประกอบอย่างเหมาะสม เช่น ⚠️ ⏳ 🍱
-4. ตอบเฉพาะข้อความประกาศโดยตรง ไม่ต้องมีคำเกริ่น ไม่ต้องมีเครื่องหมายคำพูด`;
+บริบทข้อมูลจากระบบและหัวหน้าตี้:
+- ร้านอาหาร: ${shopName}
+- จุดส่งอาหาร: ตึก ${buildingName || "M4"} ${totalBoxes ? `(รวม ${totalBoxes} กล่อง)` : ""}
+- สถานะปัจจุบันของตี้: ${batchStatus || "PENDING"} (${sentContext})
+- สถานการณ์ที่เลือก: ${situation}
+${rawNote ? `- รายละเอียดเพิ่มเติมจากหัวหน้าตี้: "${rawNote.trim()}"` : ""}
+
+กฎและแนวทางการเขียนที่ต้องปฏิบัติตามอย่างเคร่งครัด:
+1. น้ำเสียง (Tone): สุภาพ หนักแน่น สุขุม (Stoic) กึ่งทางการ (Official-ish) แต่มีความเข้าอกเข้าใจ (Empathetic) ทั้งต่อนักศึกษาที่รออาหารและต่อร้านค้าที่กำลังติดปัญหา
+2. ห้ามเล่นมุก ห้ามเล่าเรื่องตลก (Zero jokes/anecdotes) ให้ตัดคำพูดเล่น คำเปรียบเปรย หรือเรื่องเล่าออกทั้งหมด
+3. ระบุเนื้อหาให้ชัดเจนและเฉพาะเจาะจง (Be specific) เช่น ระบุว่าส่งออเดอร์ให้ร้านแล้วหรือยัง และหัวหน้าตี้กำลังดำเนินการแก้ปัญหาหรือประสานงานอะไรอยู่กับทางร้าน
+4. ความยาว: สั้นกระชับ 1-2 ประโยคเท่านั้น (ไม่เกิน 40-50 คำ) ให้อ่านจบเข้าใจทันที
+5. ไม่ต้องใส่คำนำหน้า เช่น "นี่คือข้อความ..." และไม่ต้องมีเครื่องหมายคำพูดรอบข้อความ`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -401,12 +414,12 @@ ${rawNote ? `- รายละเอียดเพิ่มเติมจา�
         messages: [
           {
             role: "system",
-            content: "คุณคือผู้ช่วยสื่อสารภาษาไทยที่เชี่ยวชาญการแจ้งข่าวสารอย่างกระชับ สุภาพ และชัดเจน",
+            content: "คุณคือระบบร่างข้อความประกาศสั้นทางการภาษาไทยของสถาบันการศึกษา น้ำเสียงสุขุม สุภาพ กระชับ เข้าอกเข้าใจ ตรงประเด็น ไม่มีเรื่องตลกหรือสำนวนเกินจริง",
           },
           { role: "user", content: prompt },
         ],
-        temperature: 0.3,
-        max_tokens: 150,
+        temperature: 0.2,
+        max_tokens: 140,
       }),
       signal: controller.signal,
     });
