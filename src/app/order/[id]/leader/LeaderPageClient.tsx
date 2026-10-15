@@ -76,8 +76,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const [aiCustomNote, setAiCustomNote] = useState("");
   const [aiLength, setAiLength] = useState<"extreme_short" | "brief" | "medium" | "long">("brief");
   const [aiTone, setAiTone] = useState<"official" | "casual" | "friendly" | "extreme_friendly">("official");
+  const [aiIncludeBoardInfo, setAiIncludeBoardInfo] = useState(false);
   const [isCraftingAi, setIsCraftingAi] = useState(false);
   const [craftedMessage, setCraftedMessage] = useState("");
+  const [copiedCraftedMessage, setCopiedCraftedMessage] = useState(false);
   const [submittingPending, setSubmittingPending] = useState(false);
 
   // Delivery Evidence Photo State
@@ -272,6 +274,16 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
+  // Helper: Format Board Info Snippet
+  const buildBoardInfoSnippet = (b = batch) => {
+    if (!b) return "";
+    const leaderName = b.hostName || "หัวหน้าตี้";
+    const locName = b.buildingName || "ตึก M4";
+    const orderTimeDisplay = b.cutoffTime ? `ส่งร้านรอบ ${b.cutoffTime}` : "";
+    const boardUrl = typeof window !== "undefined" ? `${window.location.origin}/order/${b.id}` : `https://veatec.vercel.app/order/${b.id}`;
+    return `\n\n👤 หัวหน้าตี้: ${leaderName}\n⏰ เวลา: ${orderTimeDisplay}\n📍 จุดส่ง: ${locName}\n🔗 ลิงก์กระดาน: ${boardUrl}`;
+  };
+
   // Craft Tactful Message via ThaiLLM
   const handleCraftWithAi = async () => {
     if (!batch) return;
@@ -301,7 +313,9 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       });
       const data = await res.json();
       if (data.success && data.message) {
-        setCraftedMessage(data.message);
+        const baseMsg = data.message.trim();
+        const finalMsg = aiIncludeBoardInfo ? `${baseMsg}${buildBoardInfoSnippet(batch)}` : baseMsg;
+        setCraftedMessage(finalMsg);
       } else {
         alert(data.error || "ไม่สามารถให้ AI เรียบเรียงได้ในขณะนี้");
       }
@@ -1918,6 +1932,53 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </div>
               </div>
 
+              {/* Toggle: Add Board Info (Leader, Time, Bldg, URL) */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl border border-purple-200 bg-purple-50/60 transition-all">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-900 text-white shrink-0">
+                    <Share2 className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                      แนบข้อมูลกระดาน (Add Board Info)
+                    </span>
+                    <span className="text-[10px] text-slate-500 block leading-tight mt-0.5">
+                      เพิ่มชื่อหัวหน้าตี้, รอบเวลา, ตึกส่ง, ลิงก์กระดาน สำหรับแชร์เข้ากลุ่ม LINE
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !aiIncludeBoardInfo;
+                    setAiIncludeBoardInfo(nextVal);
+                    if (craftedMessage.trim()) {
+                      const snippet = buildBoardInfoSnippet(batch);
+                      if (nextVal) {
+                        if (!craftedMessage.includes("🔗 ลิงก์กระดาน:")) {
+                          setCraftedMessage(`${craftedMessage.trim()}${snippet}`);
+                        }
+                      } else {
+                        // Strip snippet if present
+                        const cleaned = craftedMessage
+                          .replace(/\n\n👤 หัวหน้าตี้:[\s\S]*?(?:🔗 ลิงก์กระดาน:.*|$)/g, "")
+                          .trim();
+                        setCraftedMessage(cleaned);
+                      }
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    aiIncludeBoardInfo ? "bg-purple-900" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      aiIncludeBoardInfo ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* Button: Trigger AI Crafter */}
               <button
                 type="button"
@@ -1931,39 +1992,76 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
 
               {/* Crafted Message Box */}
               <div className="space-y-1.5 pt-1">
-                <label className="font-bold text-slate-900 flex items-center justify-between">
-                  <span>ข้อความที่จะแสดงบนกระดาน (แก้ไขได้):</span>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-900 text-xs">
+                    ข้อความที่จะแสดงบนกระดาน / แชร์เข้ากลุ่ม (แก้ไขได้):
+                  </label>
                   {craftedMessage && (
-                    <span className="text-[10px] font-normal text-emerald-700">เรียบเรียงโดย OpenThaiGPT</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(craftedMessage);
+                        setCopiedCraftedMessage(true);
+                        setTimeout(() => setCopiedCraftedMessage(false), 2000);
+                      }}
+                      className="text-[11px] text-purple-800 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>{copiedCraftedMessage ? "✓ คัดลอกแล้ว" : "คัดลอกข้อความ"}</span>
+                    </button>
                   )}
-                </label>
+                </div>
                 <textarea
-                  rows={3}
+                  rows={4}
                   placeholder="ข้อความประกาศจะปรากฏที่นี่ หรือพิมพ์เองได้โดยตรง..."
                   value={craftedMessage}
                   onChange={(e) => setCraftedMessage(e.target.value)}
                   className="w-full rounded-xl border border-amber-300 bg-amber-50/50 p-2.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 />
+
+                {/* Quick Share to LINE Group Button */}
+                {craftedMessage.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = craftedMessage.trim();
+                      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                        navigator.share({ title: `ประกาศจากตี้ ${batch?.shop.name}`, text }).catch(() => {});
+                        return;
+                      }
+                      window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-98"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>แชร์ข้อความนี้เข้ากลุ่ม LINE</span>
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAiModal(false)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                disabled={submittingPending || (!craftedMessage.trim() && !aiCustomNote.trim() && !aiSituation)}
-                onClick={() => handlePublishPendingNotice(false)}
-                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-95"
-              >
-                <span>⚠️ ประกาศแจ้งเตือน (PENDING)</span>
-              </button>
+            <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-500 hidden sm:inline">
+                *จะถูกบันทึกขึ้นหัวกระดานตี้อาหาร
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingPending || (!craftedMessage.trim() && !aiCustomNote.trim() && !aiSituation)}
+                  onClick={() => handlePublishPendingNotice(false)}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                >
+                  <span>⚠️ ประกาศแจ้งเตือน (PENDING)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
