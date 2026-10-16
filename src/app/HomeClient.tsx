@@ -1161,36 +1161,31 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const leaderLine = activeBatch?.hostLineId || (activeOrders[0]?.customerLineId ? `@${activeOrders[0].customerLineId}` : activeOrders[0]?.customerName);
   const leaderPhone = activeBatch?.hostPhone || activeOrders[0]?.customerPhone;
 
-  // Compile Brief Text for LINE
+  // Compile Brief Text for LINE (Compact, deduplicated, easy to read)
   const getCompiledOrderText = () => {
     if (!activeBatch) return "";
     const mapUrl = isSelfPickup ? activeBatch.shop.gmapUrl : getDropOffMapUrl(activeBatch, locations);
-    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${activeBatch.shop.name}`;
+    let txt = `🍱 [VEATEC] ออเดอร์ร้าน ${activeBatch.shop.name}`;
     if (isSelfPickup) {
-      txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
-      txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
-      if (mapUrl) {
-        txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
-      }
+      txt += ` (🚶 รับเองหน้าร้าน)\n`;
+      if (mapUrl) txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
     } else {
       txt += `\n🏢 จุดส่ง: ${activeBatch.buildingName || "ตึก M4"} ชั้น 1\n`;
-      if (mapUrl) {
-        txt += `🗺️ แผนที่จุดส่งอาหาร (Google Maps): ${mapUrl}\n`;
-      }
+      if (mapUrl) txt += `🗺️ แผนที่: ${mapUrl}\n`;
     }
     if (leaderPhone || leaderLine) {
-      txt += `👑 หัวหน้าตี้/ผู้ประสานงาน: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
+      txt += `👑 หัวหน้าตี้: ${leaderLine || ""} ${leaderPhone ? `(โทร: ${leaderPhone})` : ""}\n`;
     }
-    txt += `💰 ยอดรวม: ฿${activeBatch.currentTotalAmount} (${totalBoxesInBatch} กล่อง • ${activeOrders.length} ออเดอร์) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `💰 รวม: ฿${activeBatch.currentTotalAmount} (${totalBoxesInBatch} กล่อง) • สลิปครบ 100% ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
-      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId.replace(/^@/, "")}` : o.customerName;
-      const phoneTag = o.customerPhone ? ` • โทร: ${o.customerPhone}` : "";
+      const lineTag = o.customerLineId ? `@${o.customerLineId.replace(/^@/, "")}` : o.customerName;
+      const phoneTag = o.customerPhone ? ` • ${o.customerPhone}` : "";
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
       txt += `#${o.orderNumber} ${itemsStr} (฿${o.totalAmount}) — ${lineTag}${phoneTag}\n`;
     });
     txt += `------------------------------------\n`;
-    txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
+    txt += `🧾 สลิปโอนเงินทั้งหมดแนบมาในรูปภาพใบสรุปครับ/ค่ะ`;
     return txt;
   };
 

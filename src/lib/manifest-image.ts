@@ -136,33 +136,55 @@ export async function generateOneLongManifestImage(
     }
   }
 
-  // 3. Compute dynamic canvas height
-  const headerHeight = 145;
-  const destCardHeight = 160;
+  // 3. Compute dynamic canvas height with 2-column slips and compact layout
+  const headerHeight = 120; // Reduced from 145
+  const destCardHeight = 138; // Reduced from 160
   let totalHeight = 0;
   totalHeight += headerHeight;
-  totalHeight += 20; // Spacing
+  totalHeight += 14; // Spacing
   totalHeight += destCardHeight;
-  totalHeight += 25; // Spacing
+  totalHeight += 16; // Spacing
 
   // Cooking Checklist height
-  const checklistHeight = Math.max(orders.length * 64 + 90, 140);
+  const checklistHeaderHeight = 62;
+  const checklistRowHeight = 52;
+  const checklistHeight = Math.max(orders.length * checklistRowHeight + checklistHeaderHeight + 14, 110);
   totalHeight += checklistHeight;
-  totalHeight += 40;  // Gap between checklist and slips
+  totalHeight += 20; // Gap between checklist and slips
 
   // Slips Section Title
-  totalHeight += 65;
+  totalHeight += 44;
 
-  // Slips cards height
-  for (const s of slipEntries) {
-    if (s.img) {
-      totalHeight += 48 + s.drawHeight + 24; // label box (48px) + img + gap (24px)
-    } else {
-      totalHeight += 120 + 20; // fallback receipt card (120px) + gap (20px)
-    }
+  // 2-Column Slips layout calculations
+  const colGap = 16;
+  const colWidth = Math.floor((contentWidth - colGap) / 2);
+  const rowCount = Math.ceil(slipEntries.length / 2);
+
+  // Calculate row heights (each row takes the max height of the two items in that row)
+  const slipRowHeights: number[] = [];
+  for (let r = 0; r < rowCount; r++) {
+    const left = slipEntries[r * 2];
+    const right = slipEntries[r * 2 + 1];
+
+    const getSlipCardHeight = (entry?: typeof slipEntries[0]) => {
+      if (!entry) return 0;
+      if (entry.img) {
+        // Calculate aspect-ratio scaled height for 2-column width
+        const aspect = entry.img.naturalHeight / entry.img.naturalWidth;
+        const imgH = Math.round((colWidth - 16) * aspect);
+        return 40 + imgH + 12; // header pill (40px) + img + padding
+      }
+      return 110; // Fallback verified receipt card
+    };
+
+    const leftH = getSlipCardHeight(left);
+    const rightH = getSlipCardHeight(right);
+    const maxRowH = Math.max(leftH, rightH);
+    slipRowHeights.push(maxRowH);
+    totalHeight += maxRowH + 14; // card height + row gap
   }
 
-  totalHeight += 85; // Footer
+  totalHeight += 60; // Compact Footer
 
   canvas.width = canvasWidth;
   canvas.height = totalHeight;
@@ -174,7 +196,7 @@ export async function generateOneLongManifestImage(
   let currentY = 0;
 
   // -----------------------------------------------------------------
-  // HEADER BANNER
+  // HEADER BANNER (Compact & Clean)
   // -----------------------------------------------------------------
   const headerGradient = ctx.createLinearGradient(0, 0, canvasWidth, headerHeight);
   headerGradient.addColorStop(0, "#3b0764"); // deep purple 950
@@ -187,34 +209,34 @@ export async function generateOneLongManifestImage(
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  // Top App Title
+  // Top App Title & Shop Accent
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 24px sans-serif";
-  ctx.fillText("🍱 VEATEC @ VISTEC — ใบสรุปออเดอร์ร้านอาหาร", padding, 42);
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("🍱 VEATEC — ใบสรุปออเดอร์ร้านอาหาร", padding, 34);
 
   // Shop Name Accent
   ctx.fillStyle = "#fef08a"; // yellow-200 accent
-  ctx.font = "bold 22px sans-serif";
-  ctx.fillText(`ร้าน: ${batch.shop.name}`, padding, 78);
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText(`ร้าน: ${batch.shop.name}`, padding, 64);
 
-  // Sub metadata
+  // Sub metadata (Deduplicated contact & date)
   const leaderLine = batch.hostLineId || (orders[0]?.customerLineId ? `@${orders[0].customerLineId}` : orders[0]?.customerName);
   const leaderPhone = batch.hostPhone || orders[0]?.customerPhone;
   const leaderContact = leaderPhone ? `👑 หัวหน้าตี้: ${leaderLine || "Leader"} (โทร: ${leaderPhone})` : (leaderLine ? `👑 หัวหน้าตี้: ${leaderLine}` : "");
 
   ctx.fillStyle = "#f1f5f9";
-  ctx.font = "14px sans-serif";
-  const dateStr = `รอบวันที่: ${batch.date} (สั่งอาหารได้ถึง: ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")}) ${leaderContact ? `• ${leaderContact}` : ""}`;
-  const totalStr = `ยอดเงินรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% แล้ว ✅`;
-  ctx.fillText(dateStr, padding, 110);
-  ctx.fillText(totalStr, padding, 130);
+  ctx.font = "13px sans-serif";
+  const dateStr = `รอบวันที่: ${batch.date} (สั่งได้ถึง: ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")}) ${leaderContact ? `• ${leaderContact}` : ""}`;
+  const totalStr = `ยอดรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% แล้ว ✅`;
+  ctx.fillText(dateStr, padding, 90);
+  ctx.fillText(totalStr, padding, 108);
 
   ctx.restore();
 
-  currentY = headerHeight + 20;
+  currentY = headerHeight + 14;
 
   // -----------------------------------------------------------------
-  // SECTION: DESTINATION & GOOGLE MAPS QR CARD
+  // SECTION: DESTINATION & GOOGLE MAPS QR CARD (Compact)
   // -----------------------------------------------------------------
   const destCardY = currentY;
   ctx.save();
@@ -223,127 +245,117 @@ export async function generateOneLongManifestImage(
 
   // White Card with subtle accent border
   ctx.fillStyle = "#ffffff";
-  drawRoundRect(ctx, padding, destCardY, contentWidth, destCardHeight, 16);
+  drawRoundRect(ctx, padding, destCardY, contentWidth, destCardHeight, 14);
   ctx.fill();
   ctx.strokeStyle = isSelfPickup ? "#fde68a" : "#c084fc"; // amber or purple-300
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   // Badge Pill
-  const pillWidth = isSelfPickup ? 250 : 270;
+  const pillWidth = isSelfPickup ? 230 : 250;
   ctx.fillStyle = isSelfPickup ? "#fef3c7" : "#f3e8ff"; // amber-100 or purple-100
-  drawRoundRect(ctx, padding + 16, destCardY + 12, pillWidth, 26, 6);
+  drawRoundRect(ctx, padding + 14, destCardY + 10, pillWidth, 24, 6);
   ctx.fill();
   ctx.fillStyle = isSelfPickup ? "#92400e" : "#6b21a8";
-  ctx.font = "bold 12px sans-serif";
+  ctx.font = "bold 11px sans-serif";
   ctx.fillText(
-    isSelfPickup ? "🚶 รูปแบบ: รับเองหน้าร้าน (SELF-PICKUP)" : "📍 จุดส่งอาหาร (DELIVERY DROP-OFF)",
-    padding + 24,
-    destCardY + 29
+    isSelfPickup ? "🚶 รับเองหน้าร้าน (SELF-PICKUP)" : "📍 จุดส่งอาหาร (DELIVERY DROP-OFF)",
+    padding + 22,
+    destCardY + 26
   );
 
   // Big Destination Heading
   ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 21px sans-serif";
+  ctx.font = "bold 18px sans-serif";
   if (isSelfPickup) {
-    ctx.fillText(`ลูกค้ารับเองที่ร้าน ${batch.shop.name}`, padding + 16, destCardY + 66);
+    ctx.fillText(`ลูกค้ารับเองที่ร้าน ${batch.shop.name}`, padding + 14, destCardY + 58);
   } else {
-    ctx.fillText(`โต๊ะรับอาหาร ${location.name} ชั้น 1`, padding + 16, destCardY + 66);
+    ctx.fillText(`โต๊ะรับอาหาร ${location.name} ชั้น 1`, padding + 14, destCardY + 58);
   }
 
   // Desk Detail
   ctx.fillStyle = isSelfPickup ? "#64748b" : "#334155";
-  ctx.font = "bold 14px sans-serif";
+  ctx.font = "bold 13px sans-serif";
   if (isSelfPickup) {
-    ctx.fillText(`ลูกค้า/หัวหน้าตี้เดินทางไปรับเองที่ร้าน • ร้านไม่ต้องมาส่งที่ ม.`, padding + 16, destCardY + 91);
+    ctx.fillText(`ลูกค้า/หัวหน้าตี้เดินทางไปรับเองที่ร้าน • ร้านไม่ต้องมาส่งที่ ม.`, padding + 14, destCardY + 80);
   } else {
-    ctx.fillText(`📌 โต๊ะวาง: ${location.deskDetail}`, padding + 16, destCardY + 91);
+    ctx.fillText(`📌 โต๊ะวาง: ${location.deskDetail}`, padding + 14, destCardY + 80);
   }
 
-  // Leader Contact
-  ctx.fillStyle = "#6b21a8";
-  ctx.font = "14px sans-serif";
-  ctx.fillText(
-    `👑 ผู้ประสานงาน: ${leaderLine || "หัวหน้าตี้"}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}`,
-    padding + 16,
-    destCardY + 115
-  );
-
-  // Map Prompt Info
+  // Map Prompt Info (Single Clean Line, avoiding duplicate phone/leader)
   ctx.fillStyle = "#0284c7";
   ctx.font = "bold 12px sans-serif";
   ctx.fillText(
-    `🗺️ จุดส่งอาหาร: ดูรูปโต๊ะรับอาหารจริง & สแกนแผนที่นำทางด้านขวา ➔`,
-    padding + 16,
-    destCardY + 142
+    `🗺️ ดูรูปโต๊ะรับอาหารจริง & สแกนแผนที่นำทางด้านขวา ➔`,
+    padding + 14,
+    destCardY + 116
   );
 
   // Right Side: Delivery Point Desk Photo Box & High-Contrast QR Code Box
-  const qrBoxWidth = 112;
-  const qrBoxHeight = 136;
-  const qrBoxX = padding + contentWidth - qrBoxWidth - 14;
-  const qrBoxY = destCardY + 12;
+  const qrBoxWidth = 98;
+  const qrBoxHeight = 118;
+  const qrBoxX = padding + contentWidth - qrBoxWidth - 10;
+  const qrBoxY = destCardY + 10;
 
-  const photoBoxWidth = 132;
-  const photoBoxHeight = 136;
-  const photoBoxX = qrBoxX - photoBoxWidth - 10;
-  const photoBoxY = destCardY + 12;
+  const photoBoxWidth = 114;
+  const photoBoxHeight = 118;
+  const photoBoxX = qrBoxX - photoBoxWidth - 8;
+  const photoBoxY = destCardY + 10;
 
   // 1. Draw Desk Photo Box
   ctx.fillStyle = "#f8fafc";
-  drawRoundRect(ctx, photoBoxX, photoBoxY, photoBoxWidth, photoBoxHeight, 12);
+  drawRoundRect(ctx, photoBoxX, photoBoxY, photoBoxWidth, photoBoxHeight, 10);
   ctx.fill();
   ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   if (dropOffPhotoImage) {
     ctx.save();
-    drawRoundRect(ctx, photoBoxX + 6, photoBoxY + 6, photoBoxWidth - 12, 98, 8);
+    drawRoundRect(ctx, photoBoxX + 4, photoBoxY + 4, photoBoxWidth - 8, 86, 6);
     ctx.clip();
-    ctx.drawImage(dropOffPhotoImage, photoBoxX + 6, photoBoxY + 6, photoBoxWidth - 12, 98);
+    ctx.drawImage(dropOffPhotoImage, photoBoxX + 4, photoBoxY + 4, photoBoxWidth - 8, 86);
     ctx.restore();
 
     ctx.textAlign = "center";
     ctx.fillStyle = "#334155";
-    ctx.font = "bold 11px sans-serif";
-    ctx.fillText("📸 โต๊ะส่งอาหารจริง", photoBoxX + photoBoxWidth / 2, photoBoxY + 124);
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText("📸 โต๊ะส่งจริง", photoBoxX + photoBoxWidth / 2, photoBoxY + 107);
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#64748b";
-    ctx.font = "bold 11px sans-serif";
-    ctx.fillText("📸 ภาพจุดส่ง", photoBoxX + photoBoxWidth / 2, photoBoxY + 66);
-    ctx.font = "10px sans-serif";
-    ctx.fillText(location.name || "Delivery Desk", photoBoxX + photoBoxWidth / 2, photoBoxY + 84);
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText("📸 ภาพจุดส่ง", photoBoxX + photoBoxWidth / 2, photoBoxY + 56);
+    ctx.font = "9px sans-serif";
+    ctx.fillText(location.name || "Delivery Desk", photoBoxX + photoBoxWidth / 2, photoBoxY + 72);
   }
 
   // 2. Draw QR Code Box
   ctx.fillStyle = "#f8fafc";
-  drawRoundRect(ctx, qrBoxX, qrBoxY, qrBoxWidth, qrBoxHeight, 12);
+  drawRoundRect(ctx, qrBoxX, qrBoxY, qrBoxWidth, qrBoxHeight, 10);
   ctx.fill();
   ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   if (mapQrImage) {
-    // Draw 96x96 QR Code inside
-    ctx.drawImage(mapQrImage, qrBoxX + 8, qrBoxY + 8, 96, 96);
+    ctx.drawImage(mapQrImage, qrBoxX + 7, qrBoxY + 6, 84, 84);
     ctx.textAlign = "center";
     ctx.fillStyle = "#581c87";
-    ctx.font = "bold 11px sans-serif";
-    ctx.fillText("สแกนแผนที่ 🗺️", qrBoxX + qrBoxWidth / 2, qrBoxY + 124);
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText("สแกนแผนที่ 🗺️", qrBoxX + qrBoxWidth / 2, qrBoxY + 107);
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 12px sans-serif";
-    ctx.fillText("MAP LINK", qrBoxX + qrBoxWidth / 2, qrBoxY + 60);
-    ctx.font = "10px sans-serif";
-    ctx.fillText("(ไม่มี QR)", qrBoxX + qrBoxWidth / 2, qrBoxY + 78);
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("MAP LINK", qrBoxX + qrBoxWidth / 2, qrBoxY + 52);
+    ctx.font = "9px sans-serif";
+    ctx.fillText("(ไม่มี QR)", qrBoxX + qrBoxWidth / 2, qrBoxY + 68);
   }
 
   ctx.restore();
 
-  currentY = destCardY + destCardHeight + 25;
+  currentY = destCardY + destCardHeight + 16;
 
   // -----------------------------------------------------------------
   // SECTION 1: ITEMIZED ORDER LIST (COOKING CHECKLIST)
@@ -356,16 +368,16 @@ export async function generateOneLongManifestImage(
 
   // White Card Container
   ctx.fillStyle = "#ffffff";
-  drawRoundRect(ctx, padding, checklistCardY, contentWidth, checklistHeight, 16);
+  drawRoundRect(ctx, padding, checklistCardY, contentWidth, checklistHeight, 14);
   ctx.fill();
   ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   // Checklist Header Title
   ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 20px sans-serif";
-  ctx.fillText("📝 รายการอาหารที่ต้องทำ (Cooking Checklist):", padding + 20, checklistCardY + 36);
+  ctx.font = "bold 17px sans-serif";
+  ctx.fillText("📝 รายการอาหารที่ต้องทำ (Cooking Checklist):", padding + 16, checklistCardY + 24);
 
   const totalBoxesCount = orders.reduce(
     (sum, o) => sum + (o.items && o.items.length > 0 ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1),
@@ -373,39 +385,39 @@ export async function generateOneLongManifestImage(
   );
 
   ctx.fillStyle = "#64748b";
-  ctx.font = "13px sans-serif";
+  ctx.font = "12px sans-serif";
   ctx.fillText(
-    `รวมทั้งหมด ${totalBoxesCount} กล่อง (${orders.length} ออเดอร์) • โปรดจัดเตรียมและแปะหมายเลขกล่องตามรายการนี้:`,
-    padding + 20,
-    checklistCardY + 62
+    `รวมทั้งหมด ${totalBoxesCount} กล่อง (${orders.length} ออเดอร์) • จัดเตรียมและเขียนเบอร์กล่องตามนี้:`,
+    padding + 16,
+    checklistCardY + 46
   );
 
-  let rowY = checklistCardY + 86;
+  let rowY = checklistCardY + 64;
 
   if (orders.length === 0) {
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 15px sans-serif";
-    ctx.fillText("ยังไม่มีรายการอาหาร", padding + 20, rowY + 20);
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText("ยังไม่มีรายการอาหาร", padding + 16, rowY + 16);
   } else {
     orders.forEach((ord, idx) => {
       const isEven = idx % 2 === 0;
 
-      // Zebra background
+      // Subtle alternate zebra row
       if (!isEven) {
         ctx.fillStyle = "#f8fafc";
-        drawRoundRect(ctx, padding + 10, rowY, contentWidth - 20, 56, 8);
+        drawRoundRect(ctx, padding + 8, rowY, contentWidth - 16, 46, 6);
         ctx.fill();
       }
 
       // Box Badge [#01]
       ctx.fillStyle = "#581c87"; // purple-900 badge
-      drawRoundRect(ctx, padding + 16, rowY + 11, 52, 34, 6);
+      drawRoundRect(ctx, padding + 12, rowY + 9, 44, 28, 5);
       ctx.fill();
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px monospace";
+      ctx.font = "bold 14px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`#${String(ord.orderNumber).padStart(2, "0")}`, padding + 42, rowY + 28);
+      ctx.fillText(`#${String(ord.orderNumber).padStart(2, "0")}`, padding + 34, rowY + 23);
 
       // Dish Item Details
       ctx.textAlign = "left";
@@ -418,169 +430,146 @@ export async function generateOneLongManifestImage(
         .join(" + ");
 
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 16px sans-serif";
-      ctx.fillText(itemsSummaryText.slice(0, 48), padding + 78, rowY + 19);
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText(itemsSummaryText.slice(0, 52), padding + 64, rowY + 15);
 
-      // Line 2: Customer LINE & Phone
+      // Line 2: Customer LINE & Phone (Deduplicated)
       ctx.fillStyle = "#64748b";
-      ctx.font = "13px sans-serif";
-      const lineIdStr = ord.customerLineId ? `👤 LINE: @${ord.customerLineId}` : `👤 ${ord.customerName}`;
+      ctx.font = "12px sans-serif";
+      const lineIdStr = ord.customerLineId ? `👤 LINE: @${ord.customerLineId.replace(/^@/, "")}` : `👤 ${ord.customerName}`;
       const phoneStr = ord.customerPhone ? ` • 📞 ${ord.customerPhone}` : "";
-      ctx.fillText(`${lineIdStr}${phoneStr}`.slice(0, 68), padding + 78, rowY + 39);
+      ctx.fillText(`${lineIdStr}${phoneStr}`.slice(0, 68), padding + 64, rowY + 33);
 
       // Right-aligned Price Badge
       ctx.textAlign = "right";
       ctx.fillStyle = "#c2410c"; // orange-700
-      ctx.font = "bold 18px monospace";
-      ctx.fillText(`฿${ord.totalAmount}`, padding + contentWidth - 20, rowY + 28);
+      ctx.font = "bold 16px monospace";
+      ctx.fillText(`฿${ord.totalAmount}`, padding + contentWidth - 16, rowY + 23);
 
-      rowY += 64;
+      rowY += checklistRowHeight;
     });
   }
 
   ctx.restore();
 
-  currentY += checklistHeight + 35;
+  currentY += checklistHeight + 20;
 
   // -----------------------------------------------------------------
-  // SECTION 2: SLIPS SECTION DIVIDER
+  // SECTION 2: SLIPS SECTION DIVIDER (Deduplicated & Clean)
   // -----------------------------------------------------------------
   ctx.save();
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
   ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 20px sans-serif";
-  ctx.fillText("🧾 หลักฐานสลิปโอนเงิน (เรียงตามลำดับกล่องด้านบน):", padding, currentY);
+  ctx.font = "bold 17px sans-serif";
+  ctx.fillText("🧾 หลักฐานสลิปโอนเงิน (สลิป 2 คอลัมน์ กระชับ อ่านง่าย):", padding, currentY + 14);
 
   ctx.fillStyle = "#64748b";
-  ctx.font = "14px sans-serif";
-  ctx.fillText("ตรวจสอบยอดเงินโอนเข้าบัญชีร้านตามหมายเลขกล่องได้ทันที (สลิปครบ 100%)", padding, currentY + 24);
+  ctx.font = "12px sans-serif";
+  ctx.fillText("ตรวจสอบยอดเงินโอนเข้าบัญชีร้านตามหมายเลขกล่องได้ทันที (สลิปครบ 100%)", padding, currentY + 32);
 
   ctx.restore();
 
-  currentY += 45;
+  currentY += 44;
 
   // -----------------------------------------------------------------
-  // DRAW EACH SLIP IN SEQUENTIAL ORDER (100% OF ORDERS INCLUDED)
+  // DRAW SLIPS IN 2 COLUMNS (Compact, Less Whitespace, Easy to Read)
   // -----------------------------------------------------------------
-  slipEntries.forEach(({ order, img, drawHeight }) => {
-    ctx.save();
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
+  for (let r = 0; r < rowCount; r++) {
+    const rowH = slipRowHeights[r];
 
-    const lineIdStr = order.customerLineId ? `@${order.customerLineId}` : order.customerName;
-    const phoneInfo = order.customerPhone ? ` • โทร: ${order.customerPhone}` : "";
+    for (let c = 0; c < 2; c++) {
+      const idx = r * 2 + c;
+      if (idx >= slipEntries.length) break;
 
-    if (img) {
-      const cardHeight = 48 + drawHeight + 16;
+      const { order, img } = slipEntries[idx];
+      const colX = padding + c * (colWidth + colGap);
 
-      // Slip Card Background
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      const lineIdStr = order.customerLineId ? `@${order.customerLineId.replace(/^@/, "")}` : order.customerName;
+
+      // Draw Slip Card Background
       ctx.fillStyle = "#ffffff";
-      drawRoundRect(ctx, padding, currentY, contentWidth, cardHeight, 16);
+      drawRoundRect(ctx, colX, currentY, colWidth, rowH, 12);
       ctx.fill();
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = img ? "#cbd5e1" : "#a7f3d0";
+      ctx.lineWidth = img ? 1 : 1.5;
       ctx.stroke();
 
-      // Slip Header Pill
-      ctx.fillStyle = "#f1f5f9";
-      drawRoundRect(ctx, padding + 10, currentY + 8, contentWidth - 20, 34, 8);
+      // Slip Header Pill (Compact 32px height)
+      ctx.fillStyle = img ? "#f1f5f9" : "#ecfdf5";
+      drawRoundRect(ctx, colX + 6, currentY + 6, colWidth - 12, 28, 6);
       ctx.fill();
 
-      // Box # and Customer
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 15px sans-serif";
+      // Box # & Name
+      ctx.fillStyle = img ? "#0f172a" : "#065f46";
+      ctx.font = "bold 13px sans-serif";
       ctx.fillText(
-        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ${lineIdStr}${phoneInfo} • ยอด ฿${order.totalAmount}`,
-        padding + 22,
-        currentY + 25
+        `#${String(order.orderNumber).padStart(2, "0")} ${lineIdStr}`.slice(0, 20),
+        colX + 14,
+        currentY + 20
       );
 
-      // Bank verification badge
-      if (order.slipBankName || order.slipTransRef) {
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#15803d"; // emerald-700
+      // Amount Badge (Right aligned)
+      ctx.textAlign = "right";
+      ctx.fillStyle = img ? "#c2410c" : "#047857";
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(`฿${order.totalAmount}`, colX + colWidth - 14, currentY + 20);
+
+      if (img) {
+        // Draw Slip Image Centered inside column card
+        const aspect = img.naturalHeight / img.naturalWidth;
+        const imgW = colWidth - 16;
+        const imgH = Math.round(imgW * aspect);
+        const slipX = colX + 8;
+        const slipY = currentY + 38;
+
+        ctx.drawImage(img, slipX, slipY, imgW, imgH);
+      } else {
+        // Fallback Receipt Card inside column
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 12px sans-serif";
-        const bankRef = `✅ ${order.slipBankName || "ธนาคาร"} Ref: ${order.slipTransRef || "Verified"}`;
-        ctx.fillText(bankRef.slice(0, 38), padding + contentWidth - 24, currentY + 25);
+        ctx.fillText(`✅ โอนเงินผ่าน BOT เรียบร้อย`, colX + 14, currentY + 48);
+
+        ctx.fillStyle = "#64748b";
+        ctx.font = "11px monospace";
+        ctx.fillText(`Ref: ${(order.slipTransRef || order.id).slice(0, 16)}`, colX + 14, currentY + 70);
+
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ea580c";
+        ctx.font = "bold 18px monospace";
+        ctx.fillText(`฿${order.totalAmount}`, colX + colWidth - 14, currentY + 68);
       }
 
-      // Draw Slip Image Centered
-      const maxSlipWidth = Math.min(contentWidth, 680);
-      const slipX = padding + Math.round((contentWidth - maxSlipWidth) / 2);
-      const slipY = currentY + 50;
-      ctx.drawImage(img, slipX, slipY, maxSlipWidth, drawHeight);
-
-      currentY += cardHeight + 20;
-    } else {
-      // Fallback Receipt Card (ensures every single slip is represented)
-      const fallbackHeight = 120;
-
-      ctx.fillStyle = "#ffffff";
-      drawRoundRect(ctx, padding, currentY, contentWidth, fallbackHeight, 16);
-      ctx.fill();
-      ctx.strokeStyle = "#a7f3d0"; // emerald-200 border
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Header Pill
-      ctx.fillStyle = "#ecfdf5"; // emerald-50
-      drawRoundRect(ctx, padding + 10, currentY + 8, contentWidth - 20, 34, 8);
-      ctx.fill();
-
-      ctx.fillStyle = "#065f46"; // emerald-800
-      ctx.font = "bold 15px sans-serif";
-      ctx.fillText(
-        `[ กล่อง #${String(order.orderNumber).padStart(2, "0")} ] ${lineIdStr}${phoneInfo} • ยอด ฿${order.totalAmount}`,
-        padding + 22,
-        currentY + 25
-      );
-
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#047857";
-      ctx.font = "bold 12px sans-serif";
-      ctx.fillText("✅ สลิปโอนเงินผ่านการยืนยันแล้ว", padding + contentWidth - 24, currentY + 25);
-
-      // Body of receipt card
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#1e293b";
-      ctx.font = "bold 14px sans-serif";
-      ctx.fillText(`สลิปชำระเงิน: ${order.slipBankName || "ธนาคารพาณิชย์ (BOT EMVCo)"}`, padding + 22, currentY + 62);
-
-      ctx.fillStyle = "#475569";
-      ctx.font = "13px monospace";
-      ctx.fillText(`เลขที่อ้างอิง (TransRef): ${order.slipTransRef || "TR-" + order.id}`, padding + 22, currentY + 85);
-
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#ea580c";
-      ctx.font = "bold 22px monospace";
-      ctx.fillText(`฿${order.totalAmount}.00`, padding + contentWidth - 24, currentY + 74);
-
-      currentY += fallbackHeight + 20;
+      ctx.restore();
     }
 
-    ctx.restore();
-  });
+    currentY += rowH + 14;
+  }
 
   // -----------------------------------------------------------------
-  // FOOTER
+  // FOOTER (Compact)
   // -----------------------------------------------------------------
   ctx.save();
   ctx.fillStyle = "#64748b";
-  ctx.font = "13px sans-serif";
+  ctx.font = "11px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   ctx.fillText(
     "VEATEC Hub • สถาบันวิทยสิริเมธี (VISTEC) • Wangchan Valley, Rayong",
     canvasWidth / 2,
-    currentY + 25
+    currentY + 16
   );
   ctx.fillText(
     `สร้างเมื่อ ${new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น. วันที่ ${new Date().toLocaleDateString("th-TH")}`,
     canvasWidth / 2,
-    currentY + 48
+    currentY + 34
   );
   ctx.restore();
 

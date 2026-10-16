@@ -391,34 +391,29 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   const leaderPhone = batch?.hostPhone || activeOrders[0]?.customerPhone || "";
   const buildingName = batch?.buildingName || "ตึก M4";
 
-  // Compile Brief Order Text
+  // Compile Brief Order Text (Compact, deduplicated, easy to read)
   const getCompiledOrderText = () => {
     if (!batch) return "";
     const mapUrl = isSelfPickup ? batch.shop.gmapUrl : getDropOffMapUrl(batch);
-    let txt = `🍱 [VEATEC @ VISTEC] ออเดอร์ร้าน ${batch.shop.name}`;
+    let txt = `🍱 [VEATEC] ออเดอร์ร้าน ${batch.shop.name}`;
     if (isSelfPickup) {
-      txt += ` (🚶 รับเองหน้าร้าน / Self-Pickup)\n`;
-      txt += `⚠️ รูปแบบ: ลูกค้า/หัวหน้าตี้จะไปรับอาหารเองที่ร้าน (ยอดไม่ถึงเป้าส่งฟรี)\n`;
-      if (mapUrl) {
-        txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
-      }
+      txt += ` (🚶 รับเองหน้าร้าน)\n`;
+      if (mapUrl) txt += `🗺️ แผนที่ร้าน: ${mapUrl}\n`;
     } else {
       txt += `\n📍 จุดส่ง: ${buildingName} ชั้น 1\n`;
-      if (mapUrl) {
-        txt += `🗺️ แผนที่จุดส่งอาหาร (Google Maps): ${mapUrl}\n`;
-      }
+      if (mapUrl) txt += `🗺️ แผนที่: ${mapUrl}\n`;
     }
-    txt += `👑 หัวหน้าตี้ (Leader): ${leaderLine}${leaderPhone ? ` • 📞 โทร: ${leaderPhone}` : ""}\n`;
-    txt += `💰 ยอดรวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปโอนครบ 100% แล้ว ✅\n`;
+    txt += `👑 หัวหน้าตี้: ${leaderLine}${leaderPhone ? ` (โทร: ${leaderPhone})` : ""}\n`;
+    txt += `💰 รวม: ฿${batch.currentTotalAmount} (${activeOrders.length} กล่อง) • สลิปครบ 100% ✅\n`;
     txt += `------------------------------------\n`;
     activeOrders.forEach((o) => {
-      const lineTag = o.customerLineId ? `LINE: @${o.customerLineId.replace(/^@/, "")}` : o.customerName;
-      const phoneTag = o.customerPhone ? ` • โทร: ${o.customerPhone}` : "";
+      const lineTag = o.customerLineId ? `@${o.customerLineId.replace(/^@/, "")}` : o.customerName;
+      const phoneTag = o.customerPhone ? ` • ${o.customerPhone}` : "";
       const itemsStr = o.items.map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`).join(", ");
       txt += `#${o.orderNumber} ${itemsStr} (฿${o.totalAmount}) — ${lineTag}${phoneTag}\n`;
     });
     txt += `------------------------------------\n`;
-    txt += `🧾 รูปสลิปทั้งหมดดูได้ที่ภาพใบสรุปยาวที่แนบมาครับ/ค่ะ`;
+    txt += `🧾 สลิปโอนเงินทั้งหมดแนบมาในรูปภาพใบสรุปครับ/ค่ะ`;
     return txt;
   };
 
