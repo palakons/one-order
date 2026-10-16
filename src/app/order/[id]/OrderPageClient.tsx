@@ -38,6 +38,7 @@ import {
   SlidersHorizontal,
   RefreshCw,
   ArrowDown,
+  FileText,
 } from "lucide-react";
 
 interface Props {
@@ -760,6 +761,117 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   <SlidersHorizontal className="h-3 w-3 text-purple-700" />
                   <span>จัดการกระดาน ↗</span>
                 </Link>
+              </div>
+            </div>
+
+            {/* Board Status Stepper & Action Links for Students */}
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-bold text-gray-500">สถานะ:</span>
+                  {batch.isTest && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 border border-purple-400 px-1.5 py-0.2 text-[10px] font-black text-purple-950 shrink-0">
+                      🧪 TEST
+                    </span>
+                  )}
+                  {batch.status === "COMPLETED" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 px-2 py-0.5 text-[11px] font-black shadow-2xs">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      <span>จัดส่งถึงโต๊ะแล้ว (ปิดรอบ)</span>
+                    </span>
+                  ) : batch.status === "ORDERED" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 border border-sky-300 text-sky-900 px-2 py-0.5 text-[11px] font-black shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-600 animate-pulse" />
+                      <span>ส่งร้านแล้ว (กำลังปรุง / ดำเนินการ)</span>
+                    </span>
+                  ) : batch.status === "PENDING" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 text-amber-950 px-2 py-0.5 text-[11px] font-black shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />
+                      <span>รอส่งมอบ / มีประกาศด่วน</span>
+                    </span>
+                  ) : isBatchClosed ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-300 text-slate-800 px-2 py-0.5 text-[11px] font-black">
+                      <Clock className="h-3 w-3 text-slate-500" />
+                      <span>ปิดรับแล้ว (กำลังรวบรวมส่ง)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-300 text-purple-900 px-2 py-0.5 text-[11px] font-black">
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-600 animate-pulse" />
+                      <span>เปิดรับออเดอร์</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick Links: Delivery Photo, Tracking Page, Kitchen Slip */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {batch.deliveryPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedSlip({
+                          url: batch.deliveryPhotoUrl!,
+                          title: `📸 ภาพหลักฐานส่งอาหารที่โต๊ะ ${buildingName}`,
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Camera className="h-3 w-3" />
+                      <span>ดูรูปส่งอาหารจริง</span>
+                    </button>
+                  )}
+                  <Link
+                    href={`/delivery/${batch.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-semibold transition-colors shadow-2xs"
+                  >
+                    <ExternalLink className="h-3 w-3 text-slate-600" />
+                    <span>หน้าจัดส่ง</span>
+                  </Link>
+                  <Link
+                    href={`/shop/${batch.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-0.5 text-[11px] font-semibold transition-colors shadow-2xs"
+                  >
+                    <FileText className="h-3 w-3 text-purple-700" />
+                    <span>ใบสรุปส่งร้าน</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 4-Step Visual Tracker */}
+              <div className="grid grid-cols-4 gap-1 pt-1 text-center">
+                <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                  batch.status === "OPEN" && !isBatchClosed
+                    ? "bg-purple-50 border-purple-300 text-purple-900 ring-1 ring-purple-400"
+                    : "bg-slate-50 border-slate-200 text-slate-600"
+                }`}>
+                  1. เปิดตี้
+                </div>
+                <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                  (isBatchClosed && batch.status === "OPEN") || batch.status === "PENDING"
+                    ? "bg-amber-100 border-amber-400 text-amber-950 ring-1 ring-amber-500 animate-pulse"
+                    : batch.status === "ORDERED" || batch.status === "COMPLETED"
+                    ? "bg-slate-50 border-slate-200 text-slate-600"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  2. ปิดรับ/รวบรวม
+                </div>
+                <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                  batch.status === "ORDERED"
+                    ? "bg-sky-50 border-sky-300 text-sky-900 ring-1 ring-sky-400"
+                    : batch.status === "COMPLETED"
+                    ? "bg-slate-50 border-slate-200 text-slate-600"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  3. กำลังปรุง
+                </div>
+                <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                  batch.status === "COMPLETED"
+                    ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-1 ring-emerald-500"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  4. ถึงโต๊ะแล้ว
+                </div>
               </div>
             </div>
           </div>

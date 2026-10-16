@@ -57,6 +57,7 @@ import {
   Calendar,
   Truck,
   Package,
+  FileText,
 } from "lucide-react";
 import DishAutocompleteInput from "@/components/DishAutocompleteInput";
 import AIMenuSuggester from "@/components/AIMenuSuggester";
@@ -1933,30 +1934,159 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             )}
 
-            {/* Board Status Pill Row */}
-            <div className="flex items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {activeBatch.isTest && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-400 px-2.5 py-0.5 text-xs font-black text-purple-950 shadow-2xs">
-                    <span>🧪 TEST / กระดานทดสอบ (ไม่นำไปรวมสถิติ)</span>
+            {/* Board Status Stepper & Live Tracking Bar */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-slate-500">
+                    {lang === "en" ? "Board Status:" : lang === "cn" ? "拼单状态:" : "สถานะกระดาน:"}
                   </span>
-                )}
-                {activeBatch.status === "PENDING" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />
-                    <span>⚠️ {lang === "en" ? "Pending / Notice" : lang === "cn" ? "待处理 / 变更" : "รอตรวจสอบ / มีประกาศ"}</span>
-                  </span>
-                )}
-                {activeBatch.status === "ORDERED" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 border border-sky-300 px-2.5 py-0.5 text-xs font-bold text-sky-800">
-                    <span>🛵 {lang === "en" ? "Sent to Shop" : lang === "cn" ? "已送店制作" : "ส่งร้านแล้ว (กำลังปรุง)"}</span>
-                  </span>
-                )}
-                {activeBatch.status === "COMPLETED" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-                    <span>🍱 {lang === "en" ? "Delivered to Table" : lang === "cn" ? "已送达取餐台" : "ส่งถึงโต๊ะแล้ว"}</span>
-                  </span>
-                )}
+                  {activeBatch.isTest && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 border border-purple-400 px-2 py-0.5 text-[11px] font-black text-purple-950 shrink-0">
+                      🧪 TEST
+                    </span>
+                  )}
+                  {activeBatch.status === "COMPLETED" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 px-2.5 py-0.5 text-xs font-black shadow-2xs">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>{lang === "en" ? "Delivered to Table (Closed)" : lang === "cn" ? "已送达取餐台 (已关闭)" : "จัดส่งถึงโต๊ะแล้ว (ปิดรอบแล้ว)"}</span>
+                    </span>
+                  ) : activeBatch.status === "ORDERED" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 border border-sky-300 text-sky-900 px-2.5 py-0.5 text-xs font-black shadow-2xs">
+                      <span className="h-2 w-2 rounded-full bg-sky-600 animate-pulse" />
+                      <span>{lang === "en" ? "Sent to Shop (Cooking / In Progress)" : lang === "cn" ? "已送店制作 (准备中)" : "ส่งร้านแล้ว (กำลังปรุง / ดำเนินการ)"}</span>
+                    </span>
+                  ) : activeBatch.status === "PENDING" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-950 px-2.5 py-0.5 text-xs font-black shadow-2xs">
+                      <span className="h-2 w-2 rounded-full bg-amber-600 animate-ping" />
+                      <span>{lang === "en" ? "Pending Delivery / Notice" : lang === "cn" ? "待送达 / 变更通知" : "รอส่งมอบ / มีประกาศด่วน"}</span>
+                    </span>
+                  ) : isBatchClosed ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 text-xs font-black">
+                      <Clock className="h-3.5 w-3.5 text-slate-500" />
+                      <span>{lang === "en" ? "Cutoff Passed (Preparing)" : lang === "cn" ? "已截止点餐 (待送)" : "ปิดรับแล้ว (กำลังรวบรวมส่ง)"}</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 border border-purple-300 text-purple-900 px-2.5 py-0.5 text-xs font-black">
+                      <span className="h-2 w-2 rounded-full bg-purple-600 animate-pulse" />
+                      <span>{lang === "en" ? "Open (Accepting Orders)" : lang === "cn" ? "开单中 (火热接单)" : "เปิดรับออเดอร์ (กำลังเปิดตี้)"}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick Access Links: Kitchen Slip / Delivery Photo / Manifest */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Link to Delivery Photo if delivered */}
+                  {activeBatch.deliveryPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedSlip({
+                          url: activeBatch.deliveryPhotoUrl!,
+                          title: `📸 ภาพหลักฐานส่งอาหารที่โต๊ะ ${activeBuildingName}`,
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                      title="ดูภาพหลักฐานส่งอาหารจริงที่โต๊ะ"
+                    >
+                      <Camera className="h-3 w-3" />
+                      <span>{lang === "en" ? "View Delivery Photo" : lang === "cn" ? "查看送达照片" : "ดูรูปส่งอาหารจริง"}</span>
+                    </button>
+                  )}
+
+                  {/* Public Link to Delivery Tracking Page */}
+                  <Link
+                    href={`/delivery/${activeBatch.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-1 text-[11px] font-semibold transition-colors shadow-2xs"
+                    title="เปิดหน้ารายละเอียดการจัดส่ง"
+                  >
+                    <ExternalLink className="h-3 w-3 text-slate-600" />
+                    <span>{lang === "en" ? "Status Page" : lang === "cn" ? "状态详情页" : "หน้าสถานะจัดส่ง"}</span>
+                  </Link>
+
+                  {/* Link to Kitchen Manifest (Shop View) */}
+                  <Link
+                    href={`/shop/${activeBatch.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-1 text-[11px] font-semibold transition-colors shadow-2xs"
+                    title="เปิดดูใบจัดเตรียมอาหารสำหรับร้านค้า"
+                  >
+                    <FileText className="h-3 w-3 text-purple-700" />
+                    <span>{lang === "en" ? "Kitchen Slip" : lang === "cn" ? "后厨备餐单" : "ใบสรุปส่งร้าน"}</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Visual 4-Step Progress Tracker */}
+              <div className="grid grid-cols-4 gap-1 sm:gap-2 pt-1 border-t border-slate-100 text-center">
+                {/* Step 1: Open */}
+                <div className={`p-1.5 rounded-lg border text-[10px] sm:text-xs font-bold transition-all ${
+                  activeBatch.status === "OPEN" && !isBatchClosed
+                    ? "bg-purple-50 border-purple-300 text-purple-900 ring-1 ring-purple-400"
+                    : "bg-slate-50 border-slate-200 text-slate-600"
+                }`}>
+                  <div className="flex items-center justify-center gap-1">
+                    <span>1. เปิดตี้</span>
+                    {activeBatch.status !== "OPEN" || isBatchClosed ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-600 shrink-0 animate-ping" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Cutoff / Pending */}
+                <div className={`p-1.5 rounded-lg border text-[10px] sm:text-xs font-bold transition-all ${
+                  isBatchClosed && activeBatch.status === "OPEN"
+                    ? "bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-400"
+                    : activeBatch.status === "PENDING"
+                    ? "bg-amber-100 border-amber-400 text-amber-950 ring-1 ring-amber-500 animate-pulse"
+                    : activeBatch.status === "ORDERED" || activeBatch.status === "COMPLETED"
+                    ? "bg-slate-50 border-slate-200 text-slate-600"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  <div className="flex items-center justify-center gap-1">
+                    <span>2. ปิดรับ/รวบรวม</span>
+                    {activeBatch.status === "ORDERED" || activeBatch.status === "COMPLETED" ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    ) : isBatchClosed || activeBatch.status === "PENDING" ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-600 shrink-0 animate-ping" />
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Step 3: Ordered / Cooking */}
+                <div className={`p-1.5 rounded-lg border text-[10px] sm:text-xs font-bold transition-all ${
+                  activeBatch.status === "ORDERED"
+                    ? "bg-sky-50 border-sky-300 text-sky-900 ring-1 ring-sky-400"
+                    : activeBatch.status === "COMPLETED"
+                    ? "bg-slate-50 border-slate-200 text-slate-600"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  <div className="flex items-center justify-center gap-1">
+                    <span>3. กำลังปรุง</span>
+                    {activeBatch.status === "COMPLETED" ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    ) : activeBatch.status === "ORDERED" ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-600 shrink-0 animate-pulse" />
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Step 4: Delivered */}
+                <div className={`p-1.5 rounded-lg border text-[10px] sm:text-xs font-bold transition-all ${
+                  activeBatch.status === "COMPLETED"
+                    ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-1 ring-emerald-500"
+                    : "bg-slate-50 border-slate-100 text-slate-400"
+                }`}>
+                  <div className="flex items-center justify-center gap-1">
+                    <span>4. ถึงโต๊ะแล้ว</span>
+                    {activeBatch.status === "COMPLETED" && (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
