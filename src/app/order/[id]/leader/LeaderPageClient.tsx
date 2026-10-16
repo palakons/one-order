@@ -1882,6 +1882,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     "ร้านปิดกะทันหัน / วัตถุดิบหมด",
                     "ร้านขอปรับเปลี่ยนเมนูบางรายการ",
                     "ฝนตกหนัก / ไรเดอร์ส่งช้า",
+                    "ขอยกเลิกตี้อาหาร (ร้านปิด/ยกเลิกออเดอร์)",
                   ].map((preset) => {
                     const isSelected = aiSituation === preset;
                     return (
@@ -2166,10 +2167,10 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               {/* Warning box */}
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-1">
                 <p className="font-bold flex items-center gap-1">
-                  <span>⚠️ ข้อควรระวังก่อนยกเลิก:</span>
+                  <span>⚠️ ข้อควรทราบก่อนยกเลิก:</span>
                 </p>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  หากมีเพื่อนสมาชิกโอนเงินเข้ามาแล้ว กรุณาติดต่อคืนเงินให้เพื่อนสมาชิกตามยอดที่โอนในสลิป
+                  หากมีการโอนเงินและส่งออเดอร์ไปยังร้านค้าแล้ว กรุณาแจ้งทางร้านค้าเพื่อระงับรายการและประสานงานเรื่องเงินคืนให้เพื่อนสมาชิก
                 </p>
               </div>
 

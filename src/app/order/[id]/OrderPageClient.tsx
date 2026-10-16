@@ -853,8 +853,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   <p className="text-xs text-rose-800">
                     <strong>เหตุผล:</strong> {batch.cancelReason || "หัวหน้าตี้ขอยกเลิกรายการสั่งอาหาร"}
                   </p>
-                  <p className="text-[11px] text-rose-700">
-                    *หากท่านโอนเงินแล้ว กรุณาติดต่อหัวหน้าตี้ ({leaderLine}) เพื่อรับเงินคืนตามยอดในสลิป
+                  <p className="text-[11px] text-rose-800 leading-relaxed">
+                    *หากชำระเงินเข้ามาแล้ว เนื่องจากยอดเงินถูกสั่งส่งต่อไปยังร้านค้า กรุณาประสานงานกับทางร้านค้า หรือติดต่อหัวหน้าตี้ ({leaderLine}) เพื่อรับคำแนะนำในการรับเงินคืนจากทางร้าน
                   </p>
                 </div>
               ) : (

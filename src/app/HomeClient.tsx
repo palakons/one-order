@@ -139,13 +139,17 @@ function BoardTabButton({ batch: b, isActive, locations, lang, onSelect }: Board
         {timeDisplay}
       </span>
 
-      {/* Status Badges: TEST, PENDING, ORDERED, COMPLETED or Goal Badge */}
+      {/* Status Badges: TEST, PENDING, ORDERED, COMPLETED, CANCELLED or Goal Badge */}
       {b.isTest && (
         <span className="rounded-md bg-purple-100 border border-purple-400 text-purple-900 px-1.5 py-0.5 text-[10px] font-black shrink-0">
           🧪 TEST
         </span>
       )}
-      {b.status === "PENDING" ? (
+      {b.status === "CANCELLED" ? (
+        <span className="rounded-md bg-rose-100 border border-rose-300 text-rose-800 px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+          🚫 {lang === "en" ? "Cancelled" : lang === "cn" ? "已取消" : "ยกเลิกแล้ว"}
+        </span>
+      ) : b.status === "PENDING" ? (
         <span className="rounded-md bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold shrink-0 animate-pulse">
           ⚠️ {lang === "en" ? "Pending" : lang === "cn" ? "待处理" : "รอตรวจสอบ"}
         </span>
@@ -1679,6 +1683,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           {b.isTest && (
                             <span className="rounded bg-purple-100 border border-purple-400 text-purple-900 px-1 py-0.2 text-[10px] font-black shrink-0">
                               🧪 TEST
+                            </span>
+                          )}
+                          {b.status === "CANCELLED" && (
+                            <span className="rounded bg-rose-100 border border-rose-300 text-rose-800 px-1 py-0.2 text-[10px] font-black shrink-0">
+                              🚫 {lang === "en" ? "Cancelled" : lang === "cn" ? "已取消" : "ยกเลิก"}
                             </span>
                           )}
                           <span className={`rounded px-1 py-0.2 text-[10px] font-mono ${
