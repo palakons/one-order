@@ -560,7 +560,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [showOpenBoardModal, setShowOpenBoardModal] = useState(false);
   const [availableShops, setAvailableShops] = useState<Shop[]>([]);
   const [openShopId, setOpenShopId] = useState("");
-  const [openBuildingId, setOpenBuildingId] = useState<string>(() => initialLocations?.[0]?.id || "loc-m4");
+  const [openBuildingId, setOpenBuildingId] = useState<string>(() => {
+    const active = (initialLocations || []).find((l) => l.isActive !== false);
+    return active?.id || "loc-m4";
+  });
   const [openLeaderName, setOpenLeaderName] = useState("");
   const [openLeaderPhone, setOpenLeaderPhone] = useState("");
   const [openCutoffDate, setOpenCutoffDate] = useState<string>(() => getBangkokDate());
@@ -602,6 +605,12 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       if (data.success && Array.isArray(data.locations) && data.locations.length > 0) {
         setLocations(data.locations);
         setRuntimeLocations(data.locations);
+        setOpenBuildingId((curr) => {
+          const match = data.locations.find((l: any) => l.id === curr && l.isActive !== false);
+          if (match) return curr;
+          const active = data.locations.find((l: any) => l.isActive !== false) || data.locations.find((l: any) => l.id === "loc-m4");
+          return active?.id || curr;
+        });
       }
     } catch (err) {
       console.warn("Fetch locations error:", err);

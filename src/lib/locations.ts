@@ -133,7 +133,8 @@ export function getLocationForBatch(
     if (byName) return byName;
   }
 
-  return locList[0] || CAMPUS_LOCATIONS[0];
+  const activeDefault = locList.find((l) => l.isActive !== false) || locList.find((l) => l.id === "loc-m4");
+  return activeDefault || locList[0] || CAMPUS_LOCATIONS[0];
 }
 
 export function getDropOffMapUrl(
