@@ -145,10 +145,14 @@ export async function generateOneLongManifestImage(
   totalHeight += destCardHeight;
   totalHeight += 16; // Spacing
 
-  // Cooking Checklist height
+  // Cooking Checklist height (dynamic based on items per order)
   const checklistHeaderHeight = 62;
-  const checklistRowHeight = 52;
-  const checklistHeight = Math.max(orders.length * checklistRowHeight + checklistHeaderHeight + 14, 110);
+  const checklistOrderHeights = orders.map((ord) => {
+    const itemCount = (ord.items && ord.items.length > 0) ? ord.items.length : 1;
+    return Math.max(54, 34 + itemCount * 20);
+  });
+  const checklistRowsTotalHeight = checklistOrderHeights.reduce((sum, h) => sum + h + 8, 0);
+  const checklistHeight = Math.max(checklistRowsTotalHeight + checklistHeaderHeight + 14, 110);
   totalHeight += checklistHeight;
   totalHeight += 20; // Gap between checklist and slips
 
@@ -224,10 +228,15 @@ export async function generateOneLongManifestImage(
   const leaderPhone = batch.hostPhone || orders[0]?.customerPhone;
   const leaderContact = leaderPhone ? `👑 หัวหน้าตี้: ${leaderLine || "Leader"} (โทร: ${leaderPhone})` : (leaderLine ? `👑 หัวหน้าตี้: ${leaderLine}` : "");
 
+  const totalBoxesCount = orders.reduce(
+    (sum, o) => sum + (o.items && o.items.length > 0 ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1),
+    0
+  );
+
   ctx.fillStyle = "#f1f5f9";
   ctx.font = "13px sans-serif";
   const dateStr = `รอบวันที่: ${batch.date} (สั่งได้ถึง: ${formatCutoffDisplay(batch.cutoffTime, batch.date, "th")}) ${leaderContact ? `• ${leaderContact}` : ""}`;
-  const totalStr = `ยอดรวม: ฿${batch.currentTotalAmount} (${orders.length} กล่อง) • ชำระเงินครบ 100% แล้ว ✅`;
+  const totalStr = `💰 ยอดเงินโอนรวมทั้งรอบ: ฿${batch.currentTotalAmount} (${totalBoxesCount} กล่อง | ${orders.length} ออเดอร์) • สลิปครบ 100% ✅`;
   ctx.fillText(dateStr, padding, 90);
   ctx.fillText(totalStr, padding, 108);
 
@@ -379,11 +388,6 @@ export async function generateOneLongManifestImage(
   ctx.font = "bold 17px sans-serif";
   ctx.fillText("📝 รายการอาหารที่ต้องทำ (Cooking Checklist):", padding + 16, checklistCardY + 24);
 
-  const totalBoxesCount = orders.reduce(
-    (sum, o) => sum + (o.items && o.items.length > 0 ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1),
-    0
-  );
-
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
   ctx.fillText(
@@ -400,53 +404,75 @@ export async function generateOneLongManifestImage(
     ctx.fillText("ยังไม่มีรายการอาหาร", padding + 16, rowY + 16);
   } else {
     orders.forEach((ord, idx) => {
+      const cardH = checklistOrderHeights[idx];
       const isEven = idx % 2 === 0;
 
-      // Subtle alternate zebra row
-      if (!isEven) {
-        ctx.fillStyle = "#f8fafc";
-        drawRoundRect(ctx, padding + 8, rowY, contentWidth - 16, 46, 6);
-        ctx.fill();
-      }
+      // Card row background for each order
+      ctx.fillStyle = isEven ? "#ffffff" : "#f8fafc";
+      drawRoundRect(ctx, padding + 8, rowY, contentWidth - 16, cardH, 8);
+      ctx.fill();
+      ctx.strokeStyle = isEven ? "#e2e8f0" : "#cbd5e1";
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
-      // Box Badge [#01]
+      const orderNum = String(ord.orderNumber || idx + 1).padStart(2, "0");
+
+      // Badge: [ออเดอร์ที่ #01]
       ctx.fillStyle = "#581c87"; // purple-900 badge
-      drawRoundRect(ctx, padding + 12, rowY + 9, 44, 28, 5);
+      drawRoundRect(ctx, padding + 14, rowY + 6, 88, 22, 5);
       ctx.fill();
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 14px monospace";
+      ctx.font = "bold 11px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(`#${String(ord.orderNumber).padStart(2, "0")}`, padding + 34, rowY + 23);
+      ctx.fillText(`ออเดอร์ที่ #${orderNum}`, padding + 58, rowY + 17);
 
-      // Dish Item Details
+      // Customer Info
       ctx.textAlign = "left";
+      ctx.fillStyle = "#334155";
+      ctx.font = "bold 12px sans-serif";
+      const lineIdStr = ord.customerLineId ? `@${ord.customerLineId.replace(/^@/, "")}` : ord.customerName;
+      const phoneStr = ord.customerPhone ? ` • 📞 ${ord.customerPhone}` : "";
+      ctx.fillText(`👤 ${lineIdStr}${phoneStr}`.slice(0, 48), padding + 110, rowY + 17);
+
+      // Right-aligned Order Total
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#c2410c"; // orange-700
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(`รวม ฿${ord.totalAmount}`, padding + contentWidth - 18, rowY + 17);
+
+      // Menu items list (3-tier: each dish item, quantity, unit price, total price)
       const items = ord.items && Array.isArray(ord.items) && ord.items.length > 0
         ? ord.items
         : [{ name: ord.boxLabel || "อาหาร", price: ord.totalAmount, quantity: 1, customNote: "" }];
 
-      const itemsSummaryText = items
-        .map((it) => `${(it.quantity || 1) > 1 ? `${it.quantity}x ` : ""}${it.name}${it.customNote ? ` (${it.customNote})` : ""}`)
-        .join(" + ");
+      let itemY = rowY + 36;
+      ctx.textAlign = "left";
 
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 14px sans-serif";
-      ctx.fillText(itemsSummaryText.slice(0, 52), padding + 64, rowY + 15);
+      items.forEach((it) => {
+        const qty = it.quantity || 1;
+        const note = it.customNote ? ` (${it.customNote})` : "";
+        const pricePerUnit = it.price > 0 ? it.price : Math.round(ord.totalAmount / (items.length || 1));
+        const itemTotal = pricePerUnit * qty;
 
-      // Line 2: Customer LINE & Phone (Deduplicated)
-      ctx.fillStyle = "#64748b";
-      ctx.font = "12px sans-serif";
-      const lineIdStr = ord.customerLineId ? `👤 LINE: @${ord.customerLineId.replace(/^@/, "")}` : `👤 ${ord.customerName}`;
-      const phoneStr = ord.customerPhone ? ` • 📞 ${ord.customerPhone}` : "";
-      ctx.fillText(`${lineIdStr}${phoneStr}`.slice(0, 68), padding + 64, rowY + 33);
+        // Dish Name & Qty
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 13px sans-serif";
+        const dishText = `• ${qty > 1 ? `${qty}x ` : "1x "}${it.name}${note}`;
+        ctx.fillText(dishText.slice(0, 56), padding + 22, itemY);
 
-      // Right-aligned Price Badge
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#c2410c"; // orange-700
-      ctx.font = "bold 16px monospace";
-      ctx.fillText(`฿${ord.totalAmount}`, padding + contentWidth - 16, rowY + 23);
+        // Price breakdown right-aligned
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#64748b";
+        ctx.font = "12px monospace";
+        const priceText = qty > 1 ? `@฿${pricePerUnit} = ฿${itemTotal}` : `@฿${pricePerUnit}`;
+        ctx.fillText(priceText, padding + contentWidth - 18, itemY);
+        ctx.textAlign = "left";
 
-      rowY += checklistRowHeight;
+        itemY += 20;
+      });
+
+      rowY += cardH + 8;
     });
   }
 
@@ -508,8 +534,9 @@ export async function generateOneLongManifestImage(
       // Box # & Name
       ctx.fillStyle = img ? "#0f172a" : "#065f46";
       ctx.font = "bold 13px sans-serif";
+      const orderNum = String(order.orderNumber).padStart(2, "0");
       ctx.fillText(
-        `#${String(order.orderNumber).padStart(2, "0")} ${lineIdStr}`.slice(0, 20),
+        `ออเดอร์ที่ #${orderNum} (${lineIdStr})`.slice(0, 24),
         colX + 14,
         currentY + 20
       );
