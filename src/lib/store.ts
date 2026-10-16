@@ -916,9 +916,14 @@ function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): Batc
   const shop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
   const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
 
+  // Auto-reconciliation: If batch has a delivery photo uploaded, it MUST be COMPLETED!
+  const hasDeliveryPhoto = Boolean(batch.deliveryPhotoUrl || batch.deliveryPhotoPath);
+  const reconciledStatus = hasDeliveryPhoto && batch.status !== "CANCELLED" ? "COMPLETED" : batch.status;
+
   if (isDeleted) {
     return {
       ...batch,
+      status: reconciledStatus,
       isDeleted: true,
       deletedAt: batch.deletedAt || new Date().toISOString(),
       shop,
@@ -940,6 +945,7 @@ function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): Batc
 
   return {
     ...batch,
+    status: reconciledStatus,
     shop,
     orders,
     currentTotalAmount,

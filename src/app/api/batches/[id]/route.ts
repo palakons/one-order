@@ -48,8 +48,11 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });
     }
 
-    // If only updating isTest flag or other batch fields without status change:
-    const targetStatus = status || existing.status;
+    // If batch already has a delivery photo / is delivered, do not revert to ORDERED when clearing pending messages or updating fields
+    let targetStatus = status || existing.status;
+    if (targetStatus === "ORDERED" && (existing.deliveryPhotoUrl || existing.deliveryPhotoPath) && existing.status !== "CANCELLED") {
+      targetStatus = "COMPLETED";
+    }
 
     if (!targetStatus) {
       return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });

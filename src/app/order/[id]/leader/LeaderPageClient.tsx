@@ -337,7 +337,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: clearOnly ? "ORDERED" : "PENDING",
+          status: clearOnly ? (batch.deliveryPhotoUrl ? "COMPLETED" : "ORDERED") : "PENDING",
           pendingMessage: clearOnly ? "" : craftedMessage.trim() || aiCustomNote.trim() || aiSituation,
           hostPin,
         }),
