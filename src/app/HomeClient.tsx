@@ -58,6 +58,7 @@ import {
   Truck,
   Package,
   FileText,
+  Users,
 } from "lucide-react";
 import DishAutocompleteInput from "@/components/DishAutocompleteInput";
 import AIMenuSuggester from "@/components/AIMenuSuggester";
@@ -1202,6 +1203,29 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       0
     );
   }, [activeOrders]);
+
+  // Unique dishes ordered by friends in this board (ordered list for quick pick)
+  const friendsDishes = useMemo(() => {
+    const dishMap = new Map<string, { name: string; price: number; count: number }>();
+    activeOrders.forEach((ord) => {
+      (ord.items || []).forEach((it) => {
+        const cleanName = it.name?.trim();
+        if (!cleanName) return;
+        const existing = dishMap.get(cleanName);
+        if (existing) {
+          existing.count += it.quantity || 1;
+        } else {
+          dishMap.set(cleanName, {
+            name: cleanName,
+            price: it.price || 0,
+            count: it.quantity || 1,
+          });
+        }
+      });
+    });
+    return Array.from(dishMap.values()).sort((a, b) => b.count - a.count);
+  }, [activeOrders]);
+
   const leaderLine = activeBatch?.hostLineId || (activeOrders[0]?.customerLineId ? `@${activeOrders[0].customerLineId}` : activeOrders[0]?.customerName);
   const leaderPhone = activeBatch?.hostPhone || activeOrders[0]?.customerPhone;
 
@@ -2842,6 +2866,52 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               </button>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Subtle Friends Ordered Menu Chips (สั่งตามเพื่อน) */}
+                    {friendsDishes.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-1">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                          <Users className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{lang === "en" ? "Order like friends:" : lang === "cn" ? "随朋友点单:" : "สั่งตามเพื่อน:"}</span>
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {friendsDishes.slice(0, 8).map((d, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                const lastItem = orderItems[orderItems.length - 1];
+                                if (lastItem && !lastItem.name.trim()) {
+                                  handleUpdateOrderItem(lastItem.id, "name", d.name);
+                                  if (d.price > 0) handleUpdateOrderItem(lastItem.id, "price", String(d.price));
+                                } else {
+                                  setOrderItems((prev) => [
+                                    ...prev,
+                                    {
+                                      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                                      name: d.name,
+                                      price: d.price > 0 ? String(d.price) : "",
+                                      quantity: 1,
+                                      customNote: "",
+                                    },
+                                  ]);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50/90 px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                              title={`เพื่อนสั่งไปแล้ว ${d.count} จาน`}
+                            >
+                              <span>{d.name}</span>
+                              {d.price > 0 && <span className="font-mono text-slate-400 text-[10px]">฿{d.price}</span>}
+                              {d.count > 1 && (
+                                <span className="rounded bg-slate-200/80 px-1 text-[9px] text-slate-500 font-bold">
+                                  ×{d.count}
+                                </span>
+                              )}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}

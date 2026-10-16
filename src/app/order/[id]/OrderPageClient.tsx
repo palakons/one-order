@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -39,6 +39,7 @@ import {
   RefreshCw,
   ArrowDown,
   FileText,
+  Users,
 } from "lucide-react";
 
 interface Props {
@@ -391,6 +392,28 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
   const leaderLine = batch?.hostLineId || batch?.hostName || activeOrders[0]?.customerLineId || activeOrders[0]?.customerName || "หัวหน้าตี้";
   const leaderPhone = batch?.hostPhone || activeOrders[0]?.customerPhone || "";
   const buildingName = batch?.buildingName || "ตึก M4";
+
+  // Unique dishes ordered by friends in this board (ordered list for quick pick)
+  const friendsDishes = useMemo(() => {
+    const dishMap = new Map<string, { name: string; price: number; count: number }>();
+    (activeOrders || []).forEach((ord) => {
+      (ord.items || []).forEach((it) => {
+        const cleanName = it.name?.trim();
+        if (!cleanName) return;
+        const existing = dishMap.get(cleanName);
+        if (existing) {
+          existing.count += it.quantity || 1;
+        } else {
+          dishMap.set(cleanName, {
+            name: cleanName,
+            price: it.price || 0,
+            count: it.quantity || 1,
+          });
+        }
+      });
+    });
+    return Array.from(dishMap.values()).sort((a, b) => b.count - a.count);
+  }, [activeOrders]);
 
   // Compile Brief Order Text (Compact, deduplicated, easy to read)
   const getCompiledOrderText = () => {
@@ -1156,6 +1179,36 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                         className="rounded-md border border-purple-200 bg-purple-50/70 px-2 py-0.5 text-[11px] font-bold text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer"
                       >
                         {m.name} (฿{m.price})
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Friends Ordered Dishes (สั่งตามเพื่อน) */}
+                {friendsDishes.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
+                      <Users className="h-2.5 w-2.5 text-slate-400" />
+                      <span>สั่งตามเพื่อน:</span>
+                    </span>
+                    {friendsDishes.slice(0, 6).map((d, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setDishName(d.name);
+                          if (d.price > 0) setDishPrice(String(d.price));
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                        title={`เพื่อนสั่งไปแล้ว ${d.count} จาน`}
+                      >
+                        <span>{d.name}</span>
+                        {d.price > 0 && <span className="font-mono text-slate-400">฿{d.price}</span>}
+                        {d.count > 1 && (
+                          <span className="rounded bg-slate-200/70 px-1 text-[9px] text-slate-500 font-bold">
+                            ×{d.count}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
