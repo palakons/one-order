@@ -211,24 +211,38 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return true;
   }, [todayStr]);
 
-  // 2. Pending delivery boards (Today, cutoff expired or ordered/pending/delivering, NOT yet COMPLETED/delivered or CANCELLED, not deleted)
+  // Helper to determine if a batch is fully closed / delivered with photo or cancelled
+  const isBatchFullyClosed = useCallback((b: BatchWithDetails) => {
+    if (b.status === "CANCELLED") return true;
+    if (b.status === "COMPLETED") {
+      // If completed, consider closed (especially if delivery photo uploaded)
+      return true;
+    }
+    // Any other status (ORDERED, DELIVERING, PENDING, or OPEN with expired cutoff) is NOT closed yet!
+    return false;
+  }, []);
+
+  // 2. Pending delivery boards:
+  // Today, cutoff expired or ordered/pending/delivering, AND NOT yet closed with delivery picture or cancelled
   const isPendingDeliveryBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
     if (diff !== 0) return false;
-    if (b.status === "COMPLETED" || b.status === "CANCELLED") return false;
+    // If fully closed (COMPLETED with delivery picture / COMPLETED / CANCELLED), it leaves the pending pane
+    if (isBatchFullyClosed(b)) return false;
     if (b.status === "ORDERED" || b.status === "DELIVERING" || b.status === "PENDING") return true;
     const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
     return timeInfo.isExpired;
-  }, [todayStr]);
+  }, [todayStr, isBatchFullyClosed]);
 
-  // 3. Closed boards for today (Today, marked delivered/completed or cancelled, not deleted)
+  // 3. Closed boards for today:
+  // Today, marked completed/delivered (with delivery picture) or cancelled
   const isClosedTodayBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
     if (diff !== 0) return false;
-    return b.status === "COMPLETED" || b.status === "CANCELLED";
-  }, [todayStr]);
+    return isBatchFullyClosed(b);
+  }, [todayStr, isBatchFullyClosed]);
 
   // 4. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted)
   const isArchivedBatch = useCallback((b: BatchWithDetails) => {
@@ -1229,9 +1243,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       });
       const data = await res.json();
       if (data.success) {
-        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์แล้ว");
+        alert("บันทึกส่งร้านเรียบร้อยแล้ว! กระดานนี้ปิดรับออเดอร์และอยู่ในแท็บรอส่งมอบ");
         setShowSendModal(false);
-        setActiveGroup("CLOSED_TODAY");
+        setActiveGroup("PENDING");
         await fetchBatches(true);
       } else {
         alert(data.error || "เกิดข้อผิดพลาด");
