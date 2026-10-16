@@ -224,14 +224,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   }, []);
 
   // 2. Pending delivery boards:
-  // Today, cutoff expired or ordered/pending/delivering, AND NOT yet closed with delivery picture or cancelled
+  // Active boards that are ordered/delivering/pending, or cutoff expired, AND NOT yet closed with delivery picture or cancelled (within last 7 days)
   const isPendingDeliveryBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
-    if (diff !== 0) return false;
+    // Don't show boards older than 7 days
+    if (diff > 7) return false;
+    // Future boards with open cutoff are in opening group, not pending
+    if (diff < 0) return false;
     // If fully closed (COMPLETED with delivery picture / COMPLETED / CANCELLED), it leaves the pending pane
     if (isBatchFullyClosed(b)) return false;
-    if (b.status === "ORDERED" || b.status === "DELIVERING" || b.status === "PENDING") return true;
+    if (b.status === "ORDERED" || b.status === "DELIVERING" || b.status === "PENDING" || b.status === "CLOSED" || b.status === "LOCKED") return true;
     const timeInfo = getTimeRemaining(b.cutoffTime, b.date);
     return timeInfo.isExpired;
   }, [todayStr, isBatchFullyClosed]);
@@ -245,12 +248,14 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     return isBatchFullyClosed(b);
   }, [todayStr, isBatchFullyClosed]);
 
-  // 4. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted)
+  // 4. Archived boards (yesterday up to last 7 days: diff >= 1 && diff <= 7, not deleted, and ALREADY fully closed)
   const isArchivedBatch = useCallback((b: BatchWithDetails) => {
     if (b.isDeleted) return false;
     const diff = getDaysDifference(b.date, todayStr);
-    return diff >= 1 && diff <= 7;
-  }, [todayStr]);
+    if (diff < 1 || diff > 7) return false;
+    // If not closed yet, it should remain in Pending delivery group!
+    return isBatchFullyClosed(b);
+  }, [todayStr, isBatchFullyClosed]);
 
   // 5. Deleted boards (more than 7 days: diff > 7 or marked isDeleted)
   const isDeletedBatch = useCallback((b: BatchWithDetails) => {
@@ -270,7 +275,16 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         return a.createdAt.localeCompare(b.createdAt);
       });
   }, [batches, isOpeningBatch]);
-  const pendingBatches = useMemo(() => batches.filter(isPendingDeliveryBatch), [batches, isPendingDeliveryBatch]);
+  const pendingBatches = useMemo(() => {
+    return batches
+      .filter(isPendingDeliveryBatch)
+      .sort((a, b) => {
+        const timeA = new Date(`${a.date}T${a.cutoffTime}:00+07:00`).getTime();
+        const timeB = new Date(`${b.date}T${b.cutoffTime}:00+07:00`).getTime();
+        if (timeA !== timeB) return timeB - timeA;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+  }, [batches, isPendingDeliveryBatch]);
   const closedTodayBatches = useMemo(() => batches.filter(isClosedTodayBatch), [batches, isClosedTodayBatch]);
   const archivedBatches = useMemo(() => batches.filter(isArchivedBatch), [batches, isArchivedBatch]);
   const deletedBatches = useMemo(() => batches.filter(isDeletedBatch), [batches, isDeletedBatch]);
