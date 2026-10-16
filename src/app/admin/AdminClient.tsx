@@ -915,15 +915,25 @@ export default function AdminClient({
     }
   };
 
-  const handleUpdateBatchStatus = async (batchId: string, newStatus: string) => {
+  const handleUpdateBatchStatus = async (batchId: string, newStatus: string, reason?: string) => {
     try {
+      let finalReason = reason;
+      if (newStatus === "CANCELLED" && !finalReason) {
+        const inputReason = prompt("ระบุเหตุผลในการยกเลิกกระดานนี้ (สำหรับแจ้งลูกตี้):", "แอดมินยกเลิกกระดาน (ร้านปิด / เกิดเหตุฉุกเฉิน)");
+        if (inputReason === null) return; // User pressed Cancel
+        finalReason = inputReason.trim() || "แอดมินยกเลิกกระดาน";
+      }
+
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer m4-admin",
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({
+          status: newStatus,
+          cancelReason: finalReason,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -3752,13 +3762,33 @@ export default function AdminClient({
                         >
                           ปิดรับ &rarr; สั่งร้านแล้ว
                         </button>
-                      ) : (
+                      ) : b.status !== "CANCELLED" && b.status !== "COMPLETED" ? (
                         <button
                           type="button"
                           onClick={() => handleUpdateBatchStatus(b.id, "OPEN")}
                           className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-2xs cursor-pointer"
                         >
                           เปิดรับใหม่
+                        </button>
+                      ) : null}
+
+                      {b.status !== "CANCELLED" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateBatchStatus(b.id, "CANCELLED")}
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100 shadow-2xs cursor-pointer"
+                          title="ยกเลิกกระดานนี้ (CANCELLED)"
+                        >
+                          🚫 ยกเลิกกระดาน
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateBatchStatus(b.id, "OPEN", "")}
+                          className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+                          title="คืนสถานะกระดานนี้กลับเป็น OPEN"
+                        >
+                          ↩️ คืนสถานะเปิดรับ
                         </button>
                       )}
                     </div>
