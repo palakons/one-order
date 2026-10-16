@@ -556,6 +556,34 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     });
   };
 
+  const handleCopyEntireOrder = (ord: Order) => {
+    if (!ord.items || ord.items.length === 0) {
+      setOrderItems([
+        {
+          id: `item-${Date.now()}-0`,
+          name: ord.boxLabel || "อาหาร",
+          price: ord.totalAmount ? String(ord.totalAmount) : "",
+          quantity: 1,
+          customNote: "",
+        },
+      ]);
+    } else {
+      setOrderItems(
+        ord.items.map((it, idx) => ({
+          id: `item-${Date.now()}-${idx}`,
+          name: it.name,
+          price: it.price ? String(it.price) : "",
+          quantity: it.quantity || 1,
+          customNote: it.customNote || "",
+        }))
+      );
+    }
+    const el = document.getElementById("order-form");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   // Open Board Modal State (Anyone can open a board for Building / Shop)
   const [showOpenBoardModal, setShowOpenBoardModal] = useState(false);
   const [availableShops, setAvailableShops] = useState<Shop[]>([]);
@@ -2549,11 +2577,22 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               </span>
                             )}
 
-                            {/* Right: Price + View Slip + Cancel */}
+                            {/* Right: Price + Copy Order + View Slip + Cancel */}
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="font-mono font-black text-base text-orange-600">
                                 ฿{ord.totalAmount}
                               </span>
+                              {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyEntireOrder(ord)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-900 px-2 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                                  title="สั่งตามเพื่อนทั้งออเดอร์นี้"
+                                >
+                                  <Copy className="h-3 w-3 text-purple-700" />
+                                  <span>สั่งตามเพื่อน</span>
+                                </button>
+                              )}
                               {hasSlip && ord.slipImageUrl && (
                                 <button
                                   type="button"
@@ -2655,25 +2694,38 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                                 ฿{ord.totalAmount}
                               </td>
                               <td className="py-3 px-3 text-center align-top">
-                                {hasSlip ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setSelectedSlip({
-                                        url: ord.slipImageUrl,
-                                        title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
-                                      })
-                                    }
-                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                    <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : t.viewSlip}</span>
-                                  </button>
-                                ) : (
-                                  <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
-                                    {t.waitingSlip}
-                                  </span>
-                                )}
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyEntireOrder(ord)}
+                                      className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold hover:bg-purple-100 transition-colors cursor-pointer"
+                                      title="สั่งตามเพื่อนทั้งออเดอร์นี้"
+                                    >
+                                      <Copy className="h-2.5 w-2.5 text-purple-700" />
+                                      <span>สั่งตามเพื่อน</span>
+                                    </button>
+                                  )}
+                                  {hasSlip ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedSlip({
+                                          url: ord.slipImageUrl,
+                                          title: `สลิปกล่อง #${ord.orderNumber} (${lineName})`,
+                                        })
+                                      }
+                                      className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                      <span>{ord.slipBankName ? ord.slipBankName.split(" ")[0] : t.viewSlip}</span>
+                                    </button>
+                                  ) : (
+                                    <span className="inline-block rounded bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                                      {t.waitingSlip}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="py-3 px-3 text-center align-top">
                                 {isHost && activeBatch.status === "OPEN" && (
@@ -2699,7 +2751,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
             {/* 5. Fast 1-Screen Order Input Form (Force Transfer) */}
             {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted ? (
-              <div className="rounded-2xl border-2 border-purple-900 bg-white p-4 sm:p-5 shadow-sm space-y-3">
+              <div id="order-form" className="rounded-2xl border-2 border-purple-900 bg-white p-4 sm:p-5 shadow-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="flex h-5 w-5 items-center justify-center rounded bg-purple-900 text-white font-black text-xs">

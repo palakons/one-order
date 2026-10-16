@@ -550,6 +550,34 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     });
   };
 
+  const handleCopyEntireOrder = (ord: Order) => {
+    if (!ord.items || ord.items.length === 0) {
+      setDishName(ord.boxLabel || "อาหาร");
+      setDishPrice(ord.totalAmount ? String(ord.totalAmount) : "");
+      setDishNote("");
+    } else if (ord.items.length === 1) {
+      const it = ord.items[0];
+      setDishName(it.quantity > 1 ? `${it.quantity}x ${it.name}` : it.name);
+      setDishPrice(it.price ? String(it.price * (it.quantity || 1)) : String(ord.totalAmount || ""));
+      setDishNote(it.customNote || "");
+    } else {
+      const combinedName = ord.items
+        .map((it) => `${it.quantity > 1 ? `${it.quantity}x ` : ""}${it.name}`)
+        .join(" + ");
+      setDishName(combinedName);
+      setDishPrice(ord.totalAmount ? String(ord.totalAmount) : "");
+      const combinedNote = ord.items
+        .map((it) => it.customNote)
+        .filter(Boolean)
+        .join(", ");
+      setDishNote(combinedNote);
+    }
+    const el = document.getElementById("order-form");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   // Button 1: Send Compiled Order Text directly to LINE Chat
   const handleSendTextToLine = async () => {
     if (!batch) return;
@@ -1038,11 +1066,23 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                         </span>
                       )}
 
-                      {/* Right: Price + View Slip + Cancel */}
+                      {/* Right: Price + Copy Order + View Slip + Cancel */}
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="font-mono font-black text-base text-orange-600">
                           ฿{ord.totalAmount}
                         </span>
+
+                        {!isBatchClosed && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyEntireOrder(ord)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-900 px-2 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                            title="สั่งตามเพื่อนทั้งออเดอร์นี้"
+                          >
+                            <Copy className="h-3 w-3 text-purple-700" />
+                            <span>สั่งตามเพื่อน</span>
+                          </button>
+                        )}
 
                         {ord.slipImageUrl && (
                           <button
