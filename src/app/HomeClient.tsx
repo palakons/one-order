@@ -723,6 +723,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     }
     fetchShops();
     fetchLocations();
+    const activeLoc = locations.find((l) => l.isActive !== false) || locations.find((l) => l.id === "loc-m4") || locations[0];
+    if (activeLoc) {
+      setOpenBuildingId(activeLoc.id);
+    }
     setShowOpenBoardModal(true);
   };
 
@@ -816,7 +820,14 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
     setCreatingBoard(true);
     try {
-      const selectedBuilding = locations.find((l) => l.id === openBuildingId) || locations[0] || CAMPUS_LOCATIONS[0];
+      const activeLocations = locations.filter((l) => l.isActive !== false);
+      const selectedBuilding =
+        activeLocations.find((l) => l.id === openBuildingId) ||
+        locations.find((l) => l.id === openBuildingId) ||
+        activeLocations[0] ||
+        locations.find((l) => l.id === "loc-m4") ||
+        locations[0] ||
+        CAMPUS_LOCATIONS[0];
       const res = await fetch("/api/batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
