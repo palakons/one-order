@@ -39,6 +39,7 @@ import {
   Bell,
   FileText,
   Sparkles,
+  Ban,
 } from "lucide-react";
 
 interface Props {
@@ -92,6 +93,14 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sendingLineReminder, setSendingLineReminder] = useState(false);
+
+  // Cancel Board State
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelPin, setCancelPin] = useState("");
+  const [cancelReason, setCancelReason] = useState("ร้านปิดกะทันหัน / วัตถุดิบหมด");
+  const [customCancelReason, setCustomCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isCancellingBoard, setIsCancellingBoard] = useState(false);
 
   // 1. Initial Auto-Auth check from localStorage
   useEffect(() => {
@@ -356,6 +365,50 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
       alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
     } finally {
       setSubmittingPending(false);
+    }
+  };
+
+  // Cancel Entire Board (Host PIN required)
+  const handleConfirmCancelBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch) return;
+    setCancelError(null);
+
+    const storedPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || "" : "";
+    const pinToSubmit = cancelPin.trim() || storedPin || batch.hostPin || "";
+
+    if (!pinToSubmit) {
+      setCancelError("กรุณากรอก PIN 4 หลักของหัวหน้าตี้");
+      return;
+    }
+
+    const finalReason = customCancelReason.trim() || cancelReason;
+    setIsCancellingBoard(true);
+
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "CANCELLED",
+          hostPin: pinToSubmit,
+          cancelReason: finalReason,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("ยกเลิกกระดานตี้เรียบร้อยแล้ว 🚫");
+        setShowCancelModal(false);
+        setCancelPin("");
+        setCustomCancelReason("");
+        await fetchBatch();
+      } else {
+        setCancelError(data.error || "ไม่สามารถยกเลิกกระดานได้");
+      }
+    } catch (err) {
+      setCancelError("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    } finally {
+      setIsCancellingBoard(false);
     }
   };
 
@@ -922,8 +975,24 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   </button>
                 ) : (
                   <span className="text-[11px] font-bold text-slate-500">
-                    {batch.status === "PENDING" ? "⚠️ รอตรวจสอบ (PENDING)" : batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : ""}
+                    {batch.status === "PENDING" ? "⚠️ รอตรวจสอบ (PENDING)" : batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : batch.status === "CANCELLED" ? "🚫 ยกเลิกตี้แล้ว" : ""}
                   </span>
+                )}
+
+                {batch.status !== "CANCELLED" && batch.status !== "COMPLETED" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelError(null);
+                      setCancelPin("");
+                      setShowCancelModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 transition-colors shadow-2xs cursor-pointer"
+                    title="ยกเลิกตี้/กระดานนี้ (ต้องใส่ PIN)"
+                  >
+                    <Ban className="h-3 w-3 text-rose-600" />
+                    <span>ยกเลิกตี้</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -2059,6 +2128,114 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Cancel Board (Host PIN Required) */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-rose-200 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-rose-100 bg-rose-50/80">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-700">
+                  <Ban className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-rose-950">ยืนยันยกเลิกกระดานตี้อาหาร</h3>
+                  <p className="text-[11px] text-rose-800">กระดานจะเปลี่ยนสถานะเป็น CANCELLED ทันที</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmCancelBoard} className="p-4 space-y-3.5">
+              {cancelError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{cancelError}</span>
+                </div>
+              )}
+
+              {/* Warning box */}
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-1">
+                <p className="font-bold flex items-center gap-1">
+                  <span>⚠️ ข้อควรระวังก่อนยกเลิก:</span>
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  หากมีเพื่อนสมาชิกโอนเงินเข้ามาแล้ว กรุณาติดต่อคืนเงินให้เพื่อนสมาชิกตามยอดที่โอนในสลิป
+                </p>
+              </div>
+
+              {/* Reason Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">เหตุผลในการยกเลิก:</label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-medium text-slate-800 bg-white focus:border-rose-500 focus:outline-hidden"
+                >
+                  <option value="ร้านปิดกะทันหัน / วัตถุดิบหมด">ร้านปิดกะทันหัน / วัตถุดิบหมด</option>
+                  <option value="ยอดไม่ถึงขั้นต่ำที่ร้านกำหนด">ยอดไม่ถึงขั้นต่ำที่ร้านกำหนด</option>
+                  <option value="ฝนตกหนัก / ร้านไม่สามารถจัดส่งได้">ฝนตกหนัก / ร้านไม่สามารถจัดส่งได้</option>
+                  <option value="หัวหน้าตี้ติดภารกิจด่วน">หัวหน้าตี้ติดภารกิจด่วน</option>
+                  <option value="อื่นๆ (ระบุเพิ่มเติม)">อื่นๆ (ระบุเพิ่มเติมด้านล่าง)</option>
+                </select>
+              </div>
+
+              {/* Custom reason note */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-600">ข้อความชี้แจงเพิ่มเติม (จะแสดงให้ลูกตี้เห็น):</label>
+                <input
+                  type="text"
+                  placeholder="เช่น ร้านแจ้งปิดปรับปรุงระบบ, ติดประชุมด่วน..."
+                  value={customCancelReason}
+                  onChange={(e) => setCustomCancelReason(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-rose-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Host PIN Input */}
+              <div className="space-y-1 pt-1">
+                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                  <span>PIN หัวหน้าตี้ 4 หลัก:</span>
+                  <span className="text-[10px] text-slate-500 font-normal">เพื่อความปลอดภัย</span>
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  required
+                  placeholder="PIN 4 หลัก (เช่น เบอร์โทร 4 ตัวท้าย)"
+                  value={cancelPin}
+                  onChange={(e) => setCancelPin(e.target.value)}
+                  className="w-full text-center text-lg tracking-widest font-mono rounded-xl border-2 border-rose-300 p-2 text-rose-950 focus:border-rose-600 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  ย้อนกลับ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCancellingBoard}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  {isCancellingBoard ? "กำลังยกเลิก..." : "ยืนยันยกเลิกตี้ 🚫"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

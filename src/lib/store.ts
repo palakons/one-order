@@ -1010,10 +1010,18 @@ export async function updateBatchStatus(
     pendingMessage?: string;
     pendingCreatedAt?: string;
     isTest?: boolean;
+    cancelReason?: string;
+    cancelledAt?: string;
   }
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
   const updatePayload: Record<string, any> = { status };
+  if (status === "CANCELLED") {
+    updatePayload.cancelledAt = extra?.cancelledAt || new Date().toISOString();
+    if (extra?.cancelReason !== undefined) {
+      updatePayload.cancelReason = extra.cancelReason;
+    }
+  }
   if (extra?.isTest !== undefined) {
     updatePayload.isTest = Boolean(extra.isTest);
   }

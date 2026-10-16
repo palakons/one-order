@@ -100,6 +100,8 @@ export interface Batch {
   deliveryBroadcastSent?: boolean; // True if food delivered announcement was pushed to LINE group
   deliveryBroadcastSentAt?: string;
   isTest?: boolean; // When true, marked as "For Testing" — excluded from statistics, spending, and broadcast notifications
+  cancelledAt?: string; // ISO string when batch was cancelled
+  cancelReason?: string; // Reason for cancelling the party/board
 }
 
 export interface BatchWithDetails extends Batch {

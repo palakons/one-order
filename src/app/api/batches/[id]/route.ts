@@ -38,7 +38,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest } = body;
+    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest, cancelReason } = body;
 
     let existing = await getBatchById(id, false, true);
     if (!existing) {
@@ -61,7 +61,7 @@ export async function PATCH(
     if (existing.hostPin && (targetStatus === "ORDERED" || targetStatus === "CLOSED" || targetStatus === "LOCKED" || targetStatus === "CANCELLED" || targetStatus === "PENDING")) {
       const authHeader = request.headers.get("authorization") || "";
       const isAdmin = authHeader.includes("m4-admin") || authHeader.includes("admin");
-      if (!isAdmin && hostPin && hostPin !== existing.hostPin) {
+      if (!isAdmin && (!hostPin || hostPin !== existing.hostPin)) {
         return NextResponse.json({ success: false, error: "PIN หัวหน้าตี้ไม่ถูกต้อง (เฉพาะผู้เปิดตี้เท่านั้น)" }, { status: 403 });
       }
     }
@@ -71,6 +71,7 @@ export async function PATCH(
       sentToShopAt,
       pendingMessage: pendingMessage !== undefined ? String(pendingMessage) : undefined,
       isTest: isTest !== undefined ? Boolean(isTest) : undefined,
+      cancelReason: cancelReason !== undefined ? String(cancelReason).trim() : undefined,
     });
     if (!updated) {
       return NextResponse.json({ success: false, error: "Batch not found" }, { status: 404 });

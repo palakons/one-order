@@ -774,7 +774,12 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       🧪 TEST
                     </span>
                   )}
-                  {batch.status === "COMPLETED" ? (
+                  {batch.status === "CANCELLED" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 text-rose-950 px-2 py-0.5 text-[11px] font-black shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+                      <span>🚫 ยกเลิกตี้แล้ว</span>
+                    </span>
+                  ) : batch.status === "COMPLETED" ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 px-2 py-0.5 text-[11px] font-black shadow-2xs">
                       <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                       <span>จัดส่งถึงโต๊ะแล้ว (ปิดรอบ)</span>
@@ -839,40 +844,55 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </div>
 
               {/* 4-Step Visual Tracker */}
-              <div className="grid grid-cols-4 gap-1 pt-1 text-center">
-                <div className={`p-1 rounded-md border text-[10px] font-bold ${
-                  batch.status === "OPEN" && !isBatchClosed
-                    ? "bg-purple-50 border-purple-300 text-purple-900 ring-1 ring-purple-400"
-                    : "bg-slate-50 border-slate-200 text-slate-600"
-                }`}>
-                  1. เปิดตี้
+              {batch.status === "CANCELLED" ? (
+                <div className="rounded-xl border-2 border-rose-300 bg-rose-50 p-3 text-rose-950 space-y-1 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-rose-900">
+                    <span className="text-base">🚫</span>
+                    <span>กระดานตี้อาหารนี้ถูกยกเลิกแล้ว (CANCELLED)</span>
+                  </div>
+                  <p className="text-xs text-rose-800">
+                    <strong>เหตุผล:</strong> {batch.cancelReason || "หัวหน้าตี้ขอยกเลิกรายการสั่งอาหาร"}
+                  </p>
+                  <p className="text-[11px] text-rose-700">
+                    *หากท่านโอนเงินแล้ว กรุณาติดต่อหัวหน้าตี้ ({leaderLine}) เพื่อรับเงินคืนตามยอดในสลิป
+                  </p>
                 </div>
-                <div className={`p-1 rounded-md border text-[10px] font-bold ${
-                  (isBatchClosed && batch.status === "OPEN") || batch.status === "PENDING"
-                    ? "bg-amber-100 border-amber-400 text-amber-950 ring-1 ring-amber-500 animate-pulse"
-                    : batch.status === "ORDERED" || batch.status === "COMPLETED"
-                    ? "bg-slate-50 border-slate-200 text-slate-600"
-                    : "bg-slate-50 border-slate-100 text-slate-400"
-                }`}>
-                  2. ปิดรับ/รวบรวม
+              ) : (
+                <div className="grid grid-cols-4 gap-1 pt-1 text-center">
+                  <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                    batch.status === "OPEN" && !isBatchClosed
+                      ? "bg-purple-50 border-purple-300 text-purple-900 ring-1 ring-purple-400"
+                      : "bg-slate-50 border-slate-200 text-slate-600"
+                  }`}>
+                    1. เปิดตี้
+                  </div>
+                  <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                    (isBatchClosed && batch.status === "OPEN") || batch.status === "PENDING"
+                      ? "bg-amber-100 border-amber-400 text-amber-950 ring-1 ring-amber-500 animate-pulse"
+                      : batch.status === "ORDERED" || batch.status === "COMPLETED"
+                      ? "bg-slate-50 border-slate-200 text-slate-600"
+                      : "bg-slate-50 border-slate-100 text-slate-400"
+                  }`}>
+                    2. ปิดรับ/รวบรวม
+                  </div>
+                  <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                    batch.status === "ORDERED"
+                      ? "bg-sky-50 border-sky-300 text-sky-900 ring-1 ring-sky-400"
+                      : batch.status === "COMPLETED"
+                      ? "bg-slate-50 border-slate-200 text-slate-600"
+                      : "bg-slate-50 border-slate-100 text-slate-400"
+                  }`}>
+                    3. กำลังปรุง
+                  </div>
+                  <div className={`p-1 rounded-md border text-[10px] font-bold ${
+                    batch.status === "COMPLETED"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-1 ring-emerald-500"
+                      : "bg-slate-50 border-slate-100 text-slate-400"
+                  }`}>
+                    4. ถึงโต๊ะแล้ว
+                  </div>
                 </div>
-                <div className={`p-1 rounded-md border text-[10px] font-bold ${
-                  batch.status === "ORDERED"
-                    ? "bg-sky-50 border-sky-300 text-sky-900 ring-1 ring-sky-400"
-                    : batch.status === "COMPLETED"
-                    ? "bg-slate-50 border-slate-200 text-slate-600"
-                    : "bg-slate-50 border-slate-100 text-slate-400"
-                }`}>
-                  3. กำลังปรุง
-                </div>
-                <div className={`p-1 rounded-md border text-[10px] font-bold ${
-                  batch.status === "COMPLETED"
-                    ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-1 ring-emerald-500"
-                    : "bg-slate-50 border-slate-100 text-slate-400"
-                }`}>
-                  4. ถึงโต๊ะแล้ว
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
