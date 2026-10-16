@@ -1447,7 +1447,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </span>
             </button>
 
-            {/* Group 3: Closed Today */}
+            {/* Group 3: Delivered Today */}
             <button
               type="button"
               onClick={() => handleSelectGroup("CLOSED_TODAY")}
@@ -1457,7 +1457,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
               }`}
             >
-              <Clock className="h-3.5 w-3.5 text-amber-400" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
               <span>{t.groupClosedToday}</span>
               <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
                 activeGroup === "CLOSED_TODAY" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
