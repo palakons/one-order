@@ -2115,28 +2115,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       <span>{lang === "en" ? "View Delivery Photo" : lang === "cn" ? "查看送达照片" : "ดูรูปส่งอาหารจริง"}</span>
                     </button>
                   )}
-
-                  {/* Public Link to Delivery Tracking Page */}
-                  <Link
-                    href={`/delivery/${activeBatch.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-1 text-[11px] font-semibold transition-colors shadow-2xs"
-                    title="เปิดหน้ารายละเอียดการจัดส่ง"
-                  >
-                    <ExternalLink className="h-3 w-3 text-slate-600" />
-                    <span>{lang === "en" ? "Status Page" : lang === "cn" ? "状态详情页" : "หน้าสถานะจัดส่ง"}</span>
-                  </Link>
-
-                  {/* Link to Kitchen Manifest (Shop View) */}
-                  <Link
-                    href={`/shop/${activeBatch.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-1 text-[11px] font-semibold transition-colors shadow-2xs"
-                    title="เปิดดูใบจัดเตรียมอาหารสำหรับร้านค้า"
-                  >
-                    <FileText className="h-3 w-3 text-purple-700" />
-                    <span>{lang === "en" ? "Kitchen Slip" : lang === "cn" ? "后厨备餐单" : "ใบสรุปส่งร้าน"}</span>
-                  </Link>
                 </div>
               </div>
 
