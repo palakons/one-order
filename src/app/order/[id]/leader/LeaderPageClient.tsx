@@ -559,8 +559,8 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
         setDeliveryPhotoError(null);
         setDeliveryPhotoData(null);
         setCompressingDeliveryPhoto(true);
-        setShowDeliveryModal(true);
-        const compressed = await compressImage(file, 900, 0.7);
+        // Lean delivery photo compression: 640px, 0.65 quality (~40-50 KB)
+        const compressed = await compressImage(file, 640, 0.65);
         if (!compressed || !compressed.startsWith("data:image/")) {
           throw new Error("รูปภาพไม่สมบูรณ์ กรุณาถ่ายภาพใหม่อีกครั้ง หรือเลือกจากอัลบั้ม");
         }

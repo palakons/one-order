@@ -36,8 +36,8 @@ export async function GET(
         "Content-Type": file.mimeType,
         "Content-Length": file.buffer.length.toString(),
         "Cache-Control": isSlip
-          ? "private, no-transform, max-age=3600"
-          : "public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200",
+          ? "private, no-transform, max-age=86400, stale-while-revalidate=86400"
+          : "public, max-age=31536000, s-maxage=31536000, immutable",
       },
     });
   } catch (err: any) {

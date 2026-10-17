@@ -1231,7 +1231,10 @@ export default function AdminClient({
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressed = await compressImage(file, 800, 0.75);
+        const isQr = targetField === "qr" || targetField === "lineQr";
+        const maxDim = isQr ? 480 : 640;
+        const quality = isQr ? 0.70 : 0.68;
+        const compressed = await compressImage(file, maxDim, quality);
         if (targetField === "menu") setShopMenuImageUrl(compressed);
         if (targetField === "qr") setShopPromptPayQrUrl(compressed);
         if (targetField === "lineQr") setShopLineQrUrl(compressed);

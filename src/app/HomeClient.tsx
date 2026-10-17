@@ -1028,7 +1028,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     setSlipVerification(null);
 
     try {
-      const compressedDataUrl = await compressImage(file, 1000, 0.85);
+      // Lean Client-side Compression: 640px, 0.68 quality (~40-60 KB, perfect for BOT slip QR scanner)
+      const compressedDataUrl = await compressImage(file, 640, 0.68);
       setSlipPreview(compressedDataUrl);
 
       const tempImg = new Image();

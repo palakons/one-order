@@ -230,8 +230,8 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
     setSlipVerification(null);
 
     try {
-      // 1. Create preview and compress for storage
-      const compressedDataUrl = await compressImage(file, 1000, 0.85);
+      // 1. Create preview and compress for storage (~40-60 KB)
+      const compressedDataUrl = await compressImage(file, 640, 0.68);
       setSlipPreview(compressedDataUrl);
 
       // 2. Scan for BOT Slip QR code using HTML Image element
