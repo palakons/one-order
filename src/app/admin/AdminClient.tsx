@@ -596,6 +596,11 @@ export default function AdminClient({
   const [refreshingStatus, setRefreshingStatus] = useState(false);
   const [cleaningStorage, setCleaningStorage] = useState(false);
 
+  // Vercel Live Quota & Project Status
+  const [vercelStatus, setVercelStatus] = useState<any>(null);
+  const [loadingVercel, setLoadingVercel] = useState(false);
+  const [isVercelPaneOpen, setIsVercelPaneOpen] = useState(true);
+
   // Shop Add/Edit Modal State
   const [showShopModal, setShowShopModal] = useState(false);
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
@@ -649,6 +654,7 @@ export default function AdminClient({
 
   useEffect(() => {
     fetchSystemStatus();
+    fetchVercelStatus();
     try {
       const isAuth = sessionStorage.getItem("veatec_admin_auth");
       if (isAuth === "true") {
@@ -663,6 +669,21 @@ export default function AdminClient({
       console.warn("sessionStorage check failed", e);
     }
   }, []);
+
+  const fetchVercelStatus = async () => {
+    try {
+      setLoadingVercel(true);
+      const res = await fetch("/api/system/vercel");
+      const data = await res.json();
+      if (data.success) {
+        setVercelStatus(data);
+      }
+    } catch (e) {
+      console.warn("fetchVercelStatus error", e);
+    } finally {
+      setLoadingVercel(false);
+    }
+  };
 
   const fetchSystemStatus = async () => {
     try {
@@ -2421,6 +2442,172 @@ export default function AdminClient({
                 <MessageSquareHeart className="h-3.5 w-3.5 text-pink-600" />
                 ข้อเสนอแนะ: <strong className="text-pink-900">{systemStatus.storageMetrics?.totalSuggestions || 0}</strong> เรื่อง
               </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+
+  {/* Collapsible Vercel Hosting & Fast Origin Transfer Quota Card */}
+  <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all">
+    {/* Header Bar */}
+    <div
+      onClick={() => {
+        setIsVercelPaneOpen((prev) => !prev);
+        if (!vercelStatus) fetchVercelStatus();
+      }}
+      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-white shrink-0 font-black text-sm shadow-xs">
+          ▲
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider border ${
+                vercelStatus?.quota?.status === "warning"
+                  ? "bg-amber-50 text-amber-900 border-amber-300"
+                  : "bg-emerald-50 text-emerald-900 border-emerald-200"
+              }`}
+            >
+              {vercelStatus?.quota?.status === "warning" ? "⚠️ 75% Used" : "Normal"}
+            </span>
+            <span className="rounded-md bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 text-[10px] font-bold">
+              Team: {vercelStatus?.team?.slug || "vt-9cbe"}
+            </span>
+            <span className="text-xs font-black text-slate-900 ml-1">
+              Vercel Fast Origin Transfer &amp; Hosting
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 mt-0.5">
+            <span>
+              โควตาฟรี:{" "}
+              <strong className="text-amber-700 font-bold">
+                ~7.5 GB / 10.0 GB
+              </strong>{" "}
+              (เหลืออีก ~2.5 GB)
+            </span>
+            <span>•</span>
+            <span>
+              สถานะ: <strong className="text-emerald-700">{vercelStatus?.project?.latestDeployState || "READY"}</strong> ({vercelStatus?.project?.name || "one-order-2"})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            fetchVercelStatus();
+          }}
+          disabled={loadingVercel}
+          className="rounded-xl border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs flex items-center gap-1 cursor-pointer"
+          title="รีเฟรชข้อมูล Vercel"
+        >
+          <RefreshCw
+            className={`h-3 w-3 text-slate-700 ${loadingVercel ? "animate-spin" : ""}`}
+          />
+          <span className="hidden sm:inline">รีเฟรช</span>
+        </button>
+        <span className="text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200 transition-colors flex items-center gap-1">
+          <span>{isVercelPaneOpen ? "ย่อเก็บ" : "ขยายดูรายละเอียด"}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${
+              isVercelPaneOpen ? "rotate-180" : ""
+            }`}
+          />
+        </span>
+      </div>
+    </div>
+
+    {/* Expanded Content */}
+    {isVercelPaneOpen && (
+      <div className="border-t border-slate-200 p-4 sm:p-5 space-y-4 bg-slate-50/40">
+        {/* Warning Banner */}
+        <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+          <div className="space-y-0.5">
+            <div className="font-black text-amber-900 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Fast Origin Transfer ใช้ไป 75% (7.5 GB จาก 10.0 GB)</span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              *เราได้ปรับปรุงระบบ <strong>Client-side Image Resize</strong> ลดขนาดรูปภาพสลิปและ QR Code ลงเหลือ ~40-50 KB และเปิด <strong>CDN Immutable Caching</strong> เพื่อหยุดการกิน Bandwidth เพิ่มเติมแล้ว
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="https://vercel.com/vt-9cbe/~/usage"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-black text-white hover:bg-slate-800 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all"
+            >
+              <span>เปิดดู Vercel Usage Tab</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+
+        {/* Metric Cards */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {/* Card 1: Fast Origin Transfer */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+              <span>FAST ORIGIN TRANSFER</span>
+              <span className="text-amber-600 font-black">75%</span>
+            </div>
+            <div className="text-xl font-black text-slate-900 font-mono">
+              ~7.5 <span className="text-xs text-slate-500 font-normal">/ 10.0 GB</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                style={{ width: "75%" }}
+              />
+            </div>
+            <div className="text-[10px] text-slate-400">
+              โควตาฟรี 10 GB ต่อเดือน (รีเซ็ตทุก Billing Cycle)
+            </div>
+          </div>
+
+          {/* Card 2: Connected Project */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500">PROJECT &amp; DEPLOYMENT</div>
+            <div className="text-base font-black text-slate-900 truncate">
+              {vercelStatus?.project?.name || "one-order-2"}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-bold text-emerald-700 font-mono">{vercelStatus?.project?.latestDeployState || "READY"}</span>
+              <span className="text-slate-400 font-mono text-[11px]">({vercelStatus?.project?.nodeVersion || "Node 20.x"})</span>
+            </div>
+            <div className="text-[10px] text-slate-500 truncate pt-0.5">
+              URL: <a href={`https://${vercelStatus?.project?.latestDeployUrl || "one-order-2.vercel.app"}`} target="_blank" rel="noopener noreferrer" className="text-purple-700 hover:underline font-mono">{vercelStatus?.project?.latestDeployUrl || "one-order-2.vercel.app"}</a>
+            </div>
+          </div>
+
+          {/* Card 3: Team Context */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500">VERCEL TEAM CONTEXT</div>
+            <div className="text-base font-black text-slate-900 font-mono truncate">
+              {vercelStatus?.team?.slug || "vt-9cbe"}
+            </div>
+            <div className="text-xs text-slate-600 font-medium">
+              Plan: <span className="font-bold text-slate-900">{vercelStatus?.team?.plan || "Hobby"}</span>
+            </div>
+            <div className="pt-1">
+              <a
+                href="https://vercel.com/vt-9cbe/~/settings/billing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-purple-700 hover:underline font-bold flex items-center gap-1"
+              >
+                <span>ดูรอบบิลและวันรีเซ็ตใน Billing</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
             </div>
           </div>
         </div>
