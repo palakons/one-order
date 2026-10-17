@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 };
 
 import { LanguageProvider } from "@/lib/i18n";
+import VersionBadge from "@/components/VersionBadge";
 
 export default function RootLayout({
   children,
@@ -37,7 +38,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
     >
       <body className="min-h-screen flex flex-col">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <div className="flex-1 flex flex-col">
+            {children}
+          </div>
+          <VersionBadge />
+        </LanguageProvider>
       </body>
     </html>
   );
