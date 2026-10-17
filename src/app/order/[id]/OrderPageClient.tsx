@@ -917,14 +917,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     <ExternalLink className="h-3 w-3 text-slate-600" />
                     <span>หน้าจัดส่ง</span>
                   </Link>
-                  <Link
-                    href={`/shop/${batch.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-0.5 text-[11px] font-semibold transition-colors shadow-2xs"
-                  >
-                    <FileText className="h-3 w-3 text-purple-700" />
-                    <span>ใบสรุปส่งร้าน</span>
-                  </Link>
                 </div>
               </div>
 
@@ -1173,66 +1165,58 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 </div>
               </div>
 
-              {/* Compact & Explicit Shop Price Disclaimer */}
-              <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 font-medium">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
-                  <span className="font-bold text-amber-900 truncate">
-                    โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                  {(batch.shop.promptpayQrUrl || batch.shop.promptpayNumber) && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPromptPayModal(true)}
-                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
-                      title="ดู QR พร้อมเพย์ร้านค้า"
-                    >
-                      <CreditCard className="h-2.5 w-2.5" />
-                      <span>QR ร้าน</span>
-                    </button>
-                  )}
-                  {batch.shop.lineQrUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setShowLineQrModal(true)}
-                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
-                      title="ดู QR LINE ร้านค้า"
-                    >
-                      <MessageSquare className="h-2.5 w-2.5" />
-                      <span>LINE ร้าน</span>
-                    </button>
-                  )}
-                  {batch.shop.phone && (
-                    <a
-                      href={`tel:${batch.shop.phone}`}
-                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                      title="โทรติดต่อร้านค้า"
-                    >
-                      <Phone className="h-2.5 w-2.5" />
-                      <span>{batch.shop.phone}</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2: Dish Name & Quick Popular Chips */}
+              {/* Row 2: Dish Name & Shop Contacts */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-gray-700 block">
-                    รายการอาหาร <span className="text-rose-500">*</span>
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">
+                    <span>รายการอาหาร</span>
+                    <span className="text-rose-500">*</span>
                   </label>
-                  <AIMenuSuggester
-                    shopId={batch.shop.id}
-                    shopName={batch.shop.name}
-                    onSelectDish={(selectedName, selectedPrice) => {
-                      setDishName(selectedName);
-                      if (selectedPrice > 0) {
-                        setDishPrice(String(selectedPrice));
-                      }
-                    }}
-                  />
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                    {batch.shop.phone && (
+                      <a
+                        href={`tel:${batch.shop.phone}`}
+                        className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                        title="โทรติดต่อร้านค้า"
+                      >
+                        <Phone className="h-2.5 w-2.5" />
+                        <span>{batch.shop.phone}</span>
+                      </a>
+                    )}
+                    {batch.shop.lineQrUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setShowLineQrModal(true)}
+                        className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                        title="ดู QR LINE ร้านค้า"
+                      >
+                        <MessageSquare className="h-2.5 w-2.5" />
+                        <span>LINE ร้าน</span>
+                      </button>
+                    )}
+                    {batch.shop.gmapUrl && (
+                      <a
+                        href={batch.shop.gmapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 text-[10px] font-bold transition-colors"
+                        title="เปิดดูเมนูบน Google Maps"
+                      >
+                        <MapPin className="h-2.5 w-2.5 text-rose-500 shrink-0" />
+                        <span>เมนู Maps ↗</span>
+                      </a>
+                    )}
+                    <AIMenuSuggester
+                      shopId={batch.shop.id}
+                      shopName={batch.shop.name}
+                      onSelectDish={(selectedName, selectedPrice) => {
+                        setDishName(selectedName);
+                        if (selectedPrice > 0) {
+                          setDishPrice(String(selectedPrice));
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 <DishAutocompleteInput
                   value={dishName}

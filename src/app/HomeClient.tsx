@@ -2450,42 +2450,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             </div>
 
-            {/* Board Price Disclaimer Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/90 text-xs text-amber-950 shadow-2xs">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
-                <span className="font-bold text-amber-900 truncate">
-                  {lang === "en"
-                    ? "Please verify price with shop before ordering"
-                    : lang === "cn"
-                    ? "下单前请向餐厅核对价格"
-                    : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
-                  <button
-                    type="button"
-                    onClick={() => setShowPromptPayModal(true)}
-                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
-                    title="ดู QR พร้อมเพย์ร้านค้า"
-                  >
-                    <QrCode className="h-3 w-3" />
-                    <span>QR ร้านค้า</span>
-                  </button>
-                )}
-                {activeBatch.shop.phone && (
-                  <a
-                    href={`tel:${activeBatch.shop.phone}`}
-                    className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
-                    title="โทรติดต่อร้านค้า"
-                  >
-                    <Phone className="h-2.5 w-2.5" />
-                    <span>{activeBatch.shop.phone}</span>
-                  </a>
-                )}
-              </div>
-            </div>
+
 
             {/* 3. The Live Whiteboard Table */}
             <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-xs">
@@ -2848,49 +2813,20 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   <div className="space-y-2.5 pt-1 border-t border-slate-100">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-2">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
                           <span>{t.orderItemsTitle}</span>
                           <span className="text-rose-500">*</span>
-                          {activeShopMapUrl && (
-                            <a
-                              href={activeShopMapUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 text-[10px] font-bold transition-colors"
-                              title="เปิดดูเมนูและรูปอาหารบน Google Maps"
-                            >
-                              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-                              <span>{lang === "en" ? "View Menu on Maps ↗" : lang === "cn" ? "在地图查看菜单 ↗" : "เปิดดูเมนูบน Google Maps ↗"}</span>
-                            </a>
-                          )}
                         </label>
-                        <span className="text-[10px] text-slate-500 font-medium">
-                          {totalItemBoxes} {t.boxesCount}
-                        </span>
-                      </div>
-                      {/* Compact & Explicit Shop Price Disclaimer */}
-                      <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 font-medium">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
-                          <span className="font-bold text-amber-900 truncate">
-                            {lang === "en"
-                              ? "Please verify price with shop before ordering"
-                              : lang === "cn"
-                              ? "下单前请向餐厅核对价格"
-                              : "โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง"}
-                          </span>
-                        </div>
                         <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                          {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
-                            <button
-                              type="button"
-                              onClick={() => setShowPromptPayModal(true)}
-                              className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-purple-900 hover:bg-purple-800 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
-                              title="ดู QR พร้อมเพย์ร้านค้า"
+                          {activeBatch.shop.phone && (
+                            <a
+                              href={`tel:${activeBatch.shop.phone}`}
+                              className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
+                              title="โทรติดต่อร้านค้า"
                             >
-                              <QrCode className="h-2.5 w-2.5" />
-                              <span>QR ร้าน</span>
-                            </button>
+                              <Phone className="h-2.5 w-2.5" />
+                              <span>{activeBatch.shop.phone}</span>
+                            </a>
                           )}
                           {activeBatch.shop.lineQrUrl && (
                             <button
@@ -2903,16 +2839,21 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               <span>LINE ร้าน</span>
                             </button>
                           )}
-                          {activeBatch.shop.phone && (
+                          {activeShopMapUrl && (
                             <a
-                              href={`tel:${activeBatch.shop.phone}`}
-                              className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95"
-                              title="โทรติดต่อร้านค้า"
+                              href={activeShopMapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 text-[10px] font-bold transition-colors"
+                              title="เปิดดูเมนูและรูปอาหารบน Google Maps"
                             >
-                              <Phone className="h-2.5 w-2.5" />
-                              <span>{activeBatch.shop.phone}</span>
+                              <MapPin className="h-2.5 w-2.5 text-rose-500 shrink-0" />
+                              <span>{lang === "en" ? "Menu Maps ↗" : lang === "cn" ? "菜单地图 ↗" : "เมนู Maps ↗"}</span>
                             </a>
                           )}
+                          <span className="text-[10px] text-slate-500 font-medium pl-1">
+                            {totalItemBoxes} {t.boxesCount}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2967,51 +2908,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                       </div>
                     )}
 
-                    {/* Subtle Friends Ordered Menu Chips (สั่งตามเพื่อน) */}
-                    {friendsDishes.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-1">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                          <Users className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span>{lang === "en" ? "Order like friends:" : lang === "cn" ? "随朋友点单:" : "สั่งตามเพื่อน:"}</span>
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {friendsDishes.slice(0, 8).map((d, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                const lastItem = orderItems[orderItems.length - 1];
-                                if (lastItem && !lastItem.name.trim()) {
-                                  handleUpdateOrderItem(lastItem.id, "name", d.name);
-                                  if (d.price > 0) handleUpdateOrderItem(lastItem.id, "price", String(d.price));
-                                } else {
-                                  setOrderItems((prev) => [
-                                    ...prev,
-                                    {
-                                      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                                      name: d.name,
-                                      price: d.price > 0 ? String(d.price) : "",
-                                      quantity: 1,
-                                      customNote: "",
-                                    },
-                                  ]);
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50/90 px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
-                              title={`เพื่อนสั่งไปแล้ว ${d.count} จาน`}
-                            >
-                              <span>{d.name}</span>
-                              {d.price > 0 && <span className="font-mono text-slate-400 text-[10px]">฿{d.price}</span>}
-                              {d.count > 1 && (
-                                <span className="rounded bg-slate-200/80 px-1 text-[9px] text-slate-500 font-bold">
-                                  ×{d.count}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
                     <div className="space-y-2.5">
                       {orderItems.map((item, index) => {
