@@ -83,12 +83,8 @@ export default function AIMenuSuggester({
   };
 
   const handlePickDish = (rec: DishRecommendation) => {
-    setJustSelectedDish(rec.name);
     onSelectDish(rec.name, rec.price);
-    setTimeout(() => {
-      setIsExpanded(false);
-      setJustSelectedDish(null);
-    }, 450);
+    setIsExpanded(false);
   };
 
   if (!isExpanded) {

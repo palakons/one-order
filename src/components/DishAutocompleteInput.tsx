@@ -134,15 +134,13 @@ export default function DishAutocompleteInput({
     return matches.slice(0, 6);
   }, [query, shouldFilter, catalog, shopId]);
 
-  // Close dropdown if user types less than 3 chars
+  // Close dropdown if query length < 3
   useEffect(() => {
     if (!shouldFilter) {
       setIsOpen(false);
       setHighlightedIndex(-1);
-    } else if (filteredMatches.length > 0) {
-      setIsOpen(true);
     }
-  }, [shouldFilter, filteredMatches.length]);
+  }, [shouldFilter]);
 
   // -------------------------------------------------------------
   // Click Outside Listener
@@ -166,7 +164,6 @@ export default function DishAutocompleteInput({
     onSelectMenu(item.name, item.price);
     setIsOpen(false);
     setHighlightedIndex(-1);
-    inputRef.current?.focus();
   };
 
   // -------------------------------------------------------------
@@ -205,11 +202,18 @@ export default function DishAutocompleteInput({
           autoFocus={autoFocus}
           placeholder={placeholder}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => {
-            if (shouldFilter && filteredMatches.length > 0) {
+          onChange={(e) => {
+            const nextVal = e.target.value;
+            onChange(nextVal);
+            // Open dropdown ONLY when user types at least 3 characters
+            if (nextVal.trim().length >= 3) {
               setIsOpen(true);
+            } else {
+              setIsOpen(false);
             }
+          }}
+          onFocus={() => {
+            // Keep closed on focus unless user is already typing
           }}
           onKeyDown={handleKeyDown}
           className={
@@ -217,31 +221,13 @@ export default function DishAutocompleteInput({
             "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:ring-1.5 focus:ring-purple-700"
           }
         />
-
-        {/* Subtle typing helper pill */}
-        {value.length > 0 && value.length < 3 && (
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-normal pointer-events-none">
-            พิมพ์อีก {3 - value.length} ตัวเพื่อแนะนำเมนู
-          </span>
-        )}
       </div>
 
-      {/* Floating Autocomplete Dropdown */}
+      {/* Floating Autocomplete Dropdown (Compact, Straight to items) */}
       {isOpen && filteredMatches.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-purple-200/80 bg-white shadow-xl shadow-purple-950/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-purple-50 to-indigo-50/60 border-b border-purple-100 text-[10px] font-bold text-purple-900">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-purple-600 shrink-0" />
-              <span>เมนูแนะนำยอดนิยม (AI คลีนชื่อแล้ว)</span>
-            </span>
-            <span className="text-[9px] text-purple-600/70 font-normal">
-              แตะเพื่อใส่ชื่อ + ราคาอัตโนมัติ
-            </span>
-          </div>
-
-          {/* List of Matches */}
-          <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 p-1">
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-purple-200 bg-white shadow-lg overflow-hidden animate-in fade-in duration-100">
+          {/* List of Matches (Straight to the items, compact padding) */}
+          <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 p-0.5">
             {filteredMatches.map((item, idx) => {
               const isHighlighted = idx === highlightedIndex;
               const hasPopularity = item.totalQuantity > 0 || item.orderCount > 0;
