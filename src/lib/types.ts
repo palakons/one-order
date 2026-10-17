@@ -20,6 +20,7 @@ export interface Shop {
   promptpayNumber?: string;
   promptpayAccountName?: string;
   promptpayQrUrl?: string; // QR code image URL (primary payment display)
+  lineQrUrl?: string; // LINE Official / personal QR code image URL
   menuImageUrl?: string;
   accentColor?: string; // Dominant / average logo color for card accents
   minDeliveryAmount: number; // default 200 THB

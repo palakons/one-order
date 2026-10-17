@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       promptpayNumber,
       promptpayAccountName,
       promptpayQrUrl,
+      lineQrUrl,
       menuImageUrl,
       minDeliveryAmount,
       defaultCutoffTime,
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       promptpayQrUrl:
         promptpayQrUrl ||
         (promptpayNumber ? `https://promptpay.io/${promptpayNumber}.png` : ""),
+      lineQrUrl: lineQrUrl || "",
       menuImageUrl: menuImageUrl || "",
       minDeliveryAmount: Number(minDeliveryAmount) || 200,
       defaultCutoffTime: defaultCutoffTime || "11:15",
@@ -88,6 +90,10 @@ export async function PUT(request: Request) {
         body.promptpayQrUrl !== undefined
           ? body.promptpayQrUrl
           : existingShop?.promptpayQrUrl || "",
+      lineQrUrl:
+        body.lineQrUrl !== undefined
+          ? body.lineQrUrl
+          : existingShop?.lineQrUrl || "",
       minDeliveryAmount: Number(body.minDeliveryAmount) || existingShop?.minDeliveryAmount || 200,
       menuItems: body.menuItems || existingShop?.menuItems || [],
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : (existingShop?.isActive ?? true),

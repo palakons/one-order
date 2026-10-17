@@ -35,6 +35,7 @@ import {
   Lock,
   LogOut,
   ArrowLeft,
+  MessageSquare,
   MessageSquareHeart,
   RefreshCw,
   AlertTriangle,
@@ -204,41 +205,17 @@ function ShopAdminCard({
           </div>
         </div>
 
-        {/* PromptPay QR Code Thumbnail */}
-        {qrUrl ? (
-          <div
-            className="flex items-center gap-2.5 p-2 rounded-xl border transition-colors"
-            style={{
-              backgroundColor: `${accentColor}08`,
-              borderColor: `${accentColor}25`,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                onZoomQr({
-                  url: qrUrl,
-                  title: `${shop.name} — พร้อมเพย์ QR`,
-                })
-              }
-              className="relative h-12 w-12 rounded-lg bg-white p-1 border border-gray-200 shrink-0 shadow-2xs cursor-zoom-in hover:scale-105 transition-transform group"
-              title="คลิกเพื่อขยายดู QR Code ขนาดใหญ่"
+        {/* QR Codes: PromptPay QR & LINE QR */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* PromptPay QR */}
+          {qrUrl ? (
+            <div
+              className="flex items-center gap-2 p-2 rounded-xl border transition-colors"
+              style={{
+                backgroundColor: `${accentColor}08`,
+                borderColor: `${accentColor}25`,
+              }}
             >
-              <img
-                src={qrUrl}
-                alt={`PromptPay QR ${shop.name}`}
-                className="h-full w-full object-contain"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
-                <Maximize2 className="h-3.5 w-3.5 text-gray-900 bg-white/90 rounded p-0.5" />
-              </div>
-            </button>
-            <div className="min-w-0 flex-1 text-xs">
-              <div className="flex items-center gap-1 font-bold text-gray-800">
-                <QrCode className="h-3.5 w-3.5 shrink-0" style={{ color: accentColor }} />
-                <span className="truncate">PromptPay QR</span>
-              </div>
               <button
                 type="button"
                 onClick={() =>
@@ -247,19 +224,96 @@ function ShopAdminCard({
                     title: `${shop.name} — พร้อมเพย์ QR`,
                   })
                 }
-                className="text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer mt-1"
-                style={{ color: accentColor }}
+                className="relative h-11 w-11 rounded-lg bg-white p-1 border border-gray-200 shrink-0 shadow-2xs cursor-zoom-in hover:scale-105 transition-transform group"
+                title="คลิกเพื่อขยายดู QR Code ขนาดใหญ่"
               >
-                <span>คลิกดูรูป QR เต็ม</span>
-                <Maximize2 className="h-2.5 w-2.5" />
+                <img
+                  src={qrUrl}
+                  alt={`PromptPay QR ${shop.name}`}
+                  className="h-full w-full object-contain"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                  <Maximize2 className="h-3 w-3 text-gray-900 bg-white/90 rounded p-0.5" />
+                </div>
               </button>
+              <div className="min-w-0 flex-1 text-xs">
+                <div className="flex items-center gap-1 font-bold text-gray-800">
+                  <QrCode className="h-3.5 w-3.5 shrink-0" style={{ color: accentColor }} />
+                  <span className="truncate">พร้อมเพย์ QR</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onZoomQr({
+                      url: qrUrl,
+                      title: `${shop.name} — พร้อมเพย์ QR`,
+                    })
+                  }
+                  className="text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
+                  style={{ color: accentColor }}
+                >
+                  <span>ขยายดู QR</span>
+                  <Maximize2 className="h-2.5 w-2.5" />
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="p-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 text-center text-xs text-gray-500">
-            <span className="text-[11px]">⚠️ ยังไม่มีรูป QR พร้อมเพย์ (กดแก้ไขเพื่ออัปโหลด)</span>
-          </div>
-        )}
+          ) : (
+            <div className="p-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 text-center text-xs text-gray-400 flex items-center justify-center">
+              <span className="text-[10px]">ยังไม่มี QR พร้อมเพย์</span>
+            </div>
+          )}
+
+          {/* LINE QR */}
+          {shop.lineQrUrl ? (
+            <div className="flex items-center gap-2 p-2 rounded-xl border border-emerald-200 bg-emerald-50/40 transition-colors">
+              <button
+                type="button"
+                onClick={() =>
+                  onZoomQr({
+                    url: shop.lineQrUrl!,
+                    title: `${shop.name} — LINE ร้านค้า`,
+                  })
+                }
+                className="relative h-11 w-11 rounded-lg bg-white p-1 border border-gray-200 shrink-0 shadow-2xs cursor-zoom-in hover:scale-105 transition-transform group"
+                title="คลิกเพื่อขยายดู QR LINE ขนาดใหญ่"
+              >
+                <img
+                  src={shop.lineQrUrl}
+                  alt={`LINE QR ${shop.name}`}
+                  className="h-full w-full object-contain"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                  <Maximize2 className="h-3 w-3 text-gray-900 bg-white/90 rounded p-0.5" />
+                </div>
+              </button>
+              <div className="min-w-0 flex-1 text-xs">
+                <div className="flex items-center gap-1 font-bold text-emerald-950">
+                  <MessageSquare className="h-3.5 w-3.5 text-[#06C755] shrink-0" />
+                  <span className="truncate">LINE ร้านค้า</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onZoomQr({
+                      url: shop.lineQrUrl!,
+                      title: `${shop.name} — LINE ร้านค้า`,
+                    })
+                  }
+                  className="text-[10px] font-bold text-[#06C755] hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
+                >
+                  <span>ขยายดู QR</span>
+                  <Maximize2 className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 text-center text-xs text-gray-400 flex items-center justify-center">
+              <span className="text-[10px]">ยังไม่มี QR LINE</span>
+            </div>
+          )}
+        </div>
 
         {/* Google Maps link & Synced Hours */}
         <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 space-y-1.5">
@@ -553,6 +607,7 @@ export default function AdminClient({
   const [shopLineId, setShopLineId] = useState("");
   const [shopGmapUrl, setShopGmapUrl] = useState("");
   const [shopPromptPayQrUrl, setShopPromptPayQrUrl] = useState("");
+  const [shopLineQrUrl, setShopLineQrUrl] = useState("");
   const [shopMenuImageUrl, setShopMenuImageUrl] = useState("");
   const [shopMinDelivery, setShopMinDelivery] = useState("200");
   const [shopDefaultCutoff, setShopDefaultCutoff] = useState("11:15");
@@ -983,6 +1038,7 @@ export default function AdminClient({
     setShopLineId("");
     setShopGmapUrl("");
     setShopPromptPayQrUrl("");
+    setShopLineQrUrl("");
     setShopMenuImageUrl("");
     setShopMinDelivery("200");
     setShopDefaultCutoff("11:15");
@@ -1005,6 +1061,7 @@ export default function AdminClient({
     setShopLineId(shop.lineId || "");
     setShopGmapUrl(shop.gmapUrl || "");
     setShopPromptPayQrUrl(shop.promptpayQrUrl || "");
+    setShopLineQrUrl(shop.lineQrUrl || "");
     setShopMenuImageUrl(shop.menuImageUrl || "");
     setShopMinDelivery(String(shop.minDeliveryAmount || 200));
     setShopDefaultCutoff(shop.defaultCutoffTime || "11:15");
@@ -1136,6 +1193,7 @@ export default function AdminClient({
         lineId: shopLineId.trim(),
         gmapUrl: shopGmapUrl.trim() || `https://maps.google.com/?q=${encodeURIComponent(shopName.trim() + " ระยอง")}`,
         promptpayQrUrl: shopPromptPayQrUrl.trim() || undefined,
+        lineQrUrl: shopLineQrUrl.trim() || undefined,
         menuImageUrl: shopMenuImageUrl.trim() || undefined,
         minDeliveryAmount: Number(shopMinDelivery) || 200,
         defaultCutoffTime: shopDefaultCutoff.trim() || "11:15",
@@ -1169,13 +1227,14 @@ export default function AdminClient({
     }
   };
 
-  const handleUploadShopImageFile = async (e: React.ChangeEvent<HTMLInputElement>, targetField: "menu" | "qr") => {
+  const handleUploadShopImageFile = async (e: React.ChangeEvent<HTMLInputElement>, targetField: "menu" | "qr" | "lineQr") => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const compressed = await compressImage(file, 800, 0.75);
         if (targetField === "menu") setShopMenuImageUrl(compressed);
         if (targetField === "qr") setShopPromptPayQrUrl(compressed);
+        if (targetField === "lineQr") setShopLineQrUrl(compressed);
       } catch (err) {
         console.error("Image upload compression error:", err);
       }
@@ -4614,6 +4673,43 @@ export default function AdminClient({
                     placeholder="หรือวางลิงก์รูป QR Image URL"
                     value={shopPromptPayQrUrl}
                     onChange={(e) => setShopPromptPayQrUrl(e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
+                  />
+                </div>
+              </div>
+
+              {/* LINE Official / Shop LINE QR Section */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <MessageSquare className="h-4 w-4 text-[#06C755]" />
+                  <span>รูปภาพ QR Code LINE ร้านค้า (Shop LINE QR Image)</span>
+                </div>
+                <p className="text-[11px] text-gray-600">
+                  อัปโหลดรูป QR Code บัญชี LINE ของร้านค้า (LINE Official / LINE ส่วนตัว) เพื่อให้ลูกค้ากดดูและแอดไลน์ร้านได้สะดวก
+                </p>
+
+                {shopLineQrUrl && (
+                  <div className="relative h-28 w-28 rounded-xl border border-emerald-200 overflow-hidden bg-white shadow-2xs">
+                    <img src={shopLineQrUrl} alt="LINE QR Preview" className="h-full w-full object-contain p-1" />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-[#06C755] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-[#05b34c] transition-colors shrink-0 shadow-2xs">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>อัปโหลด LINE QR</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleUploadShopImageFile(e, "lineQr")}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="หรือวางลิงก์รูป LINE QR Image URL"
+                    value={shopLineQrUrl}
+                    onChange={(e) => setShopLineQrUrl(e.target.value)}
                     className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
                   />
                 </div>

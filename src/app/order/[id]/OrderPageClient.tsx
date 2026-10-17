@@ -40,6 +40,8 @@ import {
   ArrowDown,
   FileText,
   Users,
+  MessageSquare,
+  Info,
 } from "lucide-react";
 
 interface Props {
@@ -64,6 +66,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
 
   // Shop Modals
   const [showPromptPayModal, setShowPromptPayModal] = useState(false);
+  const [showLineQrModal, setShowLineQrModal] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<{ url: string; title: string } | null>(null);
 
   // Whiteboard Fast Order Input Form
@@ -1178,7 +1181,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     โปรดตรวจสอบราคากับร้านค้าก่อนสั่ง
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                   {(batch.shop.promptpayQrUrl || batch.shop.promptpayNumber) && (
                     <button
                       type="button"
@@ -1188,6 +1191,17 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     >
                       <CreditCard className="h-2.5 w-2.5" />
                       <span>QR ร้าน</span>
+                    </button>
+                  )}
+                  {batch.shop.lineQrUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLineQrModal(true)}
+                      className="inline-flex items-center gap-1 shrink-0 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white px-2 py-0.5 text-[10px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      title="ดู QR LINE ร้านค้า"
+                    >
+                      <MessageSquare className="h-2.5 w-2.5" />
+                      <span>LINE ร้าน</span>
                     </button>
                   )}
                   {batch.shop.phone && (
@@ -1491,6 +1505,67 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 คัดลอกเลขพร้อมเพย์
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1.5: Shop LINE QR */}
+      {showLineQrModal && batch.shop.lineQrUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl text-center space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-1.5 font-bold text-sm text-gray-900">
+                <MessageSquare className="h-4 w-4 text-[#06C755]" />
+                <span>QR LINE ร้านค้า</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLineQrModal(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mx-auto w-52 h-52 bg-white rounded-2xl border-2 border-emerald-200 p-2 shadow-inner flex items-center justify-center">
+              <img
+                src={batch.shop.lineQrUrl}
+                alt="LINE QR"
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500">ร้านค้า:</p>
+              <p className="text-sm font-black text-gray-900">{batch.shop.name}</p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5 text-xs text-emerald-950 text-left flex items-start gap-2 leading-relaxed">
+              <Info className="h-4 w-4 text-[#06C755] shrink-0 mt-0.5" />
+              <span>สแกน QR เพื่อแอดไลน์และติดต่อร้านค้าโดยตรง</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5 pt-1">
+              <a
+                href={batch.shop.lineQrUrl}
+                download={`line-qr-${batch.shop.id}.jpg`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full rounded-xl bg-emerald-50 border border-emerald-300 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-[#06C755]" />
+                <span>บันทึกรูป QR ลงเครื่อง</span>
+              </a>
+              {batch.shop.phone && (
+                <a
+                  href={`tel:${batch.shop.phone}`}
+                  className="w-full rounded-xl bg-gray-100 py-2 text-xs font-bold text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Phone className="h-3.5 w-3.5 text-gray-600" />
+                  <span>โทรหาร้าน ({batch.shop.phone})</span>
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
