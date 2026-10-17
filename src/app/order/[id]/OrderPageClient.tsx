@@ -892,7 +892,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                   )}
                 </div>
 
-                {/* Quick Links: Delivery Photo, Tracking Page, Kitchen Slip */}
+                {/* Delivery proof photo if available */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {batch.deliveryPhotoUrl && (
                     <button
@@ -909,14 +909,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                       <span>ดูรูปส่งอาหารจริง</span>
                     </button>
                   )}
-                  <Link
-                    href={`/delivery/${batch.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-0.5 text-[11px] font-semibold transition-colors shadow-2xs"
-                  >
-                    <ExternalLink className="h-3 w-3 text-slate-600" />
-                    <span>หน้าจัดส่ง</span>
-                  </Link>
                 </div>
               </div>
 
@@ -982,9 +974,6 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                 📋 ออเดอร์ทั้งหมด
               </h2>
             </div>
-            <span className="text-xs font-black text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
-              รวม {activeOrders.length} กล่อง
-            </span>
           </div>
 
           {activeOrders.length === 0 ? (
@@ -1029,13 +1018,11 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
                     <div className="space-y-1 pl-0.5">
                       {ord.items.map((it, idx) => (
                         <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                          <span className="text-gray-400 font-bold mr-1">•</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1 shrink-0">
+                            {it.quantity || 1}x
+                          </span>
                           <span className="text-sm sm:text-base font-black text-gray-950">
-                            <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
-                            {it.quantity > 1 && (
-                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
-                                {it.quantity}x
-                              </span>
-                            )}
                             {it.name}
                           </span>
                           {it.customNote && (

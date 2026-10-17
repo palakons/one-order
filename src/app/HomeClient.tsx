@@ -2301,22 +2301,13 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
                   {!activeBatch.isDeleted ? (
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleShareBoardInvite()}
-                        className="inline-flex items-center gap-0.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0 cursor-pointer"
-                        title="แชร์ชวนเพื่อนเข้าตี้"
-                      >
-                        <Share2 className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                        <span className="hidden sm:inline">แชร์</span>
-                      </button>
                       <Link
                         href={`/order/${activeBatch.id}/leader`}
-                        className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 p-0.5 sm:px-1.5 sm:py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
-                        title={t.manageBoard}
+                        className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
+                        title="เข้าห้องหัวหน้าตี้เพื่ออัปเดตสถานะรอบ"
                       >
                         <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                        <span className="hidden sm:inline">{t.manageBoard.replace(" ↗", "")}</span>
+                        <span>อัปเดตสถานะ</span>
                       </Link>
                     </div>
                   ) : (
@@ -2461,9 +2452,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   <h3 className="font-black text-sm text-slate-950">
                     {t.boardTitle}
                   </h3>
-                  <span className="text-[11px] font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800">
-                    {totalBoxesInBatch} {t.boxesCount}
-                  </span>
                   {isSelfPickup && (
                     <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
                       {t.selfPickupFull}
@@ -2509,17 +2497,15 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                             )}
                           </div>
 
-                          {/* Row 2: Numbered Menu Items */}
-                          <div className="space-y-1 pl-0.5">
+                          {/* Row 2: Menu Items with Bullets & Explicit Quantity Badges */}
+                          <div className="space-y-1.5 pl-0.5">
                             {ord.items.map((it, idx) => (
                               <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
+                                <span className="text-slate-400 font-bold">•</span>
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 shrink-0">
+                                  {it.quantity || 1}x
+                                </span>
                                 <span className="text-sm sm:text-base font-black text-slate-950">
-                                  <span className="text-slate-500 font-bold mr-1">{idx + 1}.</span>
-                                  {it.quantity > 1 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
-                                      {it.quantity}x
-                                    </span>
-                                  )}
                                   {it.name}
                                 </span>
                                 {it.customNote && (
@@ -2636,13 +2622,12 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                                 <div className="space-y-1">
                                   {ord.items.map((it, idx) => (
                                     <div key={idx} className="flex items-baseline gap-1.5 flex-wrap">
+                                      <span className="text-slate-400 font-bold mr-1">•</span>
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5 shrink-0">
+                                        {it.quantity || 1}x
+                                      </span>
                                       <span className="font-bold text-sm sm:text-base text-slate-950">
-                                        <span className="text-slate-500 font-bold mr-1">{idx + 1}.</span>
-                                        {it.quantity > 1 ? (
-                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-900 mr-1.5">
-                                            {it.quantity}x
-                                          </span>
-                                        ) : ""}{it.name}
+                                        {it.name}
                                       </span>
                                       {it.price && it.quantity > 1 ? (
                                         <span className="text-[10px] text-slate-500 font-mono">
