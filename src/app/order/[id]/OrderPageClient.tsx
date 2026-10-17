@@ -1459,7 +1459,7 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               </button>
             </div>
 
-            <div className="mx-auto w-52 h-52 bg-white rounded-2xl border-2 border-purple-200 p-2 shadow-inner flex items-center justify-center">
+            <div className="mx-auto w-52 h-52 sm:w-72 sm:h-72 bg-white rounded-2xl border-2 border-purple-200 p-3 shadow-inner flex items-center justify-center">
               <img
                 src={batch.shop.promptpayQrUrl || `https://promptpay.io/${batch.shop.promptpayNumber}.png`}
                 alt="PromptPay QR"
@@ -1477,18 +1477,32 @@ export default function OrderPageClient({ batchId, initialBatch }: Props) {
               )}
             </div>
 
-            {batch.shop.promptpayNumber && (
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(batch.shop.promptpayNumber || "");
-                  alert("คัดลอกเลขพร้อมเพย์แล้ว");
-                }}
-                className="w-full rounded-xl bg-purple-100 py-2 text-xs font-bold text-purple-900 hover:bg-purple-200 transition-colors"
-              >
-                คัดลอกเลขพร้อมเพย์
-              </button>
-            )}
+            <div className="flex flex-col gap-1.5 pt-1">
+              {(batch.shop.promptpayQrUrl || batch.shop.promptpayNumber) && (
+                <a
+                  href={batch.shop.promptpayQrUrl || `https://promptpay.io/${batch.shop.promptpayNumber}.png`}
+                  download={`PromptPay-${batch.shop.name}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full rounded-xl bg-purple-50 border border-purple-200 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5 text-purple-700" />
+                  <span>บันทึกรูป QR ลงเครื่อง</span>
+                </a>
+              )}
+              {batch.shop.promptpayNumber && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(batch.shop.promptpayNumber || "");
+                    alert("คัดลอกเลขพร้อมเพย์แล้ว");
+                  }}
+                  className="w-full rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-colors"
+                >
+                  คัดลอกเลขพร้อมเพย์
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

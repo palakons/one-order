@@ -43,6 +43,7 @@ import {
   Info,
   ShieldCheck,
   Zap,
+  Maximize2,
   Phone,
   Archive,
   ArrowLeft,
@@ -3085,14 +3086,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           ? `https://promptpay.io/${activeBatch.shop.promptpayNumber.replace(/\D/g, "")}.png`
                           : null);
 
-                      const handleDownloadQr = () => {
-                        if (shopQrUrl) {
+                      const handleQrAction = () => {
+                        // On Mobile (touch device / small screen): download image directly for bank app scanner
+                        const isMobile = typeof window !== "undefined" && (window.innerWidth < 640 || "ontouchstart" in window);
+                        if (isMobile && shopQrUrl) {
                           const a = document.createElement("a");
                           a.href = shopQrUrl;
                           a.download = `PromptPay-${activeBatch.shop.name}.png`;
                           a.target = "_blank";
                           a.click();
                         } else {
+                          // On PC / Desktop: Enlarge full screen modal to scan with phone
                           setShowPromptPayModal(true);
                         }
                       };
@@ -3109,9 +3113,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                           {shopQrUrl ? (
                             <button
                               type="button"
-                              onClick={handleDownloadQr}
+                              onClick={handleQrAction}
                               className="group relative my-1 h-20 w-20 rounded-lg bg-white p-1 border border-purple-200 shadow-2xs hover:scale-105 transition-transform cursor-pointer flex items-center justify-center shrink-0"
-                              title="แตะเพื่อดาวน์โหลด QR"
+                              title="แตะเพื่อดู QR หรือดาวน์โหลด"
                             >
                               <img
                                 src={shopQrUrl}
@@ -3119,7 +3123,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                                 className="h-full w-full object-contain"
                               />
                               <div className="absolute inset-0 bg-purple-900/10 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
-                                <Download className="h-4 w-4 text-purple-900" />
+                                <Maximize2 className="h-4 w-4 text-purple-900 hidden sm:block" />
+                                <Download className="h-4 w-4 text-purple-900 sm:hidden" />
                               </div>
                             </button>
                           ) : null}
@@ -3135,11 +3140,17 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
                           <button
                             type="button"
-                            onClick={handleDownloadQr}
+                            onClick={handleQrAction}
                             className="mt-1.5 inline-flex items-center justify-center gap-1 w-full rounded-lg bg-purple-900 hover:bg-purple-800 text-white py-1.5 px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-98"
                           >
-                            <Download className="h-3 w-3" />
-                            <span>โหลด QR ร้าน</span>
+                            <span className="hidden sm:inline-flex items-center gap-1">
+                              <Maximize2 className="h-3 w-3" />
+                              <span>ขยายดู QR เต็มจอ</span>
+                            </span>
+                            <span className="inline-flex sm:hidden items-center gap-1">
+                              <Download className="h-3 w-3" />
+                              <span>โหลดรูป QR สแกนจ่าย</span>
+                            </span>
                           </button>
                         </div>
                       );
@@ -3265,7 +3276,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </button>
             </div>
 
-            <div className="mx-auto w-48 h-48 bg-white rounded-xl border border-slate-300 p-2 shadow-inner flex items-center justify-center">
+            <div className="mx-auto w-52 h-52 sm:w-72 sm:h-72 bg-white rounded-2xl border-2 border-purple-200 p-3 shadow-inner flex items-center justify-center">
               <img
                 src={activeBatch.shop.promptpayQrUrl || `https://promptpay.io/${activeBatch.shop.promptpayNumber}.png`}
                 alt="PromptPay QR"
@@ -3289,18 +3300,32 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               <span>{t.qrModalGuideline}</span>
             </div>
 
-            {activeBatch.shop.promptpayNumber && (
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(activeBatch.shop.promptpayNumber || "");
-                  alert(t.copiedPromptPay);
-                }}
-                className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-900 hover:bg-slate-200 transition-colors"
-              >
-                {t.copyPromptPay}
-              </button>
-            )}
+            <div className="flex flex-col gap-1.5 pt-1">
+              {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
+                <a
+                  href={activeBatch.shop.promptpayQrUrl || `https://promptpay.io/${activeBatch.shop.promptpayNumber}.png`}
+                  download={`PromptPay-${activeBatch.shop.name}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full rounded-lg bg-purple-50 border border-purple-200 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5 text-purple-700" />
+                  <span>บันทึกรูป QR ลงเครื่อง</span>
+                </a>
+              )}
+              {activeBatch.shop.promptpayNumber && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(activeBatch.shop.promptpayNumber || "");
+                    alert(t.copiedPromptPay);
+                  }}
+                  className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-colors"
+                >
+                  {t.copyPromptPay}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
