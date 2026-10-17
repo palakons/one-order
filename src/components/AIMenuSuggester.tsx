@@ -9,6 +9,9 @@ interface AIMenuSuggesterProps {
   shopName: string;
   onSelectDish: (dishName: string, price: number) => void;
   className?: string;
+  isExpanded?: boolean;
+  onToggleExpand?: (expanded: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 const PRESET_PHRASES = [
@@ -24,8 +27,19 @@ export default function AIMenuSuggester({
   shopName,
   onSelectDish,
   className = "",
+  isExpanded: externalIsExpanded,
+  onToggleExpand,
+  hideTrigger = false,
 }: AIMenuSuggesterProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalExpanded;
+  const setIsExpanded = (val: boolean) => {
+    if (onToggleExpand) {
+      onToggleExpand(val);
+    } else {
+      setInternalExpanded(val);
+    }
+  };
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<DishRecommendation[]>([]);
@@ -78,6 +92,7 @@ export default function AIMenuSuggester({
   };
 
   if (!isExpanded) {
+    if (hideTrigger) return null;
     return (
       <div className={className}>
         <button

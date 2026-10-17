@@ -558,32 +558,32 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     });
   };
 
-  const handleCopyEntireOrder = (ord: Order) => {
-    if (!ord.items || ord.items.length === 0) {
-      setOrderItems([
+  // Helper to add dish from consolidated suggestions into form (fill item 1 if empty, or append new item)
+  const handleAddSuggestedDish = (name: string, price?: number | string, customNote?: string) => {
+    setOrderItems((prev) => {
+      const first = prev[0];
+      const priceStr = price !== undefined && price !== null && String(price) !== "" ? String(price) : "";
+      if (prev.length === 1 && (!first.name || !first.name.trim())) {
+        return [
+          {
+            ...first,
+            name,
+            price: priceStr || first.price,
+            customNote: customNote || first.customNote || "",
+          },
+        ];
+      }
+      return [
+        ...prev,
         {
-          id: `item-${Date.now()}-0`,
-          name: ord.boxLabel || "อาหาร",
-          price: ord.totalAmount ? String(ord.totalAmount) : "",
+          id: `item-${Date.now()}-${prev.length}`,
+          name,
+          price: priceStr,
           quantity: 1,
-          customNote: "",
+          customNote: customNote || "",
         },
-      ]);
-    } else {
-      setOrderItems(
-        ord.items.map((it, idx) => ({
-          id: `item-${Date.now()}-${idx}`,
-          name: it.name,
-          price: it.price ? String(it.price) : "",
-          quantity: it.quantity || 1,
-          customNote: it.customNote || "",
-        }))
-      );
-    }
-    const el = document.getElementById("order-form");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+      ];
+    });
   };
 
   // Open Board Modal State (Anyone can open a board for Building / Shop)
@@ -627,6 +627,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   // Manual Refresh state (No background polling to preserve Firestore quota)
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
+
+  // Consolidated Menu Suggestions Tab: null (collapsed) | "SHOP" | "FRIENDS" | "AI"
+  const [activeSuggestionTab, setActiveSuggestionTab] = useState<"SHOP" | "FRIENDS" | "AI" | null>(null);
 
   const fetchLocations = async () => {
     try {
@@ -1244,26 +1247,32 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
     );
   }, [activeOrders]);
 
-  // Unique dishes ordered by friends in this board (ordered list for quick pick)
+  // Unique dishes ordered by friends in this board (ordered list with notes for quick pick)
   const friendsDishes = useMemo(() => {
-    const dishMap = new Map<string, { name: string; price: number; count: number }>();
+    const list: { name: string; price?: number; customNote?: string; count: number }[] = [];
+    const seen = new Map<string, { name: string; price?: number; customNote?: string; count: number }>();
+
     activeOrders.forEach((ord) => {
       (ord.items || []).forEach((it) => {
         const cleanName = it.name?.trim();
         if (!cleanName) return;
-        const existing = dishMap.get(cleanName);
+        const key = `${cleanName}__${it.customNote?.trim() || ""}`;
+        const existing = seen.get(key);
         if (existing) {
           existing.count += it.quantity || 1;
         } else {
-          dishMap.set(cleanName, {
+          const entry = {
             name: cleanName,
             price: it.price || 0,
+            customNote: it.customNote?.trim() || undefined,
             count: it.quantity || 1,
-          });
+          };
+          seen.set(key, entry);
+          list.push(entry);
         }
       });
     });
-    return Array.from(dishMap.values()).sort((a, b) => b.count - a.count);
+    return list.sort((a, b) => b.count - a.count);
   }, [activeOrders]);
 
   const leaderLine = activeBatch?.hostLineId || (activeOrders[0]?.customerLineId ? `@${activeOrders[0].customerLineId}` : activeOrders[0]?.customerName);
@@ -2271,31 +2280,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
               {/* Card 3: Leader or Retention Status */}
               <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-slate-500">
-                  <span className="flex items-center gap-1 text-purple-900 shrink-0 min-w-0">
-                    <span className="text-amber-500">👑</span>
-                    <span className="truncate">{t.leader}</span>
-                  </span>
-
-                  {!activeBatch.isDeleted ? (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Link
-                        href={`/order/${activeBatch.id}/leader`}
-                        className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs shrink-0"
-                        title="เข้าห้องหัวหน้าตี้เพื่ออัปเดตสถานะรอบ"
-                      >
-                        <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                        <span>อัปเดตสถานะ</span>
-                      </Link>
-                    </div>
-                  ) : (
-                    <span className="rounded bg-rose-100 text-rose-800 px-1 py-0.2 text-[8px] font-bold shrink-0">
-                      Purged
-                    </span>
-                  )}
-                </div>
-
-                <div className="my-0.5">
+                {/* Line 1: Crown + Name */}
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-amber-500 text-xs sm:text-sm shrink-0">👑</span>
                   <h3 className="text-xs sm:text-sm font-black text-slate-950 leading-tight truncate" title={activeBatch.isDeleted ? "PDPA Purged" : (leaderLine || t.noLeader)}>
                     {activeBatch.isDeleted
                       ? (lang === "en" ? "Data Purged" : lang === "cn" ? "数据已清除" : "ข้อมูลถูกลบแล้ว")
@@ -2303,19 +2290,39 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </h3>
                 </div>
 
-                <div className="text-[9px] sm:text-[10px] truncate">
+                {/* Line 2: Phone Number */}
+                <div className="my-0.5 text-[9px] sm:text-[10px] truncate">
                   {activeBatch.isDeleted ? (
-                    <span className="text-slate-400">PDPA</span>
+                    <span className="text-slate-400 font-mono">PDPA</span>
                   ) : leaderPhone ? (
                     <a
                       href={`tel:${leaderPhone}`}
-                      className="inline-flex items-center gap-0.5 font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline truncate"
+                      className="inline-flex items-center gap-1 font-mono font-bold text-purple-900 hover:text-purple-700 hover:underline truncate"
+                      title="โทรหาคนเปิดตี้"
                     >
                       <Phone className="h-2.5 w-2.5 text-purple-700 shrink-0" />
                       <span className="truncate">{leaderPhone}</span>
                     </a>
                   ) : (
                     <span className="text-slate-400">{lang === "en" ? "No phone" : lang === "cn" ? "未留电话" : "ไม่มีเบอร์"}</span>
+                  )}
+                </div>
+
+                {/* Line 3: Action Button */}
+                <div>
+                  {!activeBatch.isDeleted ? (
+                    <Link
+                      href={`/order/${activeBatch.id}/leader`}
+                      className="w-full inline-flex items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs"
+                      title="เข้าห้องหัวหน้าตี้เพื่ออัปเดตสถานะรอบ"
+                    >
+                      <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
+                      <span>อัปเดตสถานะ</span>
+                    </Link>
+                  ) : (
+                    <span className="inline-block rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[8px] font-bold">
+                      Purged
+                    </span>
                   )}
                 </div>
               </div>
@@ -2509,22 +2516,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               </span>
                             )}
 
-                            {/* Right: Price + Copy Order + View Slip + Cancel */}
+                            {/* Right: Price + View Slip + Cancel */}
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="font-mono font-black text-base text-orange-600">
                                 ฿{ord.totalAmount}
                               </span>
-                              {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyEntireOrder(ord)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-900 px-2 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
-                                  title="สั่งตามเพื่อนทั้งออเดอร์นี้"
-                                >
-                                  <Copy className="h-3 w-3 text-purple-700" />
-                                  <span>สั่งตามเพื่อน</span>
-                                </button>
-                              )}
                               {hasSlip && ord.slipImageUrl && (
                                 <button
                                   type="button"
@@ -2626,17 +2622,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               </td>
                               <td className="py-3 px-3 text-center align-top">
                                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                  {!isBatchClosed && activeGroup === "OPENING" && !activeBatch.isDeleted && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopyEntireOrder(ord)}
-                                      className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 text-[10px] font-bold hover:bg-purple-100 transition-colors cursor-pointer"
-                                      title="สั่งตามเพื่อนทั้งออเดอร์นี้"
-                                    >
-                                      <Copy className="h-2.5 w-2.5 text-purple-700" />
-                                      <span>สั่งตามเพื่อน</span>
-                                    </button>
-                                  )}
                                   {hasSlip ? (
                                     <button
                                       type="button"
@@ -2824,54 +2809,178 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                     </div>
 
 
-                    {/* Quick Pick Menu Items Chips */}
-                    {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
-                      <div className="space-y-1.5 pb-1">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                          <span className="flex items-center gap-1 text-purple-900">
-                            <Sparkles className="h-3 w-3 text-purple-700 shrink-0" />
-                            <span>{lang === "en" ? "Quick Pick from Shop Menu:" : lang === "cn" ? "快速选择菜单推荐:" : "แตะเลือกเมนูแนะนำของร้าน:"}</span>
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-normal">
-                            {lang === "en" ? "(Tap to auto-fill)" : lang === "cn" ? "(点击自动填入)" : "(แตะเพื่อใส่ชื่อและราคา)"}
-                          </span>
+                    {/* Consolidated 3-Tab Suggestions: 🏪 เมนูร้าน | 👥 เพื่อนสั่งรอบนี้ | ✨ ถาม AI */}
+                    <div className="space-y-2 pb-1">
+                      {/* Compact Tabs Bar */}
+                      <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Tab 1: 🏪 เมนูร้าน (Shop Menu) */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveSuggestionTab((curr) => (curr === "SHOP" ? null : "SHOP"))
+                            }
+                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer ${
+                              activeSuggestionTab === "SHOP"
+                                ? "bg-purple-900 text-white ring-1 ring-purple-900"
+                                : "bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100"
+                            }`}
+                          >
+                            <span>🏪 เมนูร้าน</span>
+                            {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 && (
+                              <span className={`text-[10px] px-1 rounded-full font-mono font-bold ${
+                                activeSuggestionTab === "SHOP" ? "bg-white/20 text-white" : "bg-purple-200 text-purple-950"
+                              }`}>
+                                {activeBatch.shop.menuItems.length}
+                              </span>
+                            )}
+                          </button>
+
+                          {/* Tab 2: 👥 เพื่อนสั่ง (Orders from above) - Disabled if 0 */}
+                          <button
+                            type="button"
+                            disabled={friendsDishes.length === 0}
+                            onClick={() =>
+                              setActiveSuggestionTab((curr) => (curr === "FRIENDS" ? null : "FRIENDS"))
+                            }
+                            title={friendsDishes.length === 0 ? "ยังไม่มีเพื่อนสั่งในรอบนี้ (เป็นคนแรกของตี้!)" : "ดูเมนูที่เพื่อนสั่งในรอบนี้"}
+                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 ${
+                              friendsDishes.length === 0
+                                ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
+                                : activeSuggestionTab === "FRIENDS"
+                                ? "bg-purple-900 text-white ring-1 ring-purple-900 cursor-pointer"
+                                : "bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100 cursor-pointer"
+                            }`}
+                          >
+                            <Users className="h-3 w-3 shrink-0" />
+                            <span>เพื่อนสั่ง</span>
+                            <span className={`text-[10px] px-1 rounded-full font-mono font-bold ${
+                              friendsDishes.length === 0
+                                ? "bg-slate-200 text-slate-500"
+                                : activeSuggestionTab === "FRIENDS"
+                                ? "bg-white/20 text-white"
+                                : "bg-purple-200 text-purple-950"
+                            }`}>
+                              {friendsDishes.length}
+                            </span>
+                          </button>
+
+                          {/* Tab 3: ✨ ถาม AI (ThaiLLM Suggester) */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveSuggestionTab((curr) => (curr === "AI" ? null : "AI"))
+                            }
+                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer ${
+                              activeSuggestionTab === "AI"
+                                ? "bg-purple-900 text-white ring-1 ring-purple-900"
+                                : "bg-gradient-to-r from-purple-50 via-fuchsia-50 to-pink-50 text-purple-950 border border-purple-200 hover:border-purple-400"
+                            }`}
+                          >
+                            <Sparkles className="h-3 w-3 text-purple-600 animate-pulse shrink-0" />
+                            <span>ถาม AI</span>
+                          </button>
                         </div>
-                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-xl bg-purple-50/50 border border-purple-200/60">
-                          {activeBatch.shop.menuItems.map((menuItem) => {
-                            const displayName = lang === "en" ? (menuItem.nameEn || menuItem.name) : menuItem.name;
-                            return (
-                              <button
-                                key={menuItem.id}
-                                type="button"
-                                onClick={() => {
-                                  const lastItem = orderItems[orderItems.length - 1];
-                                  if (lastItem && !lastItem.name.trim()) {
-                                    handleUpdateOrderItem(lastItem.id, "name", displayName);
-                                    handleUpdateOrderItem(lastItem.id, "price", String(menuItem.price));
-                                  } else {
-                                    setOrderItems((prev) => [
-                                      ...prev,
-                                      {
-                                        id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                                        name: displayName,
-                                        price: String(menuItem.price),
-                                        quantity: 1,
-                                        customNote: "",
-                                      },
-                                    ]);
-                                  }
-                                }}
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-800 hover:border-purple-500 hover:bg-purple-100/70 hover:text-purple-950 transition-all shadow-2xs active:scale-95 text-left cursor-pointer"
-                              >
-                                {menuItem.popular && <span className="text-amber-500 text-[11px]">★</span>}
-                                <span>{displayName}</span>
-                                <span className="font-mono font-bold text-orange-600 ml-0.5">฿{menuItem.price}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+
+                        {activeSuggestionTab !== null && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveSuggestionTab(null)}
+                            className="inline-flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                          >
+                            <X className="h-3 w-3" />
+                            <span>ย่อเก็บ</span>
+                          </button>
+                        )}
                       </div>
-                    )}
+
+                      {/* Expandable Pane 1: Shop Menu Chips */}
+                      {activeSuggestionTab === "SHOP" && (
+                        <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-200 space-y-1.5 animate-in fade-in duration-150">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-purple-950">
+                            <span>แตะเมนูเพื่อเติมลงฟอร์ม:</span>
+                            <span className="text-[10px] text-purple-700/80 font-normal">
+                              {activeBatch.shop.menuItems?.length || 0} รายการ
+                            </span>
+                          </div>
+                          {activeBatch.shop.menuItems && activeBatch.shop.menuItems.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                              {activeBatch.shop.menuItems.map((menuItem) => {
+                                const displayName = lang === "en" ? (menuItem.nameEn || menuItem.name) : menuItem.name;
+                                return (
+                                  <button
+                                    key={menuItem.id}
+                                    type="button"
+                                    onClick={() => handleAddSuggestedDish(displayName, menuItem.price)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-800 hover:border-purple-500 hover:bg-purple-100 hover:text-purple-950 transition-all shadow-2xs active:scale-95 text-left cursor-pointer"
+                                  >
+                                    {menuItem.popular && <span className="text-amber-500 text-[11px]">★</span>}
+                                    <span>{displayName}</span>
+                                    <span className="font-mono font-bold text-orange-600 ml-0.5">฿{menuItem.price}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-500 italic">ร้านค้านี้ยังไม่มีเมนูแนะนำในระบบ (กรอกชื่อเมนูเองได้เลยครับ)</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Expandable Pane 2: Friends Dishes (No names, with note & count) */}
+                      {activeSuggestionTab === "FRIENDS" && (
+                        <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-200 space-y-1.5 animate-in fade-in duration-150">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-purple-950">
+                            <span>เมนูที่เพื่อนสั่งในรอบนี้ (แตะเพื่อสั่งตาม):</span>
+                            <span className="text-[10px] text-purple-700/80 font-normal">
+                              รวม {friendsDishes.length} เมนู
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                            {friendsDishes.map((dish, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleAddSuggestedDish(dish.name, dish.price, dish.customNote)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-900 hover:border-purple-500 hover:bg-purple-100 transition-all shadow-2xs active:scale-95 text-left cursor-pointer"
+                              >
+                                <span>{dish.name}</span>
+                                {dish.price && (
+                                  <span className="font-mono font-bold text-orange-600">฿{dish.price}</span>
+                                )}
+                                {dish.customNote && (
+                                  <span className="text-[10px] font-normal text-amber-900 bg-amber-50 border border-amber-200 rounded px-1">
+                                    {dish.customNote}
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-bold bg-purple-100 text-purple-900 rounded-full px-1.5 py-0.2">
+                                  {dish.count}x
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expandable Pane 3: AI Menu Suggester */}
+                      {activeSuggestionTab === "AI" && (
+                        <div className="animate-in fade-in duration-150">
+                          <AIMenuSuggester
+                            shopId={activeBatch.shop.id}
+                            shopName={activeBatch.shop.name}
+                            isExpanded={true}
+                            hideTrigger={true}
+                            onToggleExpand={(expanded) => {
+                              if (!expanded) setActiveSuggestionTab(null);
+                            }}
+                            onSelectDish={(dishName, price) => {
+                              handleAddSuggestedDish(dishName, price);
+                              setActiveSuggestionTab(null);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
 
 
                     <div className="space-y-2.5">
@@ -2903,23 +3012,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                               )}
                             </div>
 
-                            {/* Dish Name with AI Autocomplete & AI Menu Suggester */}
+                            {/* Dish Name with Autocomplete */}
                             <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-600">
-                                  {t.dishNamePlaceholder.split(" ")[0] || "รายการอาหาร"}
-                                </span>
-                                <AIMenuSuggester
-                                  shopId={activeBatch.shop.id}
-                                  shopName={activeBatch.shop.name}
-                                  onSelectDish={(dishName, price) => {
-                                    handleUpdateOrderItem(item.id, "name", dishName);
-                                    if (price > 0) {
-                                      handleUpdateOrderItem(item.id, "price", String(price));
-                                    }
-                                  }}
-                                />
-                              </div>
+                              <span className="text-[10px] font-bold text-slate-600 block">
+                                {t.dishNamePlaceholder.split(" ")[0] || "รายการอาหาร"}
+                              </span>
                               <DishAutocompleteInput
                                 value={item.name}
                                 onChange={(val) => handleUpdateOrderItem(item.id, "name", val)}
