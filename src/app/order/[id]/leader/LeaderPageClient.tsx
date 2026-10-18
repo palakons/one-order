@@ -970,19 +970,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <Clock className="h-3 w-3 text-purple-900" />
                 <span>{timeInfo.text} • {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}</span>
               </span>
-
-              {/* AI Crafter Notice Button */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setShowAiModal(true)}
-                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 transition-colors shadow-2xs cursor-pointer"
-                  title="แจ้งเหตุฉุกเฉิน / อาหารเลท ด้วย AI"
-                >
-                  <Sparkles className="h-3 w-3 text-amber-600" />
-                  <span>{batch.status === "PENDING" ? "แก้ไขประกาศแจ้งเตือน" : "แจ้งเตือนเลท / ร้านปิด (AI)"}</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -1206,6 +1193,17 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <span>3. ส่งของถึงโต๊ะ</span>
                 </button>
               )}
+
+              {/* AI Crafter Emergency / Late Notice */}
+              <button
+                type="button"
+                onClick={() => setShowAiModal(true)}
+                className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 py-1.5 text-xs font-bold transition-all active:scale-98 cursor-pointer shadow-2xs"
+                title="ประกาศแจ้งอาหารเลท / ร้านปิด ด้วย AI หรือ Template"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                <span>{batch.status === "PENDING" ? "แก้ไขประกาศแจ้งเตือน" : "แจ้งเตือนเลท / ร้านปิด (AI)"}</span>
+              </button>
 
               {/* 4. Cancel Party */}
               {batch.status !== "CANCELLED" && batch.status !== "COMPLETED" ? (
