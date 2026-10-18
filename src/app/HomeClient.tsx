@@ -2199,8 +2199,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             </div>
 
-            {/* 2. Order Pane Header: 3 Squeezed Cards in 1 Row (Shop, Drop-off, Leader) */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
+            {/* 2. Order Pane Header: Cards (Shop, Drop-off, Leader) - Responsive 1 col on mobile, 3 cols on tablet/desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
               {/* Card 1: Shop */}
               <div
                 style={{ borderLeftColor: activeShopAccentColor }}
@@ -2347,86 +2347,76 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </div>
             ) : (
               <>
-                {/* Below the 3 Cards: Two Progress Bars (Price Pool Filling Bar & Time Left Bar) */}
-                <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3.5 shadow-2xs space-y-2 sm:space-y-2.5">
-                  {/* Bar 1: Price / Order Starter Filling Bar */}
-                  <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-800 flex items-center gap-1.5">
-                    <ShoppingBag className="h-3.5 w-3.5 text-purple-900" />
-                    <span>
-                      <strong className="text-sm font-black text-slate-950 font-mono">฿{activeBatch.currentTotalAmount}</strong> / ฿{activeBatch.targetMinAmount}
-                    </span>
-                    <span className="text-slate-400 font-normal">({totalBoxesInBatch} {t.boxesCount})</span>
-                  </span>
+                {/* Below Cards: Clean IKEA-Style 2-Column Metrics (Amount / Free Delivery & Cutoff Countdown) */}
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+                    {/* Metric 1: Minimum & Pool Amount */}
+                    <div className="space-y-1.5 sm:pr-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                          <ShoppingBag className="h-3.5 w-3.5 text-purple-900 shrink-0" />
+                          <span className="text-sm font-black text-slate-950 font-mono">฿{activeBatch.currentTotalAmount}</span>
+                          <span className="text-slate-400 font-normal">/ ฿{activeBatch.targetMinAmount}</span>
+                        </span>
+                        <span className={`text-[11px] font-bold ${activeBatch.isMinMet ? "text-emerald-700" : "text-amber-800"}`}>
+                          {activeBatch.isMinMet
+                            ? t.freeGoalReached
+                            : (lang === "en"
+                                ? `฿${activeBatch.amountRemaining} to free delivery`
+                                : lang === "cn"
+                                ? `还差 ฿${activeBatch.amountRemaining} 免运`
+                                : `ขาดอีก ฿${activeBatch.amountRemaining} ส่งฟรี`)}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200/80">
+                        <div
+                          className={`h-full transition-all duration-300 ${activeBatch.isMinMet ? "bg-emerald-600" : "bg-amber-500"}`}
+                          style={{ width: `${Math.min(100, (activeBatch.currentTotalAmount / activeBatch.targetMinAmount) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
 
-                  <span className={activeBatch.isMinMet ? "text-emerald-700 font-black" : "text-amber-800"}>
-                    {activeBatch.isMinMet
-                      ? t.freeGoalReached
-                      : (lang === "en"
-                          ? `฿${activeBatch.amountRemaining} more to free delivery`
-                          : lang === "cn"
-                          ? `还差 ฿${activeBatch.amountRemaining} 免运`
-                          : `ขาดอีก ฿${activeBatch.amountRemaining} เพื่อส่งฟรี`)}
-                  </span>
+                    {/* Metric 2: Time Left & Cutoff */}
+                    <div className="space-y-1.5 pt-2 sm:pt-0 sm:pl-4">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-purple-900 shrink-0" />
+                          <span className="text-sm font-black text-slate-950 font-mono">{timeInfo?.text}</span>
+                          <span className="text-slate-400 font-normal text-[11px]">
+                            ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)})
+                          </span>
+                        </span>
+                        <span>
+                          {isBatchClosed ? (
+                            <span className="rounded-md bg-rose-50 border border-rose-200 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
+                              {lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรับแล้ว"}
+                            </span>
+                          ) : timeInfo?.remainingMs && timeInfo.remainingMs <= 15 * 60 * 1000 ? (
+                            <span className="rounded-md bg-amber-50 border border-amber-300 text-amber-900 px-2 py-0.5 text-[10px] font-bold animate-pulse">
+                              {lang === "en" ? "Closing Soon" : lang === "cn" ? "即将截止" : "ใกล้ปิดรอบ"}
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-purple-50 border border-purple-200 text-purple-900 px-2 py-0.5 text-[10px] font-bold">
+                              {lang === "en" ? "Open" : lang === "cn" ? "接单中" : "กำลังเปิดรับ"}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200/80">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            timeInfo?.isExpired
+                              ? "bg-slate-300"
+                              : timeProgressPercent <= 25
+                              ? "bg-amber-500"
+                              : "bg-purple-800"
+                          }`}
+                          style={{ width: `${timeInfo?.isExpired ? 100 : timeProgressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      activeBatch.isMinMet
-                        ? "bg-emerald-600"
-                        : "bg-amber-500"
-                    }`}
-                    style={{ width: `${Math.min(100, (activeBatch.currentTotalAmount / activeBatch.targetMinAmount) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Bar 2: Time Left Bar */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-800 flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-purple-900" />
-                    <span className="text-sm font-black text-slate-950 font-mono">
-                      {timeInfo?.text}
-                    </span>
-                    <span className="text-slate-500 font-normal text-[11px]">
-                      ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)})
-                    </span>
-                  </span>
-
-                  <span>
-                    {isBatchClosed ? (
-                      <span className="rounded-md bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
-                        {lang === "en" ? "Closed" : lang === "cn" ? "已截止" : "ปิดรับแล้ว"}
-                      </span>
-                    ) : timeInfo?.remainingMs && timeInfo.remainingMs <= 15 * 60 * 1000 ? (
-                      <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-bold animate-pulse">
-                        {lang === "en" ? "Closing Soon" : lang === "cn" ? "即将截止" : "ใกล้ปิดรอบ"}
-                      </span>
-                    ) : (
-                      <span className="rounded-md bg-purple-100 text-purple-900 px-2 py-0.5 text-[10px] font-bold">
-                        {lang === "en" ? "Accepting Orders" : lang === "cn" ? "接单中" : "กำลังเปิดรับ"}
-                      </span>
-                    )}
-                  </span>
-                </div>
-
-                <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      timeInfo?.isExpired
-                        ? "bg-slate-300"
-                        : timeProgressPercent <= 25
-                        ? "bg-linear-to-r from-amber-500 to-rose-500"
-                        : "bg-linear-to-r from-purple-800 to-purple-600"
-                    }`}
-                    style={{ width: `${timeInfo?.isExpired ? 100 : timeProgressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </div>
 
 
 
