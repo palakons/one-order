@@ -338,6 +338,16 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     }
   };
 
+  // Generate Strict Templated Message (No AI latency, exact policy wording)
+  const handleGenerateTemplateMsg = () => {
+    if (!batch) return;
+    const shopName = batch.shop?.name || "ร้านอาหาร";
+    const leaderName = batch.hostName || "หัวหน้าตี้";
+    const baseMsg = `ประกาศแจ้งร้านปิด ${leaderName} จะสั่งใหม่ในวันพรุ่งนี้เวลาเดิม หากไม่ต้องการกรุณากดลบออเดอร์ของท่าน และนำสลิปไปสั่งตรงกับทางร้าน (${shopName}) ในวันที่ท่านสะดวก`;
+    const finalMsg = aiIncludeBoardInfo ? `${baseMsg}${buildBoardInfoSnippet(batch)}` : baseMsg;
+    setCraftedMessage(finalMsg);
+  };
+
   // Publish Pending Notice to Board & LINE
   const handlePublishPendingNotice = async (clearOnly = false) => {
     if (!batch) return;
@@ -2152,16 +2162,28 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </button>
               </div>
 
-              {/* Button: Trigger AI Crafter */}
-              <button
-                type="button"
-                disabled={isCraftingAi}
-                onClick={handleCraftWithAi}
-                className="w-full py-2.5 rounded-xl bg-linear-to-r from-purple-900 to-indigo-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95 transition-all cursor-pointer disabled:opacity-60 active:scale-98"
-              >
-                <Sparkles className={`h-3.5 w-3.5 ${isCraftingAi ? "animate-spin" : ""}`} />
-                <span>{isCraftingAi ? "กำลังให้ AI เรียบเรียง..." : "✨ ให้ AI เรียบเรียงข้อความให้สุภาพ"}</span>
-              </button>
+              {/* Buttons: AI Crafter + Template Mode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={isCraftingAi}
+                  onClick={handleCraftWithAi}
+                  className="w-full py-2.5 rounded-xl bg-linear-to-r from-purple-900 to-indigo-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95 transition-all cursor-pointer disabled:opacity-60 active:scale-98"
+                >
+                  <Sparkles className={`h-3.5 w-3.5 ${isCraftingAi ? "animate-spin" : ""}`} />
+                  <span>{isCraftingAi ? "กำลังให้ AI เรียบเรียง..." : "✨ ให้ AI เรียบเรียงข้อความ"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateTemplateMsg}
+                  className="w-full py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98"
+                  title="ใส่ข้อความแม่แบบทางการ (ร้านปิด/ยกเลิกตี้) ทันทีโดยไม่ต้องรอ AI"
+                >
+                  <FileText className="h-3.5 w-3.5 text-amber-700" />
+                  <span>📋 ใช้ข้อความแม่แบบ (ร้านปิด)</span>
+                </button>
+              </div>
 
               {/* Crafted Message Box */}
               <div className="space-y-1.5 pt-1">
