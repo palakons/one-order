@@ -985,7 +985,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 <span>{timeInfo.text} • {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}</span>
               </span>
 
-              {/* Board Control Buttons & AI Crafter */}
+              {/* AI Crafter Notice Button */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
@@ -996,48 +996,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <Sparkles className="h-3 w-3 text-amber-600" />
                   <span>{batch.status === "PENDING" ? "แก้ไขประกาศแจ้งเตือน" : "แจ้งเตือนเลท / ร้านปิด (AI)"}</span>
                 </button>
-
-                {batch.status === "OPEN" ? (
-                  <button
-                    type="button"
-                    disabled={updatingStatus}
-                    onClick={() => handleToggleBoardStatus("CLOSED")}
-                    className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
-                  >
-                    <Lock className="h-3 w-3 text-rose-600" />
-                    <span>ปิดรับออเดอร์</span>
-                  </button>
-                ) : batch.status === "CLOSED" ? (
-                  <button
-                    type="button"
-                    disabled={updatingStatus}
-                    onClick={() => handleToggleBoardStatus("OPEN")}
-                    className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                  >
-                    <Unlock className="h-3 w-3 text-emerald-600" />
-                    <span>เปิดรับต่อ</span>
-                  </button>
-                ) : (
-                  <span className="text-[11px] font-bold text-slate-500">
-                    {batch.status === "PENDING" ? "⚠️ รอตรวจสอบ (PENDING)" : batch.status === "ORDERED" ? "🍳 สั่งร้านแล้ว" : batch.status === "COMPLETED" ? "🎉 จัดส่งเรียบร้อย" : batch.status === "CANCELLED" ? "🚫 ยกเลิกตี้แล้ว" : ""}
-                  </span>
-                )}
-
-                {batch.status !== "CANCELLED" && batch.status !== "COMPLETED" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCancelError(null);
-                      setCancelPin("");
-                      setShowCancelModal(true);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 transition-colors shadow-2xs cursor-pointer"
-                    title="ยกเลิกตี้/กระดานนี้ (ต้องใส่ PIN)"
-                  >
-                    <Ban className="h-3 w-3 text-rose-600" />
-                    <span>ยกเลิกตี้</span>
-                  </button>
-                )}
               </div>
             </div>
           </div>
