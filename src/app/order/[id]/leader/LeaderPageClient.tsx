@@ -1792,7 +1792,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </div>
 
                 {/* 3. Host Action: Confirm Sent to Shop */}
-                {batch.status === "OPEN" && (
+                {(batch.status === "OPEN" || batch.status === "CLOSED") && (
                   <button
                     type="button"
                     onClick={handleConfirmSentToShop}
