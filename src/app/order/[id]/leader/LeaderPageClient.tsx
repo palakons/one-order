@@ -1153,6 +1153,139 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Unified Order Lifecycle Controller (IKEA-inspired Clean Strip) */}
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+              <span className="inline-block w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">การจัดการตี้:</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* 1. Close / Reopen Toggle */}
+              {batch.status === "OPEN" ? (
+                <button
+                  type="button"
+                  disabled={updatingStatus}
+                  onClick={() => handleToggleBoardStatus("CLOSED")}
+                  className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-black text-rose-800 transition-all active:scale-98 cursor-pointer shadow-2xs"
+                  title="ปิดรับออเดอร์ (ไม่ให้คนสั่งเพิ่ม)"
+                >
+                  <Lock className="h-3.5 w-3.5 text-rose-600" />
+                  <span>1. ปิดรับออเดอร์</span>
+                </button>
+              ) : batch.status === "CLOSED" ? (
+                <button
+                  type="button"
+                  disabled={updatingStatus}
+                  onClick={() => handleToggleBoardStatus("OPEN")}
+                  className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-800 transition-all active:scale-98 cursor-pointer shadow-2xs"
+                  title="เปิดรับออเดอร์เพิ่ม"
+                >
+                  <Unlock className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>1. เปิดรับต่อ</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed opacity-60"
+                  title="ปิดรับแล้วเนื่องจากเลยขั้นตอนนี้แล้ว"
+                >
+                  <Lock className="h-3.5 w-3.5 text-slate-400" />
+                  <span>1. ปิดรับแล้ว ✓</span>
+                </button>
+              )}
+
+              {/* 2. Send To Shop */}
+              {currentPhase === 1 ? (
+                <button
+                  type="button"
+                  onClick={handleOpenSendModal}
+                  disabled={activeOrders.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-purple-950 px-3 py-1.5 text-xs font-black transition-all active:scale-98 cursor-pointer shadow-2xs"
+                  title="สรุปรายการและส่งออเดอร์ให้ร้านค้า"
+                >
+                  <ChefHat className="h-3.5 w-3.5" />
+                  <span>2. สั่งร้านค้า</span>
+                </button>
+              ) : currentPhase === 2 ? (
+                <button
+                  type="button"
+                  onClick={handleOpenSendModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3 py-1.5 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                  title="เปิดดูหรือแก้ไขใบสรุปออเดอร์ที่ส่งร้านแล้ว"
+                >
+                  <ChefHat className="h-3.5 w-3.5 text-amber-600" />
+                  <span>2. สั่งร้านแล้ว (ดูสรุป) ✓</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed opacity-60"
+                >
+                  <ChefHat className="h-3.5 w-3.5 text-slate-400" />
+                  <span>2. สั่งร้านแล้ว ✓</span>
+                </button>
+              )}
+
+              {/* 3. Received / Delivered to Table */}
+              {currentPhase === 2 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-black transition-all active:scale-98 cursor-pointer shadow-xs"
+                  title="ถ่ายรูปอาหารวางโต๊ะ เพื่อแจ้งสมาชิกลงมารับ"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>3. ส่งของถึงโต๊ะ</span>
+                </button>
+              ) : currentPhase === 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-1.5 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                  title="ถ่ายรูปใหม่หรือดูรูปจัดส่ง"
+                >
+                  <Camera className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>3. ส่งถึงโต๊ะแล้ว ✓</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed opacity-60"
+                  title="ต้องสั่งร้านค้าก่อนจึงจะกดส่งถึงโต๊ะได้"
+                >
+                  <Camera className="h-3.5 w-3.5 text-slate-400" />
+                  <span>3. ส่งของถึงโต๊ะ</span>
+                </button>
+              )}
+
+              {/* 4. Cancel Party */}
+              {batch.status !== "CANCELLED" && batch.status !== "COMPLETED" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelError(null);
+                    setCancelPin("");
+                    setShowCancelModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                  title="ยกเลิกตี้/กระดานนี้ (ต้องใส่ PIN)"
+                >
+                  <Ban className="h-3.5 w-3.5 text-rose-500" />
+                  <span>ยกเลิกตี้</span>
+                </button>
+              ) : batch.status === "CANCELLED" ? (
+                <span className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700">
+                  <Ban className="h-3.5 w-3.5" />
+                  <span>ยกเลิกตี้แล้ว</span>
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         {/* 3. Phase Hero Action Card: Adaptive to current chronological stage */}

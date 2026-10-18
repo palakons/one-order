@@ -2313,11 +2313,11 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   {!activeBatch.isDeleted ? (
                     <Link
                       href={`/order/${activeBatch.id}/leader`}
-                      className="w-full inline-flex items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold transition-colors shadow-2xs"
-                      title="เข้าห้องหัวหน้าตี้เพื่ออัปเดตสถานะรอบ"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 text-[10px] sm:text-[11px] font-black transition-all shadow-xs active:scale-98"
+                      title="เข้าห้องหัวหน้าตี้เพื่อตรวจสอบและส่งออเดอร์"
                     >
-                      <SlidersHorizontal className="h-2.5 w-2.5 text-purple-700 shrink-0" />
-                      <span>อัปเดตสถานะ</span>
+                      <span className="text-xs">🚀</span>
+                      <span>ตรวจสอบ & ส่งออเดอร์</span>
                     </Link>
                   ) : (
                     <span className="inline-block rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[8px] font-bold">
