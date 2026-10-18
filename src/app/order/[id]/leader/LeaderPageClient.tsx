@@ -947,20 +947,6 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                     <span className="text-gray-400 font-normal ml-1">({activeOrders.length} กล่อง)</span>
                   </span>
                 </span>
-
-                <button
-                  type="button"
-                  onClick={handleToggleSelfPickup}
-                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold transition-all border cursor-pointer ${
-                    isSelfPickup
-                      ? "bg-amber-500 text-white border-amber-600 shadow-2xs"
-                      : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
-                  }`}
-                  title="สลับเป็นโหมดรับเองหน้าร้าน"
-                >
-                  <span>🚶</span>
-                  <span>{isSelfPickup ? "รับเองหน้าร้าน" : "เปลี่ยนไปรับเอง"}</span>
-                </button>
               </div>
 
               <span className={`text-[11px] ${batch.isMinMet ? "text-emerald-700 font-bold" : "text-amber-700 font-semibold"}`}>
