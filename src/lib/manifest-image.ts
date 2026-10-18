@@ -188,7 +188,7 @@ export async function generateOneLongManifestImage(
     totalHeight += maxRowH + 14; // card height + row gap
   }
 
-  totalHeight += 60; // Compact Footer
+  totalHeight += 80; // Compact Footer with Shop Notice
 
   canvas.width = canvasWidth;
   canvas.height = totalHeight;
@@ -386,12 +386,12 @@ export async function generateOneLongManifestImage(
   // Checklist Header Title
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 17px sans-serif";
-  ctx.fillText("📝 รายการอาหารที่ต้องทำ (Cooking Checklist):", padding + 16, checklistCardY + 24);
+  ctx.fillText("🍱 รายการอาหารที่สั่ง:", padding + 16, checklistCardY + 24);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
   ctx.fillText(
-    `รวมทั้งหมด ${totalBoxesCount} กล่อง (${orders.length} ออเดอร์) • จัดเตรียมและเขียนเบอร์กล่องตามนี้:`,
+    `รวมทั้งหมด ${totalBoxesCount} กล่อง (${orders.length} ออเดอร์) • รายละเอียดแต่ละกล่อง:`,
     padding + 16,
     checklistCardY + 46
   );
@@ -489,11 +489,11 @@ export async function generateOneLongManifestImage(
 
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 17px sans-serif";
-  ctx.fillText("🧾 หลักฐานสลิปโอนเงิน (สลิป 2 คอลัมน์ กระชับ อ่านง่าย):", padding, currentY + 14);
+  ctx.fillText("🧾 สลิปโอนเงิน:", padding, currentY + 14);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
-  ctx.fillText("ตรวจสอบยอดเงินโอนเข้าบัญชีร้านตามหมายเลขกล่องได้ทันที (สลิปครบ 100%)", padding, currentY + 32);
+  ctx.fillText(`รวม ${orders.length} สลิป • ยอดตรงตามหมายเลขกล่องด้านบนครบ 100%`, padding, currentY + 32);
 
   ctx.restore();
 
@@ -561,7 +561,7 @@ export async function generateOneLongManifestImage(
         ctx.textAlign = "left";
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 12px sans-serif";
-        ctx.fillText(`✅ โอนเงินผ่าน BOT เรียบร้อย`, colX + 14, currentY + 48);
+        ctx.fillText(`✅ โอนเงินเรียบร้อย`, colX + 14, currentY + 48);
 
         ctx.fillStyle = "#64748b";
         ctx.font = "11px monospace";
@@ -580,23 +580,34 @@ export async function generateOneLongManifestImage(
   }
 
   // -----------------------------------------------------------------
-  // FOOTER (Compact)
+  // FOOTER (Compact & Helpful note for shop)
   // -----------------------------------------------------------------
   ctx.save();
-  ctx.fillStyle = "#64748b";
-  ctx.font = "11px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  // Helpful shop notice card
+  ctx.fillStyle = "#f1f5f9";
+  drawRoundRect(ctx, padding, currentY + 8, contentWidth, 34, 8);
+  ctx.fill();
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "bold 11px sans-serif";
   ctx.fillText(
-    "VEATEC Hub • สถาบันวิทยสิริเมธี (VISTEC) • Wangchan Valley, Rayong",
+    "💡 หากทางร้านมีการเปลี่ยนแปลงเบอร์โทร หรือ QR พร้อมเพย์ แจ้งหัวหน้าตี้ได้เลยนะครับ เพื่ออัปเดตในระบบ",
     canvasWidth / 2,
-    currentY + 16
+    currentY + 25
   );
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "11px sans-serif";
   ctx.fillText(
-    `สร้างเมื่อ ${new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น. วันที่ ${new Date().toLocaleDateString("th-TH")}`,
+    `VEATEC Hub • สถาบันวิทยสิริเมธี (VISTEC) • สร้างเมื่อ ${new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.`,
     canvasWidth / 2,
-    currentY + 34
+    currentY + 54
   );
   ctx.restore();
 

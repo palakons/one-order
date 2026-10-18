@@ -64,16 +64,18 @@ ${Object.entries(buildingCounts)
   .map(([bldg, count]) => `• ${bldg}: ${count} กล่อง`)
   .join("\n")}
 ${dropOffMap ? `🗺️ แผนที่นำทาง (Google Maps): ${dropOffMap}\n` : ""}
-📋 รายการอาหารที่ต้องทำ:
+📋 รายการอาหารที่สั่ง:
 ${Object.entries(itemCounts)
   .map(([item, count]) => `• ${item} x ${count}`)
   .join("\n")}
 
-👉 หน้ารายการสั่งอาหาร (Order Pane):
+👉 หน้ารายการสั่งอาหาร:
 ${orderUrl}
 
-🧾 ดูใบออเดอร์ครัว & สลิปโอนเงินทั้งหมดได้ที่:
-${manifestUrl}`;
+🧾 ใบสรุปออเดอร์ & สลิปโอนเงินทั้งหมด:
+${manifestUrl}
+
+💡 หากทางร้านมีอัปเดตเบอร์โทรหรือ QR พร้อมเพย์ แจ้งหัวหน้าตี้ได้เลยนะครับ`;
 
   const lineShareUrl = `https://line.me/R/msg/text/?${encodeURIComponent(messageText)}`;
 
