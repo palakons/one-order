@@ -913,15 +913,15 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
+              {batch.shop.lineQrUrl && (
                 <button
                   type="button"
-                  onClick={() => setShowPromptPayModal(true)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-                  title="ดู QR พร้อมเพย์ร้านค้า"
+                  onClick={() => setShowLineQrModal(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-[#06C755]/10 hover:bg-[#06C755]/20 px-2.5 py-0.5 text-xs font-bold text-emerald-900 shadow-2xs transition-colors cursor-pointer"
+                  title="ดู QR LINE ร้านค้า"
                 >
-                  <CreditCard className="h-3 w-3 text-purple-700" />
-                  <span>QR ร้าน</span>
+                  <MessageSquare className="h-3 w-3 text-[#06C755]" />
+                  <span>LINE ร้าน</span>
                 </button>
               )}
 
@@ -1363,17 +1363,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                 </a>
               )}
 
-              {(batch.shop.promptpayNumber || batch.shop.promptpayQrUrl) && (
-                <button
-                  type="button"
-                  onClick={() => setShowPromptPayModal(true)}
-                  className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer"
-                  title="ดู QR พร้อมเพย์ร้านค้า"
-                >
-                  <CreditCard className="h-3 w-3 text-purple-300" />
-                  <span>QR ร้าน</span>
-                </button>
-              )}
+
 
               {batch.shop.lineQrUrl && (
                 <button
