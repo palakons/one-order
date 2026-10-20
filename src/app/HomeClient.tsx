@@ -3005,7 +3005,7 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                             {/* Dish Name with Autocomplete */}
                             <div className="space-y-1.5">
                               <span className="text-[10px] font-bold text-slate-600 block">
-                                {t.dishNamePlaceholder.split(" ")[0] || "รายการอาหาร"}
+                                {t.dishNameLabel || "รายการอาหาร"}
                               </span>
                               <DishAutocompleteInput
                                 value={item.name}
