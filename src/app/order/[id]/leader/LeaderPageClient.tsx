@@ -1803,7 +1803,7 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                   <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>
-                      สร้างภาพยาวสำเร็จ! (รวมรายการและสลิปครบ)
+                      สร้างใบสรุปสำเร็จ! (รวมรายการและสลิปครบ)
                     </span>
                   </div>
 

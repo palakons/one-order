@@ -274,7 +274,7 @@ export const translations = {
     callMember: "โทร",
     oneLongManifestTitle: "สรุปออเดอร์ส่งร้าน",
     oneLongManifestSub: "ใบสรุปยาวพร้อมสลิปทุกกล่อง",
-    manifestSuccess: "สร้างภาพยาวสำเร็จ! (รวมรายการและสลิปครบ)",
+    manifestSuccess: "สร้างใบสรุปสำเร็จ! (รวมรายการและสลิปครบ)",
     summaryForChat: "ข้อความสรุป:",
     copyText: "คัดลอกข้อความ",
     copiedText: "✓ คัดลอกแล้ว",

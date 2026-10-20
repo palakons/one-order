@@ -628,8 +628,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
 
-  // Consolidated Menu Suggestions Tab: null (collapsed) | "SHOP" | "FRIENDS" | "AI"
-  const [activeSuggestionTab, setActiveSuggestionTab] = useState<"SHOP" | "FRIENDS" | "AI" | null>(null);
+  // Consolidated Menu Suggestions Tab: null (collapsed) | "SHOP" | "FRIENDS" | "AI" (Default to "SHOP" as requested by users)
+  const [activeSuggestionTab, setActiveSuggestionTab] = useState<"SHOP" | "FRIENDS" | "AI" | null>("SHOP");
 
   const fetchLocations = async () => {
     try {
