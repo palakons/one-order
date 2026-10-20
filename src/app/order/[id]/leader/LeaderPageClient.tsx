@@ -968,10 +968,13 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-0.5 text-[11px] flex-wrap gap-2">
-              <span className="flex items-center gap-1 font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
-                <Clock className="h-3 w-3 text-purple-900" />
-                <span>{timeInfo.text} • {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}</span>
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] gap-1 border-t border-gray-100">
+              <span className="flex items-center gap-1.5 font-bold text-purple-950">
+                <Clock className="h-3.5 w-3.5 text-purple-700 shrink-0" />
+                <span className="font-mono bg-purple-100/70 text-purple-900 px-1.5 py-0.5 rounded text-xs">{timeInfo.text}</span>
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">
+                {formatCutoffDisplay(batch.cutoffTime, batch.date, "th", true)}
               </span>
             </div>
           </div>

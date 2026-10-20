@@ -2382,9 +2382,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <span className="font-bold text-slate-800 flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 text-purple-900 shrink-0" />
                           <span className="text-sm font-black text-slate-950 font-mono">{timeInfo?.text}</span>
-                          <span className="text-slate-400 font-normal text-[11px]">
-                            ({formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)})
-                          </span>
                         </span>
                         <span>
                           {isBatchClosed ? (
@@ -2401,6 +2398,9 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                             </span>
                           )}
                         </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-medium">
+                        {formatCutoffDisplay(activeBatch.cutoffTime, activeBatch.date, lang, true)}
                       </div>
                       <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200/80">
                         <div
@@ -3970,15 +3970,12 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
               {/* 4. สั่งอาหารได้ถึง... (Cutoff Date & Time) & ยอดขั้นต่ำ */}
               <div className="space-y-3 rounded-2xl border border-purple-100 bg-purple-50/40 p-3 sm:p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-1">
+                <div className="flex items-center justify-between gap-1">
                   <label className="font-bold text-slate-900 flex items-center gap-1.5 text-xs sm:text-sm">
                     <Clock className="h-4 w-4 text-purple-700" />
                     <span>{t.stepCutoff}</span>
                     <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[11px] font-mono font-bold text-purple-900 bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs">
-                    {formatCutoffDisplay(openCutoffTime, openCutoffDate, lang, true)}
-                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -4005,9 +4002,6 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                         <Clock className="h-3 w-3 text-purple-700" />
                         <span>{t.orderTimeLabel}</span>
                       </span>
-                      <span className="text-[10px] text-purple-700 font-mono font-semibold">
-                        ({t.cutoffTimeSummary} {openCutoffTime} น.)
-                      </span>
                     </div>
                     <input
                       type="time"
@@ -4023,21 +4017,21 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
                   </div>
                 </div>
 
-                {/* Explanation Card for Leader */}
+                {/* Single Clean Explanation Card for Leader */}
                 <div className="rounded-xl border border-purple-200/90 bg-white/95 p-2.5 shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
                     <div className="text-rose-600 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0 inline-block" />
-                      <span>{t.cutoffTimeSummary}:</span>
-                      <span className="font-mono font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                      <span className="font-semibold">{t.cutoffTimeSummary}:</span>
+                      <span className="font-mono font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                         {openCutoffTime} น.
                       </span>
-                      <span className="text-[10px] text-slate-500 font-normal">{t.fixedBufferTag}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">{t.fixedBufferTag}</span>
                     </div>
-                    <div className="text-slate-800 flex items-center gap-1.5">
+                    <div className="text-purple-900 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-purple-600 shrink-0 inline-block" />
-                      <span>{t.orderTimeSummary}:</span>
-                      <span className="font-mono font-bold text-purple-900 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                      <span className="font-semibold">{t.orderTimeSummary}:</span>
+                      <span className="font-mono font-black text-purple-950 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
                         {openOrderTime} น.
                       </span>
                     </div>
