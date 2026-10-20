@@ -41,6 +41,8 @@ import {
   Sparkles,
   Ban,
   Info,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
 
 interface Props {
@@ -1680,12 +1682,28 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
               </button>
             </div>
 
-            <div className="mx-auto w-52 h-52 bg-white rounded-2xl border-2 border-emerald-200 p-2 shadow-inner flex items-center justify-center">
-              <img
-                src={batch.shop.lineQrUrl}
-                alt="LINE QR"
-                className="w-full h-full object-contain"
-              />
+            <div className="relative group mx-auto w-56 h-56 bg-white rounded-2xl border-2 border-emerald-200 p-2 shadow-inner flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSlip({
+                    url: batch.shop.lineQrUrl!,
+                    title: `LINE QR ร้านค้า: ${batch.shop.name}`,
+                  });
+                }}
+                className="w-full h-full relative cursor-zoom-in flex items-center justify-center rounded-xl overflow-hidden"
+                title="คลิกเพื่อดูรูป QR เต็มจอ"
+              >
+                <img
+                  src={batch.shop.lineQrUrl}
+                  alt="LINE QR"
+                  className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                />
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-xs opacity-90 group-hover:opacity-100 transition-opacity">
+                  <ZoomIn className="h-3 w-3 text-emerald-400" />
+                  <span>แตะเพื่อขยายเต็มจอ</span>
+                </span>
+              </button>
             </div>
 
             <div>
