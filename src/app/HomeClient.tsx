@@ -20,7 +20,9 @@ import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDispla
 import { useLanguage, getShopLocalizedInfo, getMenuItemLocalizedName, getLocalizedBuildingName, Language } from "@/lib/i18n";
 import { getBangkokDayOfWeek, formatOpenDaysText, isShopOpenOnDay } from "@/lib/shop-utils";
 import { getCssColorFromClass, useAverageColor } from "@/lib/color-utils";
+import ShopQrModal from "@/components/ShopQrModal";
 import confetti from "canvas-confetti";
+
 import {
   MapPin,
   Clock,
@@ -3315,168 +3317,27 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
       </main>
 
       {/* MODAL 1: PromptPay QR */}
-      {showPromptPayModal && activeBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-center space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-black text-xs text-slate-900">{t.promptPayModalTitle}</h3>
-              <button
-                type="button"
-                onClick={() => setShowPromptPayModal(false)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mx-auto w-52 h-52 sm:w-72 sm:h-72 bg-white rounded-2xl border-2 border-purple-200 p-3 shadow-inner flex items-center justify-center">
-              <img
-                src={activeBatch.shop.promptpayQrUrl || `https://promptpay.io/${activeBatch.shop.promptpayNumber}.png`}
-                alt="PromptPay QR"
-                className="w-full h-full object-contain"
-              />
-            </div>
-
-            <div>
-              <p className="text-[11px] text-slate-500 font-medium">{t.accountName}</p>
-              <p className="text-sm font-black text-slate-900">{activeBatch.shop.promptpayAccountName || activeBatch.shop.name}</p>
-              {activeBatch.shop.promptpayNumber && (
-                <p className="text-xs font-mono font-bold text-purple-900 mt-0.5">
-                  {activeBatch.shop.promptpayNumber}
-                </p>
-              )}
-            </div>
-
-            {/* Subtle Guideline Disclosure */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2.5 text-[11px] text-amber-900 text-left flex items-start gap-2 leading-relaxed">
-              <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-              <span>{t.qrModalGuideline}</span>
-            </div>
-
-            <div className="flex flex-col gap-1.5 pt-1">
-              {(activeBatch.shop.promptpayQrUrl || activeBatch.shop.promptpayNumber) && (
-                <a
-                  href={activeBatch.shop.promptpayQrUrl || `https://promptpay.io/${activeBatch.shop.promptpayNumber}.png`}
-                  download={`PromptPay-${activeBatch.shop.name}.png`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full rounded-lg bg-purple-50 border border-purple-200 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Download className="h-3.5 w-3.5 text-purple-700" />
-                  <span>บันทึกรูป QR ลงเครื่อง</span>
-                </a>
-              )}
-              {activeBatch.shop.promptpayNumber && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(activeBatch.shop.promptpayNumber || "");
-                    alert(t.copiedPromptPay);
-                  }}
-                  className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-colors"
-                >
-                  {t.copyPromptPay}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {activeBatch && (
+        <ShopQrModal
+          isOpen={showPromptPayModal}
+          onClose={() => setShowPromptPayModal(false)}
+          type="promptpay"
+          shop={activeBatch.shop}
+        />
       )}
 
       {/* MODAL 1.5: Shop LINE QR */}
-      {showLineQrModal && activeBatch && activeBatch.shop.lineQrUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-center space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-1.5 font-black text-xs text-slate-900">
-                <MessageSquare className="h-4 w-4 text-[#06C755]" />
-                <span>QR LINE ร้านค้า</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowLineQrModal(false)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="relative group mx-auto w-52 h-52 bg-white rounded-xl border border-emerald-200 p-2 shadow-inner flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedSlip({
-                    url: activeBatch.shop.lineQrUrl!,
-                    title: `LINE QR ร้านค้า: ${activeBatch.shop.name}`,
-                  });
-                }}
-                className="w-full h-full relative cursor-zoom-in flex items-center justify-center rounded-lg overflow-hidden focus:outline-hidden"
-                title="คลิกเพื่อดูรูป QR เต็มจอ"
-              >
-                <img
-                  src={activeBatch.shop.lineQrUrl}
-                  alt="LINE QR"
-                  className="w-full h-full object-contain transition-transform group-hover:scale-105"
-                />
-                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/80 px-2 py-1 text-[11px] font-bold text-white backdrop-blur-xs shadow-md">
-                  <ZoomIn className="h-3 w-3 text-emerald-400" />
-                  <span>คลิกเพื่อขยายเต็มจอ</span>
-                </span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedSlip({
-                  url: activeBatch.shop.lineQrUrl!,
-                  title: `LINE QR ร้านค้า: ${activeBatch.shop.name}`,
-                });
-              }}
-              className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
-            >
-              <Maximize2 className="h-3.5 w-3.5 text-emerald-700" />
-              <span>คลิกเพื่อขยายรูป QR เต็มจอ</span>
-            </button>
-
-            <div>
-              <p className="text-[11px] text-slate-500 font-medium">ร้านค้า:</p>
-              <p className="text-sm font-black text-slate-900">{activeBatch.shop.name}</p>
-            </div>
-
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5 text-[11px] text-emerald-950 text-left flex items-start gap-2 leading-relaxed">
-              <Info className="h-4 w-4 text-[#06C755] shrink-0 mt-0.5" />
-              <span>สแกน QR ด้วยแอป LINE เพื่อเพิ่มเพื่อนและติดต่อร้านค้าโดยตรง</span>
-            </div>
-
-            <div className="flex flex-col gap-1.5 pt-1">
-              {activeBatch.shop.lineQrUrl && (
-                <a
-                  href={activeBatch.shop.lineQrUrl}
-                  download={`line-qr-${activeBatch.shop.id}.jpg`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full rounded-lg bg-emerald-50 border border-emerald-300 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Download className="h-3.5 w-3.5 text-[#06C755]" />
-                  <span>บันทึกรูป QR ลงเครื่อง</span>
-                </a>
-              )}
-              {activeBatch.shop.phone && (
-                <a
-                  href={`tel:${activeBatch.shop.phone}`}
-                  className="w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Phone className="h-3.5 w-3.5 text-slate-600" />
-                  <span>โทรหาร้าน ({activeBatch.shop.phone})</span>
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
+      {activeBatch && (
+        <ShopQrModal
+          isOpen={showLineQrModal}
+          onClose={() => setShowLineQrModal(false)}
+          type="line"
+          shop={activeBatch.shop}
+        />
       )}
 
       {/* MODAL 2: Slip / QR Viewer (z-[60] for clean overlay) */}
+
       {selectedSlip && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
           <div className="relative max-h-[92vh] w-full max-w-lg rounded-2xl bg-white p-4 sm:p-5 shadow-2xl overflow-hidden flex flex-col">
