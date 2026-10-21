@@ -187,3 +187,25 @@ export function getDaysDifference(dateStr: string, todayStr?: string): number {
   const t2 = Date.UTC(y2, m2 - 1, d2);
   return Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
 }
+
+/**
+ * Returns a lightweight thumbnail version URL of an image if supported.
+ * Keeps QR codes, data URLs, and external services intact.
+ */
+export function getThumbnailUrl(url?: string, width = 350): string {
+  if (!url) return "";
+  if (url.startsWith("data:") || url.includes("_qr") || url.includes("promptpay") || url.includes("line_qr")) {
+    return url;
+  }
+  if (url.startsWith("/api/images/")) {
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}w=${width}`;
+  }
+  // Unsplash images support dynamic w query param
+  if (url.includes("images.unsplash.com")) {
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}w=${width}&fit=crop`;
+  }
+  return url;
+}
+

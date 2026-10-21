@@ -7,7 +7,8 @@ import LineShareButton from "@/components/LineShareButton";
 import { BatchWithDetails, BatchStatus } from "@/lib/types";
 import { getLocationById, getDropOffMapUrl } from "@/lib/locations";
 import { changeBatchStatus, compressImage } from "@/lib/services";
-import { formatCutoffDisplay } from "@/lib/utils";
+import { formatCutoffDisplay, getThumbnailUrl } from "@/lib/utils";
+
 import {
   ChefHat,
   ArrowLeft,
@@ -988,11 +989,13 @@ export default function ShopManifestClient({ batchId, initialBatch }: Props) {
                 {/* Thumbnail */}
                 <div className="relative h-44 w-full overflow-hidden rounded-lg bg-gray-100">
                   <img
-                    src={ord.slipImageUrl}
+                    src={getThumbnailUrl(ord.slipImageUrl, 350)}
                     alt={`Slip ${ord.customerName}`}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+
                     <span className="opacity-0 group-hover:opacity-100 rounded-full bg-black/70 p-2 text-white">
                       <Eye className="h-4 w-4" />
                     </span>

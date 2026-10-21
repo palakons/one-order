@@ -11,8 +11,9 @@ import {
   StorageMetrics,
   SanitizedMenuItem,
 } from "@/lib/types";
-import { formatCutoffDisplay } from "@/lib/utils";
+import { formatCutoffDisplay, getThumbnailUrl } from "@/lib/utils";
 import { isFirebaseConfigured } from "@/lib/firebase";
+
 import {
   ChefHat,
   Plus,
@@ -132,12 +133,13 @@ function ShopAdminCard({
           >
             {shop.menuImageUrl ? (
               <img
-                src={shop.menuImageUrl}
+                src={getThumbnailUrl(shop.menuImageUrl, 200)}
                 alt={shop.name}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
             ) : (
+
               <div
                 className="flex h-full w-full items-center justify-center"
                 style={{ color: accentColor }}
