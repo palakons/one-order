@@ -70,13 +70,14 @@ export async function GET(
             .toBuffer();
           outputMimeType = "image/webp";
 
-          // 3. Save thumbnail permanently to storage so future requests never re-read original or re-compute!
-          saveImageToStorage("general", Buffer.from(outputBuffer), "image/webp", thumbPath.split("/").pop()).catch(() => {});
+          // 3. Save thumbnail permanently to storage under the exact category so future requests never re-read original or re-compute!
+          const category = (fullPath.split("/")[0] || "general") as "slips" | "delivery" | "shops" | "locations" | "general";
+          await saveImageToStorage(category, Buffer.from(outputBuffer), "image/webp", thumbPath.split("/").pop());
         } catch (sharpErr) {
-
           console.warn("Sharp resizing fallback to original:", sharpErr);
           outputBuffer = file.buffer;
         }
+
       }
     }
 
