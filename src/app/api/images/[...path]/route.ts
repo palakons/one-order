@@ -46,15 +46,31 @@ export async function GET(
       }
     }
 
+    const url = new URL(request.url);
+    const thumbParam = url.searchParams.get("thumb");
+    const widthParam = url.searchParams.get("w");
+    const isThumbRequested = Boolean(widthParam || thumbParam === "true" || thumbParam === "1" || thumbParam === "thumb");
+
+    // Zero-Vercel-Egress: For non-thumbnail full images (shops, delivery, locations),
+    // 302 Redirect directly to Google Firebase Storage CDN!
+    // Vercel only returns a 300-byte 302 header, Google pays the 100% bandwidth!
+    if (!isThumbRequested) {
+      const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "one-order-af750.firebasestorage.app";
+      const encodedPath = encodeURIComponent(fullPath);
+      const directGoogleStorageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
+      return NextResponse.redirect(directGoogleStorageUrl, {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+        },
+      });
+    }
+
     const file = await getImageFromStorage(fullPath);
     if (!file) {
       return new NextResponse("Image not found", { status: 404 });
     }
 
-
-    const url = new URL(request.url);
-    const thumbParam = url.searchParams.get("thumb");
-    const widthParam = url.searchParams.get("w");
 
     // Check if thumbnail/resizing is requested
     // If thumb=true or thumb=1 or w is specified (e.g. w=350)
