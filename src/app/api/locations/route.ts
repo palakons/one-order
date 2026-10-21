@@ -9,32 +9,31 @@ export async function GET() {
   try {
     const locations = await getDeliveryLocations();
 
-    // Auto-migrate legacy locations containing Base64 data URLs in background
+    // Auto-migrate legacy locations containing Base64 data URLs
     const hasBase64 = locations.some(
       (loc) => loc.photoUrl && loc.photoUrl.startsWith("data:image/")
     );
 
+    let cleanLocations = locations;
     if (hasBase64) {
-      (async () => {
-        try {
-          for (const loc of locations) {
-            if (loc.photoUrl && loc.photoUrl.startsWith("data:image/")) {
-              await saveDeliveryLocation(loc);
-            }
+      cleanLocations = await Promise.all(
+        locations.map(async (loc) => {
+          if (loc.photoUrl && loc.photoUrl.startsWith("data:image/")) {
+            return await saveDeliveryLocation(loc);
           }
-        } catch (e) {
-          console.warn("Background location base64 migration error:", e);
-        }
-      })();
+          return loc;
+        })
+      );
     }
 
-    return new NextResponse(JSON.stringify({ success: true, locations }), {
+    return new NextResponse(JSON.stringify({ success: true, locations: cleanLocations }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
       },
     });
+
   } catch (error) {
     console.error("Failed to fetch locations:", error);
     return NextResponse.json(
