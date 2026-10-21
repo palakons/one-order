@@ -4,7 +4,34 @@ import { getShops, saveShop, deleteShop, getShopById } from "@/lib/store";
 export async function GET() {
   try {
     const shops = await getShops();
-    return NextResponse.json({ success: true, shops });
+
+    // Auto-migrate any existing shops that still have Base64 data URLs
+    const migratedShops = await Promise.all(
+      shops.map(async (shop) => {
+        const hasBase64 =
+          (shop.menuImageUrl && shop.menuImageUrl.startsWith("data:image/")) ||
+          (shop.lineQrUrl && shop.lineQrUrl.startsWith("data:image/")) ||
+          (shop.promptpayQrUrl && shop.promptpayQrUrl.startsWith("data:image/"));
+
+        if (hasBase64) {
+          try {
+            return await saveShop(shop);
+          } catch (e) {
+            console.warn(`Failed to auto-migrate shop ${shop.id}:`, e);
+          }
+        }
+        return shop;
+      })
+    );
+
+    return NextResponse.json(
+      { success: true, shops: migratedShops },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (error) {
     console.error("Failed to fetch shops:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch shops" }, { status: 500 });

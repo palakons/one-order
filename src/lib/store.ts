@@ -756,9 +756,37 @@ export async function getShopById(id: string): Promise<Shop | undefined> {
 
 export async function saveShop(shop: Shop): Promise<Shop> {
   invalidateStoreCache();
+
+  // Offload any Base64 data URLs to dedicated storage URLs so no Base64 blobs are persisted
+  const processedShop = { ...shop };
+  if (processedShop.menuImageUrl && processedShop.menuImageUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("shops", processedShop.menuImageUrl, `${processedShop.id}_menu.jpg`);
+      processedShop.menuImageUrl = stored.url;
+    } catch (e) {
+      console.warn("Failed to offload shop menuImageUrl:", e);
+    }
+  }
+  if (processedShop.lineQrUrl && processedShop.lineQrUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("shops", processedShop.lineQrUrl, `${processedShop.id}_line_qr.jpg`);
+      processedShop.lineQrUrl = stored.url;
+    } catch (e) {
+      console.warn("Failed to offload shop lineQrUrl:", e);
+    }
+  }
+  if (processedShop.promptpayQrUrl && processedShop.promptpayQrUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("shops", processedShop.promptpayQrUrl, `${processedShop.id}_pp_qr.jpg`);
+      processedShop.promptpayQrUrl = stored.url;
+    } catch (e) {
+      console.warn("Failed to offload shop promptpayQrUrl:", e);
+    }
+  }
+
   if (isFirebaseConfigured && db) {
-    await trackedSetDoc(doc(db, "shops", shop.id), cleanForFirestore(shop), { merge: true }, 2500);
-    return shop;
+    await trackedSetDoc(doc(db, "shops", processedShop.id), cleanForFirestore(processedShop), { merge: true }, 2500);
+    return processedShop;
   }
   throw new Error("Firestore is not configured. Cannot save shop.");
 }
@@ -913,7 +941,17 @@ export async function getBatchById(id: string, sanitize = false, forceFresh = fa
 }
 
 function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): BatchWithDetails {
-  const shop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
+  const rawShop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
+  
+  // Clean shop object: NEVER allow Base64 data URLs inside batch JSON payloads
+  const cleanShop: Shop = {
+    ...rawShop,
+    menuImageUrl: rawShop.menuImageUrl && rawShop.menuImageUrl.startsWith("data:image/") ? "" : rawShop.menuImageUrl,
+    lineQrUrl: rawShop.lineQrUrl && rawShop.lineQrUrl.startsWith("data:image/") ? "" : rawShop.lineQrUrl,
+    promptpayQrUrl: rawShop.promptpayQrUrl && rawShop.promptpayQrUrl.startsWith("data:image/") ? "" : rawShop.promptpayQrUrl,
+  };
+
+  const shop = cleanShop;
   const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
 
   // Auto-reconciliation: If batch has a delivery photo uploaded, it MUST be COMPLETED!
