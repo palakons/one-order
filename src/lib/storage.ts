@@ -7,13 +7,21 @@ export function pathToDocId(path: string): string {
   return encodeURIComponent(path.trim()).replace(/\./g, "_");
 }
 
+export function getDirectStorageUrl(filePath: string): string {
+  const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "one-order-af750.firebasestorage.app";
+  const cleanPath = filePath.replace(/^\/+/, "");
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(cleanPath)}?alt=media`;
+}
+
 export interface StoredImageMeta {
   path: string;
   url: string;
+  directUrl: string;
   size: number;
   mimeType: string;
   createdAt: string;
 }
+
 
 /**
  * Save an image buffer to storage (Firestore storage_files and Firebase Storage if available).
@@ -79,14 +87,19 @@ export async function saveImageToStorage(
     }
   }
 
+  const directUrl = getDirectStorageUrl(filePath);
+  const isPublicCategory = category !== "slips";
+
   return {
     path: filePath,
-    url: `/api/images/${filePath}`,
+    url: isPublicCategory ? directUrl : `/api/images/${filePath}`,
+    directUrl,
     size: buffer.length,
     mimeType,
     createdAt,
   };
 }
+
 
 /**
  * Offload a base64 Data URL to storage, returning the storage path and URL.

@@ -957,14 +957,26 @@ function enrichBatchFromData(batch: Batch, shops: Shop[], orders: Order[]): Batc
   const rawShop = shops.find((s) => s.id === batch.shopId) || shops[0] || SEED_DATA.shops[0];
   
   // Clean shop object: NEVER allow Base64 data URLs inside batch JSON payloads
+  // And rewrite legacy /api/images/shops/ to direct Google Firebase Storage URL so Vercel is bypassed completely
+  const toDirectUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.startsWith("/api/images/")) {
+      const path = url.replace(/^\/api\/images\//, "").split("?")[0];
+      const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "one-order-af750.firebasestorage.app";
+      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media`;
+    }
+    return url.startsWith("data:image/") ? "" : url;
+  };
+
   const cleanShop: Shop = {
     ...rawShop,
-    menuImageUrl: rawShop.menuImageUrl && rawShop.menuImageUrl.startsWith("data:image/") ? "" : rawShop.menuImageUrl,
-    lineQrUrl: rawShop.lineQrUrl && rawShop.lineQrUrl.startsWith("data:image/") ? "" : rawShop.lineQrUrl,
-    promptpayQrUrl: rawShop.promptpayQrUrl && rawShop.promptpayQrUrl.startsWith("data:image/") ? "" : rawShop.promptpayQrUrl,
+    menuImageUrl: toDirectUrl(rawShop.menuImageUrl),
+    lineQrUrl: toDirectUrl(rawShop.lineQrUrl),
+    promptpayQrUrl: toDirectUrl(rawShop.promptpayQrUrl),
   };
 
   const shop = cleanShop;
+
   const isDeleted = Boolean(batch.isDeleted || getDaysDifference(batch.date) > 7);
 
   // Auto-reconciliation: If batch has a delivery photo uploaded, it MUST be COMPLETED!

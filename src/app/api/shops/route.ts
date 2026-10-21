@@ -20,9 +20,25 @@ export async function GET() {
             console.warn(`Failed to auto-migrate shop ${shop.id}:`, e);
           }
         }
-        return shop;
+
+        const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "one-order-af750.firebasestorage.app";
+        const toDirect = (url?: string) => {
+          if (url && url.startsWith("/api/images/")) {
+            const p = url.replace(/^\/api\/images\//, "").split("?")[0];
+            return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(p)}?alt=media`;
+          }
+          return url;
+        };
+
+        return {
+          ...shop,
+          menuImageUrl: toDirect(shop.menuImageUrl),
+          lineQrUrl: toDirect(shop.lineQrUrl),
+          promptpayQrUrl: toDirect(shop.promptpayQrUrl),
+        };
       })
     );
+
 
     return NextResponse.json(
       { success: true, shops: migratedShops },
