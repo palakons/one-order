@@ -27,10 +27,30 @@ export async function GET(
       );
     }
 
+    // Zero-Vercel-Egress: If it is a slip, redirect to a secure, timed-out V4 Presigned URL on Google Cloud Storage!
+    // The image bytes flow directly from storage.googleapis.com to client (0 bytes Vercel egress).
+    if (isSlip) {
+      try {
+        const { getPresignedDownloadUrl } = await import("@/lib/firebase-admin");
+        const presignedUrl = await getPresignedDownloadUrl(fullPath, 15);
+        if (presignedUrl) {
+          return NextResponse.redirect(presignedUrl, {
+            status: 302,
+            headers: {
+              "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+            },
+          });
+        }
+      } catch (adminErr) {
+        console.warn("Presigned URL fallback to internal stream:", adminErr);
+      }
+    }
+
     const file = await getImageFromStorage(fullPath);
     if (!file) {
       return new NextResponse("Image not found", { status: 404 });
     }
+
 
     const url = new URL(request.url);
     const thumbParam = url.searchParams.get("thumb");

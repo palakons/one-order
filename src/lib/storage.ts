@@ -34,17 +34,33 @@ export async function saveImageToStorage(
   const docId = pathToDocId(filePath);
   const createdAt = new Date().toISOString();
 
-  // 1. Primary: Save to Firebase Cloud Storage bucket
+  // 1. Primary: Save to Firebase Cloud Storage bucket (Admin SDK or Client SDK)
   let savedToCloudStorage = false;
-  if (isFirebaseConfigured && storage) {
-    try {
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, buffer, { contentType: mimeType });
+  try {
+    const { getAdminApp } = await import("./firebase-admin");
+    const adminApp = getAdminApp();
+    if (adminApp) {
+      const { getStorage } = await import("firebase-admin/storage");
+      const bucket = getStorage(adminApp).bucket();
+      await bucket.file(filePath).save(buffer, {
+        contentType: mimeType,
+        metadata: { contentType: mimeType },
+      });
       savedToCloudStorage = true;
-    } catch (err) {
-      console.warn("Firebase Storage bucket upload notice, falling back to Firestore:", err);
+    }
+  } catch (adminErr) {
+    // Fallback to client SDK if Admin SDK is unavailable
+    if (isFirebaseConfigured && storage) {
+      try {
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, buffer, { contentType: mimeType });
+        savedToCloudStorage = true;
+      } catch (err) {
+        console.warn("Firebase Storage bucket upload notice, falling back to Firestore:", err);
+      }
     }
   }
+
 
   // 2. Fallback: Save to Firestore storage_files collection if Cloud Storage is not available
   if (!savedToCloudStorage && isFirebaseConfigured && db) {
