@@ -816,12 +816,25 @@ export async function getDeliveryLocations(): Promise<DeliveryLocation[]> {
 
 export async function saveDeliveryLocation(loc: DeliveryLocation): Promise<DeliveryLocation> {
   invalidateStoreCache();
+  const processedLoc = { ...loc };
+
+  // Offload Base64 photoUrl to storage
+  if (processedLoc.photoUrl && processedLoc.photoUrl.startsWith("data:image/")) {
+    try {
+      const stored = await saveBase64ToStorage("locations", processedLoc.photoUrl, `${processedLoc.id}_photo.jpg`);
+      processedLoc.photoUrl = stored.url;
+    } catch (e) {
+      console.warn("Failed to offload location photoUrl:", e);
+    }
+  }
+
   if (isFirebaseConfigured && db) {
-    await trackedSetDoc(doc(db, "locations", loc.id), cleanForFirestore(loc), { merge: true }, 2500);
-    return loc;
+    await trackedSetDoc(doc(db, "locations", processedLoc.id), cleanForFirestore(processedLoc), { merge: true }, 2500);
+    return processedLoc;
   }
   throw new Error("Firestore is not configured. Cannot save location.");
 }
+
 
 export async function deleteDeliveryLocation(id: string): Promise<boolean> {
   invalidateStoreCache();

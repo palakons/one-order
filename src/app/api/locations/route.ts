@@ -8,7 +8,33 @@ import {
 export async function GET() {
   try {
     const locations = await getDeliveryLocations();
-    return NextResponse.json({ success: true, locations });
+
+    // Auto-migrate legacy locations containing Base64 data URLs in background
+    const hasBase64 = locations.some(
+      (loc) => loc.photoUrl && loc.photoUrl.startsWith("data:image/")
+    );
+
+    if (hasBase64) {
+      (async () => {
+        try {
+          for (const loc of locations) {
+            if (loc.photoUrl && loc.photoUrl.startsWith("data:image/")) {
+              await saveDeliveryLocation(loc);
+            }
+          }
+        } catch (e) {
+          console.warn("Background location base64 migration error:", e);
+        }
+      })();
+    }
+
+    return new NextResponse(JSON.stringify({ success: true, locations }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch locations:", error);
     return NextResponse.json(
@@ -17,6 +43,7 @@ export async function GET() {
     );
   }
 }
+
 
 export async function POST(request: Request) {
   try {

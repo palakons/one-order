@@ -20,8 +20,9 @@ export interface StoredImageMeta {
  * Keeps images completely separate from main batch/order JSON documents.
  */
 export async function saveImageToStorage(
-  category: "slips" | "delivery" | "shops" | "general",
+  category: "slips" | "delivery" | "shops" | "locations" | "general",
   buffer: Buffer,
+
   mimeType = "image/jpeg",
   customFilename?: string
 ): Promise<StoredImageMeta> {
@@ -75,10 +76,11 @@ export async function saveImageToStorage(
  * Offload a base64 Data URL to storage, returning the storage path and URL.
  */
 export async function saveBase64ToStorage(
-  category: "slips" | "delivery" | "shops" | "general",
+  category: "slips" | "delivery" | "shops" | "locations" | "general",
   dataUrl: string,
   customFilename?: string
 ): Promise<StoredImageMeta> {
+
   const matches = dataUrl.match(/^data:([A-Za-z0-9-+/]+);base64,(.+)$/);
   if (!matches) {
     throw new Error("Invalid base64 Data URL");
