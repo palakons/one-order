@@ -18,29 +18,39 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Process and compress image with sharp (natively handles HEIF/HEIC, JPEG, PNG, WEBP, etc.)
+    // Process and compress image with sharp (convert to modern, highly compressed WebP)
     // .rotate() automatically handles EXIF orientation from mobile phone cameras
-    const compressedBuffer = await sharp(buffer)
+    const fullWebpBuffer = await sharp(buffer)
       .rotate()
-      .resize(800, 800, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 72, mozjpeg: true })
+      .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
       .toBuffer();
 
-    // Store binary in dedicated storage (offloading from main Firestore documents)
-    const stored = await saveImageToStorage(category, compressedBuffer, "image/jpeg", file.name);
+    const thumbWebpBuffer = await sharp(buffer)
+      .rotate()
+      .resize(350, 350, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
 
-    // Also supply temporary dataUrl for instant in-memory preview if needed
-    const dataUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 7);
+    const baseName = `${category}_${timestamp}_${randomStr}`;
+
+    // Store both full image and thumbnail directly in storage
+    const stored = await saveImageToStorage(category, fullWebpBuffer, "image/webp", `${baseName}.webp`);
+    const storedThumb = await saveImageToStorage(category, thumbWebpBuffer, "image/webp", `${baseName}_thumb.webp`);
 
     return NextResponse.json({
       success: true,
       path: stored.path,
       url: stored.url,
-      dataUrl,
+      thumbnailUrl: storedThumb.url,
       size: stored.size,
+      thumbSize: storedThumb.size,
       name: file.name,
     });
   } catch (error: any) {
+
     console.error("Server image upload/compression error:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Failed to process image" },

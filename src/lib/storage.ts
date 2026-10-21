@@ -90,8 +90,29 @@ export async function saveBase64ToStorage(
   const base64Data = matches[2];
   const buffer = Buffer.from(base64Data, "base64");
 
-  return await saveImageToStorage(category, buffer, mimeType, customFilename);
+  const stored = await saveImageToStorage(category, buffer, mimeType, customFilename);
+
+  // Pre-generate WebP thumbnail asynchronously if not a QR code
+  if (customFilename && !customFilename.includes("_qr") && !customFilename.includes("promptpay") && !customFilename.includes("line_qr")) {
+    (async () => {
+      try {
+        const sharp = (await import("sharp")).default;
+        const thumbBuffer = await sharp(buffer)
+          .resize({ width: 350, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        const dotIndex = customFilename.lastIndexOf(".");
+        const baseName = dotIndex !== -1 ? customFilename.substring(0, dotIndex) : customFilename;
+        await saveImageToStorage(category, thumbBuffer, "image/webp", `${baseName}_thumb.webp`);
+      } catch (e) {
+        // Ignore background thumbnail generation errors
+      }
+    })();
+  }
+
+  return stored;
 }
+
 
 /**
  * Retrieve an image binary from storage by its path.

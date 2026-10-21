@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getImageFromStorage, isAllowedWebappRequest } from "@/lib/storage";
+import { getImageFromStorage, saveImageToStorage, isAllowedWebappRequest } from "@/lib/storage";
 import sharp from "sharp";
+
 
 export async function GET(
   request: Request,
@@ -51,17 +52,34 @@ export async function GET(
     let outputMimeType = file.mimeType;
 
     if (requestedWidth && !fullPath.includes("_qr") && !fullPath.includes("promptpay") && !fullPath.includes("line_qr")) {
-      try {
-        outputBuffer = await sharp(file.buffer)
-          .resize({ width: requestedWidth, withoutEnlargement: true })
-          .webp({ quality: 80 })
-          .toBuffer();
+      // 1. Check if pre-computed thumbnail already exists in storage (Zero CPU / Zero compute overhead)
+      const dotIndex = fullPath.lastIndexOf(".");
+      const basePath = dotIndex !== -1 ? fullPath.substring(0, dotIndex) : fullPath;
+      const thumbPath = `${basePath}_thumb.webp`;
+
+      const existingThumb = await getImageFromStorage(thumbPath);
+      if (existingThumb) {
+        outputBuffer = existingThumb.buffer;
         outputMimeType = "image/webp";
-      } catch (sharpErr) {
-        console.warn("Sharp resizing fallback to original:", sharpErr);
-        outputBuffer = file.buffer;
+      } else {
+        // 2. Generate thumbnail WebP on-the-fly with sharp
+        try {
+          outputBuffer = await sharp(file.buffer)
+            .resize({ width: requestedWidth, withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toBuffer();
+          outputMimeType = "image/webp";
+
+          // 3. Save thumbnail permanently to storage so future requests never re-read original or re-compute!
+          saveImageToStorage("general", Buffer.from(outputBuffer), "image/webp", thumbPath.split("/").pop()).catch(() => {});
+        } catch (sharpErr) {
+
+          console.warn("Sharp resizing fallback to original:", sharpErr);
+          outputBuffer = file.buffer;
+        }
       }
     }
+
 
     return new NextResponse(new Uint8Array(outputBuffer), {
       status: 200,
