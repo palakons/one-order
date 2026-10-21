@@ -44,7 +44,9 @@ import {
   ShieldCheck,
   Zap,
   Maximize2,
+  ZoomIn,
   Phone,
+
   Archive,
   ArrowLeft,
   Lock,
@@ -3399,13 +3401,43 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
               </button>
             </div>
 
-            <div className="mx-auto w-48 h-48 bg-white rounded-xl border border-emerald-200 p-2 shadow-inner flex items-center justify-center">
-              <img
-                src={activeBatch.shop.lineQrUrl}
-                alt="LINE QR"
-                className="w-full h-full object-contain"
-              />
+            <div className="relative group mx-auto w-52 h-52 bg-white rounded-xl border border-emerald-200 p-2 shadow-inner flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSlip({
+                    url: activeBatch.shop.lineQrUrl!,
+                    title: `LINE QR ร้านค้า: ${activeBatch.shop.name}`,
+                  });
+                }}
+                className="w-full h-full relative cursor-zoom-in flex items-center justify-center rounded-lg overflow-hidden focus:outline-hidden"
+                title="คลิกเพื่อดูรูป QR เต็มจอ"
+              >
+                <img
+                  src={activeBatch.shop.lineQrUrl}
+                  alt="LINE QR"
+                  className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                />
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/80 px-2 py-1 text-[11px] font-bold text-white backdrop-blur-xs shadow-md">
+                  <ZoomIn className="h-3 w-3 text-emerald-400" />
+                  <span>คลิกเพื่อขยายเต็มจอ</span>
+                </span>
+              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSlip({
+                  url: activeBatch.shop.lineQrUrl!,
+                  title: `LINE QR ร้านค้า: ${activeBatch.shop.name}`,
+                });
+              }}
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Maximize2 className="h-3.5 w-3.5 text-emerald-700" />
+              <span>คลิกเพื่อขยายรูป QR เต็มจอ</span>
+            </button>
 
             <div>
               <p className="text-[11px] text-slate-500 font-medium">ร้านค้า:</p>
@@ -3444,29 +3476,31 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
         </div>
       )}
 
-      {/* MODAL 2: Slip Viewer */}
+      {/* MODAL 2: Slip / QR Viewer (z-[60] for clean overlay) */}
       {selectedSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="relative max-h-[90vh] max-w-md rounded-2xl bg-white p-4 shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-xs text-slate-900">{selectedSlip.title}</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
+          <div className="relative max-h-[92vh] w-full max-w-lg rounded-2xl bg-white p-4 sm:p-5 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+              <h3 className="font-bold text-sm text-slate-900">{selectedSlip.title}</h3>
               <button
+                type="button"
                 onClick={() => setSelectedSlip(null)}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-2 overflow-y-auto max-h-[75vh] flex items-center justify-center bg-slate-50 rounded">
+            <div className="mt-3 overflow-y-auto max-h-[78vh] flex items-center justify-center bg-slate-50 rounded-xl p-2 sm:p-4">
               <img
                 src={selectedSlip.url}
-                alt="Full Transfer Slip"
-                className="max-h-[70vh] w-auto object-contain rounded"
+                alt="Full View"
+                className="max-h-[72vh] w-auto max-w-full object-contain rounded-lg shadow-xs"
               />
             </div>
           </div>
         </div>
       )}
+
 
       {/* MODAL 3: One Long Manifest Image Generator */}
       {showSendModal && activeBatch && (
