@@ -29,7 +29,7 @@ export async function GET() {
   const info = getBuildInfo();
   return NextResponse.json(info, {
     headers: {
-      "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
 }

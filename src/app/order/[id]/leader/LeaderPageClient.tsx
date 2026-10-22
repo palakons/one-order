@@ -1545,12 +1545,12 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
                       )}
                     </div>
 
-                    {/* Row 2: Numbered Menu Items */}
+                    {/* Row 2: Bulleted Menu Items */}
                     <div className="space-y-1 pl-0.5">
                       {ord.items.map((it, idx) => (
                         <div key={idx} className="flex flex-wrap items-baseline gap-1.5 leading-snug">
                           <span className="text-sm sm:text-base font-black text-gray-950">
-                            <span className="text-gray-500 font-bold mr-1">{idx + 1}.</span>
+                            <span className="text-purple-600 font-bold mr-1.5">•</span>
                             {it.quantity > 1 && (
                               <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-black bg-purple-100 text-purple-900 mr-1.5">
                                 {it.quantity}x
