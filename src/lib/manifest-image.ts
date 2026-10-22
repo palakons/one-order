@@ -30,33 +30,65 @@ function drawRoundRect(
 /**
  * Resilient image loader that NEVER rejects, preventing canvas crashes.
  * Resolves null on CORS errors or timeouts.
+ * Converts remote images to Object URLs via fetch with CORS when possible,
+ * preventing any SecurityError ("Tainted canvases may not be exported").
  */
-function loadSlipImage(src: string): Promise<HTMLImageElement | null> {
-  if (!src) return Promise.resolve(null);
+async function loadSlipImage(src: string): Promise<HTMLImageElement | null> {
+  if (!src) return null;
+
+  let objectUrlToRevoke: string | null = null;
+  let finalSrc = src;
+
+  // For remote HTTP(S) images, try fetching as blob first to ensure CORS compliance and prevent canvas tainting
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    try {
+      const controller = new AbortController();
+      const fetchTimer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(src, {
+        mode: "cors",
+        signal: controller.signal,
+      });
+      clearTimeout(fetchTimer);
+
+      if (res.ok) {
+        const blob = await res.blob();
+        finalSrc = URL.createObjectURL(blob);
+        objectUrlToRevoke = finalSrc;
+      }
+    } catch (fetchErr) {
+      console.warn("Slip fetch before canvas draw notice:", fetchErr);
+      // If direct fetch fails (e.g. strict CORS), fall back to img tag with anonymous crossOrigin
+    }
+  }
 
   return new Promise((resolve) => {
     const img = new Image();
     const timeoutId = setTimeout(() => {
-      console.warn("Slip image load timed out, falling back to receipt card:", src.slice(0, 50));
+      console.warn("Slip image load timed out, falling back to receipt card:", src.slice(0, 60));
+      if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
       resolve(null);
-    }, 4000);
+    }, 4500);
 
     img.onload = () => {
       clearTimeout(timeoutId);
+      // Wait slightly or clean up after canvas export
+      if (objectUrlToRevoke) {
+        setTimeout(() => URL.revokeObjectURL(objectUrlToRevoke!), 10000);
+      }
       resolve(img);
     };
 
     img.onerror = () => {
       clearTimeout(timeoutId);
-      console.warn("Slip image failed to load / CORS blocked, using receipt card:", src.slice(0, 50));
+      if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
+      console.warn("Slip image failed to load / CORS blocked, using receipt card:", src.slice(0, 60));
       resolve(null);
     };
 
-    // Only set crossOrigin for remote HTTP(S) URLs to avoid Safari data-URI bugs
-    if (src.startsWith("http://") || src.startsWith("https://")) {
+    if (finalSrc.startsWith("http://") || finalSrc.startsWith("https://")) {
       img.crossOrigin = "anonymous";
     }
-    img.src = src;
+    img.src = finalSrc;
   });
 }
 
