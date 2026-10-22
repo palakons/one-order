@@ -64,7 +64,7 @@ import {
   Bot,
 } from "lucide-react";
 import { CAMPUS_LOCATIONS, DeliveryLocation } from "@/lib/locations";
-import { compressImage } from "@/lib/services";
+import { compressImage, uploadDirectToStorage } from "@/lib/services";
 import { DAYS_OF_WEEK, formatOpenDaysText, getBangkokDayOfWeek } from "@/lib/shop-utils";
 
 interface Props {
@@ -1258,9 +1258,19 @@ export default function AdminClient({
         const maxDim = isQr ? 480 : 640;
         const quality = isQr ? 0.70 : 0.68;
         const compressed = await compressImage(file, maxDim, quality);
-        if (targetField === "menu") setShopMenuImageUrl(compressed);
-        if (targetField === "qr") setShopPromptPayQrUrl(compressed);
-        if (targetField === "lineQr") setShopLineQrUrl(compressed);
+
+        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth)
+        let finalUrl = compressed;
+        try {
+          const directRes = await uploadDirectToStorage("shops", compressed);
+          finalUrl = directRes.directUrl || directRes.url;
+        } catch (uploadErr) {
+          console.warn("Direct shop image upload failed, using local fallback:", uploadErr);
+        }
+
+        if (targetField === "menu") setShopMenuImageUrl(finalUrl);
+        if (targetField === "qr") setShopPromptPayQrUrl(finalUrl);
+        if (targetField === "lineQr") setShopLineQrUrl(finalUrl);
       } catch (err) {
         console.error("Image upload compression error:", err);
       }
@@ -1876,7 +1886,17 @@ export default function AdminClient({
     if (file) {
       try {
         const compressed = await compressImage(file, 800, 0.75);
-        setLocPhotoUrl(compressed);
+
+        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth)
+        let finalUrl = compressed;
+        try {
+          const directRes = await uploadDirectToStorage("locations", compressed);
+          finalUrl = directRes.directUrl || directRes.url;
+        } catch (uploadErr) {
+          console.warn("Direct location photo upload failed, using local fallback:", uploadErr);
+        }
+
+        setLocPhotoUrl(finalUrl);
       } catch (err) {
         console.error("Location image compression error:", err);
       }

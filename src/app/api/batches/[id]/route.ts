@@ -38,7 +38,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, deliveryPhotoUrl, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest, cancelReason } = body;
+    const { status, deliveryPhotoUrl, deliveryPhotoPath, hostPin, isSelfPickup, sentToShopAt, pendingMessage, isTest, cancelReason } = body;
 
     let existing = await getBatchById(id, false, true);
     if (!existing) {
@@ -67,6 +67,7 @@ export async function PATCH(
     }
 
     const updated = await updateBatchStatus(id, targetStatus as BatchStatus, deliveryPhotoUrl, {
+      deliveryPhotoPath,
       isSelfPickup: isSelfPickup !== undefined ? Boolean(isSelfPickup) : undefined,
       sentToShopAt,
       pendingMessage: pendingMessage !== undefined ? String(pendingMessage) : undefined,

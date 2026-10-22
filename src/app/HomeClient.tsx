@@ -13,7 +13,7 @@ import {
   getLocationForBatch,
   setRuntimeLocations,
 } from "@/lib/locations";
-import { compressImage } from "@/lib/services";
+import { compressImage, uploadDirectToStorage } from "@/lib/services";
 import { scanSlipQrFromImageElement, SlipVerificationResult } from "@/lib/slip-verifier";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getTimeRemaining, getBangkokDate, getDaysDifference, formatCutoffDisplay, formatTabHeader, addMinutesToTimeString, getShortShopName } from "@/lib/utils";
@@ -1133,6 +1133,20 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
 
     setSubmittingOrder(true);
     try {
+      // Direct-to-Cloud Upload: Upload compressed slip directly to GCS bucket (0 bytes via Vercel)
+      let finalSlipUrl = slipPreview;
+      let finalSlipPath: string | undefined = undefined;
+
+      if (slipPreview) {
+        try {
+          const directUpload = await uploadDirectToStorage("slips", slipPreview);
+          finalSlipUrl = directUpload.url;
+          finalSlipPath = directUpload.filePath;
+        } catch (uploadErr) {
+          console.warn("Direct slip upload failed, falling back to standard payload:", uploadErr);
+        }
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1150,7 +1164,8 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
             customNote: it.customNote.trim() || undefined,
           })),
           totalAmount: calculatedTotal,
-          slipImageUrl: slipPreview,
+          slipImageUrl: finalSlipUrl,
+          slipImagePath: finalSlipPath,
           slipTransRef: slipVerification?.transRef,
           slipBankCode: slipVerification?.bankCode,
           slipBankName: slipVerification?.bankName,

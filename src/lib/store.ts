@@ -1075,6 +1075,7 @@ export async function updateBatchStatus(
     isTest?: boolean;
     cancelReason?: string;
     cancelledAt?: string;
+    deliveryPhotoPath?: string;
   }
 ): Promise<BatchWithDetails | undefined> {
   invalidateStoreCache();
@@ -1102,7 +1103,17 @@ export async function updateBatchStatus(
   }
   if (deliveryPhotoUrl) {
     let finalPhotoUrl = deliveryPhotoUrl;
-    let deliveryPhotoPath: string | undefined = undefined;
+    let deliveryPhotoPath: string | undefined = extra?.deliveryPhotoPath;
+
+    if (!deliveryPhotoPath) {
+      if (deliveryPhotoUrl.startsWith("/api/images/")) {
+        deliveryPhotoPath = deliveryPhotoUrl.replace(/^\/api\/images\//, "").split("?")[0];
+      } else if (deliveryPhotoUrl.includes("/o/delivery%2F") || deliveryPhotoUrl.includes("/o/delivery/")) {
+        const match = deliveryPhotoUrl.match(/\/o\/(delivery(?:%2F|\/)[^?]+)/);
+        if (match) deliveryPhotoPath = decodeURIComponent(match[1]);
+      }
+    }
+
     if (deliveryPhotoUrl.startsWith("data:image/")) {
       try {
         const stored = await saveBase64ToStorage("delivery", deliveryPhotoUrl, `delivery_${batchId}.jpg`);
@@ -1118,6 +1129,9 @@ export async function updateBatchStatus(
     }
     updatePayload.deliveredAt = new Date().toISOString();
   } else if (status === "COMPLETED") {
+    if (extra?.deliveryPhotoPath) {
+      updatePayload.deliveryPhotoPath = extra.deliveryPhotoPath;
+    }
     updatePayload.deliveredAt = new Date().toISOString();
   }
 
@@ -1160,6 +1174,7 @@ export async function createOrder(input: {
   items: Array<{ id?: string; name: string; price: number; quantity: number; customNote?: string }>;
   totalAmount: number;
   slipImageUrl: string;
+  slipImagePath?: string;
   slipTransRef?: string;
   slipBankCode?: string;
   slipBankName?: string;
@@ -1169,9 +1184,21 @@ export async function createOrder(input: {
   let existingOrders: Order[] = [];
 
   let slipImageUrl = input.slipImageUrl;
-  let slipImagePath: string | undefined = undefined;
+  let slipImagePath = input.slipImagePath;
 
-  // Offload base64 slip image to storage if applicable
+  // If slip was directly uploaded or given as a storage path/proxy
+  if (!slipImagePath && slipImageUrl) {
+    if (slipImageUrl.startsWith("/api/images/")) {
+      slipImagePath = slipImageUrl.replace(/^\/api\/images\//, "").split("?")[0];
+    } else if (slipImageUrl.includes("/o/slips%2F") || slipImageUrl.includes("/o/slips/")) {
+      const match = slipImageUrl.match(/\/o\/(slips(?:%2F|\/)[^?]+)/);
+      if (match) {
+        slipImagePath = decodeURIComponent(match[1]);
+      }
+    }
+  }
+
+  // Offload base64 slip image to storage if still in base64 format (legacy fallback)
   if (slipImageUrl && slipImageUrl.startsWith("data:image/")) {
     try {
       const stored = await saveBase64ToStorage("slips", slipImageUrl);

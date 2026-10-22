@@ -246,44 +246,112 @@ export async function compressImage(
   return result;
 }
 
+export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
+  const matches = dataUrl.match(/^data:([A-Za-z0-9-+/]+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error("Invalid base64 Data URL");
+  }
+  const mimeType = matches[1] || "image/jpeg";
+  const byteChars = atob(matches[2]);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) {
+    byteNumbers[i] = byteChars.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return {
+    blob: new Blob([byteArray], { type: mimeType }),
+    mimeType,
+  };
+}
+
+export interface DirectUploadResult {
+  filePath: string;
+  url: string;
+  directUrl: string;
+  proxyUrl: string;
+}
+
+/**
+ * Uploads an image directly to Google Cloud Storage via V4 Presigned PUT URL.
+ * Bypasses Vercel servers completely (0 bytes transferred through Vercel).
+ * Accepts either a base64 Data URL string or a File/Blob.
+ */
+export async function uploadDirectToStorage(
+  category: "slips" | "delivery" | "shops" | "locations" | "general",
+  fileOrDataUrl: string | File | Blob,
+  customFilename?: string
+): Promise<DirectUploadResult> {
+  let blob: Blob;
+  let mimeType = "image/jpeg";
+
+  if (typeof fileOrDataUrl === "string") {
+    const parsed = dataUrlToBlob(fileOrDataUrl);
+    blob = parsed.blob;
+    mimeType = parsed.mimeType;
+  } else {
+    blob = fileOrDataUrl;
+    mimeType = fileOrDataUrl.type || "image/jpeg";
+  }
+
+  // 1. Ask our backend for a secure 10-minute Presigned PUT URL
+  const presignRes = await fetch("/api/upload/presign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      category,
+      contentType: mimeType,
+      customFilename,
+    }),
+  });
+
+  if (!presignRes.ok) {
+    const errData = await presignRes.json().catch(() => ({}));
+    throw new Error(errData.error || `Failed to get upload authorization (${presignRes.status})`);
+  }
+
+  const { uploadUrl, filePath, directUrl, proxyUrl, url } = await presignRes.json();
+  if (!uploadUrl) {
+    throw new Error("Missing upload URL in presign response");
+  }
+
+  // 2. Perform direct PUT to Google Cloud Storage (zero Vercel bandwidth)
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": mimeType,
+    },
+    body: blob,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Direct upload to cloud storage failed with status ${putRes.status}`);
+  }
+
+  return {
+    filePath,
+    url,
+    directUrl,
+    proxyUrl,
+  };
+}
+
 export async function uploadSlipImage(file: File): Promise<string> {
-  // Always compress the slip first in-browser (~60-80 KB)
+  // Always compress the slip first in-browser (~40-60 KB)
   let compressedDataUrl = "";
   try {
-    compressedDataUrl = await compressImage(file, 800, 0.72);
+    compressedDataUrl = await compressImage(file, 640, 0.68);
   } catch (err) {
     console.warn("Slip compression failed, will fallback:", err);
   }
 
-  // 1. Instant Zero-CORS Spark Tier Mode:
-  // If compressed base64 is available, use it directly!
-  // Firestore documents support up to 1 MB, and ~50 KB fits easily with 0 extra cost,
-  // zero external CORS preflight failures on any domain (veatec.vercel.app),
-  // and instant order submission.
-  if (compressedDataUrl && process.env.NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE !== "true") {
-    return compressedDataUrl;
+  const target = compressedDataUrl || file;
+  try {
+    const res = await uploadDirectToStorage("slips", target);
+    return res.url;
+  } catch (err) {
+    console.warn("Direct slip upload failed, falling back to base64 Data URL:", err);
+    return compressedDataUrl || "";
   }
-
-  // 2. If explicitly enabled via NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE="true" and bucket is configured
-  if (process.env.NEXT_PUBLIC_ENABLE_FIREBASE_STORAGE === "true" && isFirebaseConfigured && storage && compressedDataUrl) {
-    try {
-      const ext = "jpg";
-      const filename = `slips/slip_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-      const storageRef = ref(storage, filename);
-      const res = await fetch(compressedDataUrl);
-      const blob = await res.blob();
-      const snapshot = await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      const downloadUrl = await getDownloadURL(snapshot.ref);
-      return downloadUrl;
-    } catch (err) {
-      console.warn("Firebase Storage upload failed, falling back to base64 Data URL:", err);
-      return compressedDataUrl;
-    }
-  }
-
-  // 3. Fallback to server endpoint (which uses sharp to compress and return base64)
-  const serverResult = await compressWithServer(file);
-  return serverResult;
 }
 
 // -------------------------------------------------------------
@@ -389,17 +457,30 @@ export async function placeOrder(orderData: {
 export async function changeBatchStatus(
   batchId: string,
   status: BatchStatus,
-  deliveryPhotoUrl?: string
+  deliveryPhotoUrl?: string,
+  deliveryPhotoPath?: string
 ): Promise<BatchWithDetails> {
-  // Reject oversized payloads before sending
-  if (deliveryPhotoUrl && deliveryPhotoUrl.length > 2 * 1024 * 1024) {
-    throw new Error("ขนาดไฟล์รูปภาพใหญ่เกินไป กรุณาถ่ายภาพใหม่อีกครั้ง");
+  let finalUrl = deliveryPhotoUrl;
+  let finalPath = deliveryPhotoPath;
+
+  if (deliveryPhotoUrl && deliveryPhotoUrl.startsWith("data:image/")) {
+    try {
+      const directUpload = await uploadDirectToStorage("delivery", deliveryPhotoUrl, `delivery_${batchId}.jpg`);
+      finalUrl = directUpload.url;
+      finalPath = directUpload.filePath;
+    } catch (uploadErr) {
+      console.warn("Direct delivery upload failed, falling back to payload:", uploadErr);
+    }
   }
 
   const res = await fetch(`/api/batches/${batchId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, deliveryPhotoUrl }),
+    body: JSON.stringify({
+      status,
+      deliveryPhotoUrl: finalUrl,
+      deliveryPhotoPath: finalPath,
+    }),
   });
 
   if (!res.ok) {

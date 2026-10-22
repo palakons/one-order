@@ -8,7 +8,7 @@ import { BatchWithDetails, Order } from "@/lib/types";
 import { generateOneLongManifestImage } from "@/lib/manifest-image";
 import { getDropOffMapUrl, setRuntimeLocations } from "@/lib/locations";
 import { getTimeRemaining, formatCutoffDisplay } from "@/lib/utils";
-import { compressImage } from "@/lib/services";
+import { compressImage, uploadDirectToStorage } from "@/lib/services";
 import ShopQrModal from "@/components/ShopQrModal";
 import confetti from "canvas-confetti";
 
@@ -598,12 +598,26 @@ export default function LeaderPageClient({ batchId, initialBatch }: Props) {
     setUploadingDelivery(true);
     const hostPin = typeof window !== "undefined" ? localStorage.getItem(`veatec_host_pin_${batch.id}`) || batch.hostPin : batch.hostPin;
     try {
+      let finalPhotoUrl = withPhoto ? (deliveryPhotoData || undefined) : undefined;
+      let finalPhotoPath: string | undefined = undefined;
+
+      if (withPhoto && deliveryPhotoData) {
+        try {
+          const directUpload = await uploadDirectToStorage("delivery", deliveryPhotoData, `delivery_${batch.id}.jpg`);
+          finalPhotoUrl = directUpload.url;
+          finalPhotoPath = directUpload.filePath;
+        } catch (uploadErr) {
+          console.warn("Direct delivery photo upload failed, falling back:", uploadErr);
+        }
+      }
+
       const res = await fetch(`/api/batches/${batch.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "COMPLETED",
-          deliveryPhotoUrl: withPhoto ? (deliveryPhotoData || undefined) : undefined,
+          deliveryPhotoUrl: finalPhotoUrl,
+          deliveryPhotoPath: finalPhotoPath,
           hostPin,
         }),
       });
