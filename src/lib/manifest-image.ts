@@ -28,68 +28,70 @@ function drawRoundRect(
 }
 
 /**
- * Resilient image loader that NEVER rejects, preventing canvas crashes.
- * Resolves null on CORS errors or timeouts.
- * Converts remote images to Object URLs via fetch with CORS when possible,
- * preventing any SecurityError ("Tainted canvases may not be exported").
+ * Resilient image loader that NEVER taints the canvas.
+ * Fetches the image as a Blob with CORS, then converts to a local Object URL.
+ * If fetch or CORS fails, it resolves to null (falling back safely to receipt cards)
+ * so the canvas is NEVER tainted and toDataURL / toBlob will NEVER fail!
  */
 async function loadSlipImage(src: string): Promise<HTMLImageElement | null> {
   if (!src) return null;
 
-  let objectUrlToRevoke: string | null = null;
-  let finalSrc = src;
-
-  // For remote HTTP(S) images, try fetching as blob first to ensure CORS compliance and prevent canvas tainting
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    try {
-      const controller = new AbortController();
-      const fetchTimer = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(src, {
-        mode: "cors",
-        signal: controller.signal,
-      });
-      clearTimeout(fetchTimer);
-
-      if (res.ok) {
-        const blob = await res.blob();
-        finalSrc = URL.createObjectURL(blob);
-        objectUrlToRevoke = finalSrc;
-      }
-    } catch (fetchErr) {
-      console.warn("Slip fetch before canvas draw notice:", fetchErr);
-      // If direct fetch fails (e.g. strict CORS), fall back to img tag with anonymous crossOrigin
-    }
+  // 1. Data URLs are local and safe
+  if (src.startsWith("data:image/")) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
   }
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    const timeoutId = setTimeout(() => {
-      console.warn("Slip image load timed out, falling back to receipt card:", src.slice(0, 60));
-      if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
-      resolve(null);
-    }, 4500);
+  // 2. Fetch as Blob for all remote / relative URLs to guarantee no tainted canvas
+  try {
+    const controller = new AbortController();
+    const fetchTimer = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(src, {
+      mode: "cors",
+      credentials: "omit",
+      signal: controller.signal,
+    });
+    clearTimeout(fetchTimer);
 
-    img.onload = () => {
-      clearTimeout(timeoutId);
-      // Wait slightly or clean up after canvas export
-      if (objectUrlToRevoke) {
-        setTimeout(() => URL.revokeObjectURL(objectUrlToRevoke!), 10000);
-      }
-      resolve(img);
-    };
-
-    img.onerror = () => {
-      clearTimeout(timeoutId);
-      if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
-      console.warn("Slip image failed to load / CORS blocked, using receipt card:", src.slice(0, 60));
-      resolve(null);
-    };
-
-    if (finalSrc.startsWith("http://") || finalSrc.startsWith("https://")) {
-      img.crossOrigin = "anonymous";
+    if (!res.ok) {
+      console.warn("Slip image fetch non-200, falling back to receipt card:", src.slice(0, 60), res.status);
+      return null;
     }
-    img.src = finalSrc;
-  });
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const timeoutId = setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      }, 5000);
+
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        // Clean up objectUrl after canvas finishes rendering
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
+        resolve(img);
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        URL.revokeObjectURL(objectUrl);
+        console.warn("Failed to decode image from blob, using receipt card:", src.slice(0, 60));
+        resolve(null);
+      };
+
+      img.src = objectUrl;
+    });
+  } catch (err) {
+    console.warn("Failed to load slip image safely via blob, using receipt card:", err);
+    return null;
+  }
 }
 
 /**
