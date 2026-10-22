@@ -29,10 +29,21 @@ export default function VeatecLogo({
   const wordFontSize = isSm ? "1.15rem" : isLg ? "1.9rem" : isXl ? "2.4rem" : "1.55rem";
 
   // Reusable Mascot Logo Icon
+  // Stream directly from Google Firebase Storage CDN (0 bytes Vercel bandwidth!)
+  // Falls back to local WebP if offline
+  const LOGO_CDN_URL = "https://firebasestorage.googleapis.com/v0/b/one-order-af750.firebasestorage.app/o/general%2Fveatec-logo-sm.webp?alt=media";
+
   const LogoIcon = ({ dim }: { dim: number }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/veatec-logo-sm.png"
+      src={LOGO_CDN_URL}
+      onError={(e) => {
+        // Fallback to local optimized webp if offline or blocked
+        const target = e.currentTarget;
+        if (!target.src.endsWith("/veatec-logo-sm.webp")) {
+          target.src = "/veatec-logo-sm.webp";
+        }
+      }}
       alt="VEATEC Mascot Logo"
       width={dim}
       height={dim}

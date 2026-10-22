@@ -29,9 +29,7 @@ export async function GET() {
   const info = getBuildInfo();
   return NextResponse.json(info, {
     headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
+      "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
     },
   });
 }

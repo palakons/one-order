@@ -13,10 +13,10 @@ export default function VersionBadge() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    // Check backend version periodically (every 60s) or on tab focus
+    // Only query backend version ONCE on initial page load / refresh
     const checkVersion = async () => {
       try {
-        const res = await fetch("/api/version", { cache: "no-store" });
+        const res = await fetch("/api/version");
         if (!res.ok) return;
         const data = await res.json();
         if (data.commitHash) {
@@ -36,14 +36,6 @@ export default function VersionBadge() {
     };
 
     checkVersion();
-    const interval = setInterval(checkVersion, 60000);
-    const onFocus = () => checkVersion();
-    window.addEventListener("focus", onFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
   }, [clientCommit]);
 
   const handleHardRefresh = () => {
