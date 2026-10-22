@@ -3,6 +3,18 @@ import { getImageFromStorage, saveImageToStorage, isAllowedWebappRequest } from 
 import sharp from "sharp";
 
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ path: string[] }> }
@@ -37,6 +49,8 @@ export async function GET(
           return NextResponse.redirect(presignedUrl, {
             status: 302,
             headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
               "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
             },
           });
@@ -61,6 +75,8 @@ export async function GET(
       return NextResponse.redirect(directGoogleStorageUrl, {
         status: 302,
         headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
           "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
         },
       });

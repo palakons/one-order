@@ -1350,9 +1350,10 @@ export default function HomeClient({ initialBatches, initialLocations }: Props) 
           isSelfPickup,
         });
         setManifestData(manifest);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Manifest generation error:", err);
-        alert("ไม่สามารถสร้างรูปสรุปได้ กรุณาลองใหม่อีกครั้ง");
+        const errMsg = err?.message || String(err);
+        alert(`ไม่สามารถสร้างรูปสรุปได้ (${errMsg}) กรุณาลองใหม่อีกครั้ง`);
       } finally {
         setGeneratingManifest(false);
       }
