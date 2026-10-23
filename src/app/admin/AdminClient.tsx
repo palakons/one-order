@@ -653,6 +653,8 @@ export default function AdminClient({
   const [locIsActive, setLocIsActive] = useState(true);
   const [savingLocation, setSavingLocation] = useState(false);
   const [uploadingLocPhoto, setUploadingLocPhoto] = useState(false);
+  const [locPhotoProgress, setLocPhotoProgress] = useState<number>(0);
+  const [shopImageProgress, setShopImageProgress] = useState<number>(0);
   const [togglingLocationActiveId, setTogglingLocationActiveId] = useState<string | null>(null);
   const [togglingBatchTestId, setTogglingBatchTestId] = useState<string | null>(null);
 
@@ -1257,15 +1259,22 @@ export default function AdminClient({
     if (file) {
       try {
         setUploadingShopImageField(targetField);
+        setShopImageProgress(5);
         const isQr = targetField === "qr" || targetField === "lineQr";
         const maxDim = isQr ? 480 : 640;
         const quality = isQr ? 0.70 : 0.68;
         const compressed = await compressImage(file, maxDim, quality);
+        setShopImageProgress(20);
 
-        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth)
+        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth) with progress
         let finalUrl = compressed;
         try {
-          const directRes = await uploadDirectToStorage("shops", compressed);
+          const directRes = await uploadDirectToStorage(
+            "shops",
+            compressed,
+            undefined,
+            (pct) => setShopImageProgress(Math.max(20, pct))
+          );
           finalUrl = directRes.directUrl || directRes.url;
         } catch (uploadErr) {
           console.warn("Direct shop image upload failed, using local fallback:", uploadErr);
@@ -1278,6 +1287,7 @@ export default function AdminClient({
         console.error("Image upload compression error:", err);
       } finally {
         setUploadingShopImageField(null);
+        setShopImageProgress(0);
       }
     }
     e.target.value = "";
@@ -1892,12 +1902,19 @@ export default function AdminClient({
     if (file) {
       try {
         setUploadingLocPhoto(true);
+        setLocPhotoProgress(5);
         const compressed = await compressImage(file, 800, 0.75);
+        setLocPhotoProgress(20);
 
-        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth)
+        // Immediate direct cloud upload to GCS (Zero Vercel bandwidth) with progress
         let finalUrl = compressed;
         try {
-          const directRes = await uploadDirectToStorage("locations", compressed);
+          const directRes = await uploadDirectToStorage(
+            "locations",
+            compressed,
+            undefined,
+            (pct) => setLocPhotoProgress(Math.max(20, pct))
+          );
           finalUrl = directRes.directUrl || directRes.url;
         } catch (uploadErr) {
           console.warn("Direct location photo upload failed, using local fallback:", uploadErr);
@@ -1908,6 +1925,7 @@ export default function AdminClient({
         console.error("Location image compression error:", err);
       } finally {
         setUploadingLocPhoto(false);
+        setLocPhotoProgress(0);
       }
     }
     e.target.value = "";
@@ -4921,11 +4939,22 @@ export default function AdminClient({
                         <Upload className="h-5 w-5" />
                       )}
                     </div>
-                    <div>
+                    <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-purple-950">
-                        {uploadingShopImageField === "qr" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลดรูป QR พร้อมเพย์"}
+                        {uploadingShopImageField === "qr"
+                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
+                          : "กดเพื่ออัปโหลดรูป QR พร้อมเพย์"}
                       </p>
-                      <p className="text-[11px] text-gray-500">ถ่ายภาพ หรือเลือกรูป QR สลิปจากเครื่อง</p>
+                      {uploadingShopImageField === "qr" ? (
+                        <div className="w-full bg-purple-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-purple-900 h-1.5 rounded-full transition-all duration-200"
+                            style={{ width: `${shopImageProgress}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-500">ถ่ายภาพ หรือเลือกรูป QR สลิปจากเครื่อง</p>
+                      )}
                     </div>
                   </label>
                 )}
@@ -4989,11 +5018,22 @@ export default function AdminClient({
                         <Upload className="h-5 w-5" />
                       )}
                     </div>
-                    <div>
+                    <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-emerald-950">
-                        {uploadingShopImageField === "lineQr" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลด LINE QR Code"}
+                        {uploadingShopImageField === "lineQr"
+                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
+                          : "กดเพื่ออัปโหลด LINE QR Code"}
                       </p>
-                      <p className="text-[11px] text-gray-500">รูปภาพ QR บัญชี LINE ของร้าน</p>
+                      {uploadingShopImageField === "lineQr" ? (
+                        <div className="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-emerald-600 h-1.5 rounded-full transition-all duration-200"
+                            style={{ width: `${shopImageProgress}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-500">รูปภาพ QR บัญชี LINE ของร้าน</p>
+                      )}
                     </div>
                   </label>
                 )}
@@ -5053,11 +5093,22 @@ export default function AdminClient({
                         <Camera className="h-5 w-5" />
                       )}
                     </div>
-                    <div>
+                    <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-gray-800">
-                        {uploadingShopImageField === "menu" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลดรูปภาพหน้าร้านหรือเมนู"}
+                        {uploadingShopImageField === "menu"
+                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
+                          : "กดเพื่ออัปโหลดรูปภาพหน้าร้านหรือเมนู"}
                       </p>
-                      <p className="text-[11px] text-gray-500">ระบบจะบีบอัดและอัปโหลดเข้า Cloud Storage โดยตรง</p>
+                      {uploadingShopImageField === "menu" ? (
+                        <div className="w-full bg-purple-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-purple-900 h-1.5 rounded-full transition-all duration-200"
+                            style={{ width: `${shopImageProgress}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-500">ระบบจะบีบอัดและอัปโหลดเข้า Cloud Storage โดยตรง</p>
+                      )}
                     </div>
                   </label>
                 )}
@@ -5370,13 +5421,24 @@ export default function AdminClient({
                         <Camera className="h-6 w-6" />
                       )}
                     </div>
-                    <div>
+                    <div className="w-full max-w-xs space-y-1.5">
                       <p className="text-xs font-bold text-gray-800">
-                        {uploadingLocPhoto ? "กำลังบีบอัดและอัปโหลดเข้าคลาวด์..." : "กดเพื่อถ่ายภาพ หรือเลือกรูปจุดวางอาหาร"}
+                        {uploadingLocPhoto
+                          ? `กำลังอัปโหลดเข้า Cloud Storage... (${locPhotoProgress}%)`
+                          : "กดเพื่อถ่ายภาพ หรือเลือกรูปจุดวางอาหาร"}
                       </p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        รองรับ JPEG, PNG, WebP, HEIC (ระบบจะบีบอัดและอัปโหลดตรงเข้า Cloud Storage)
-                      </p>
+                      {uploadingLocPhoto ? (
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-purple-900 h-2 rounded-full transition-all duration-200 ease-out"
+                            style={{ width: `${locPhotoProgress}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-500">
+                          รองรับ JPEG, PNG, WebP, HEIC (ระบบจะบีบอัดและอัปโหลดตรงเข้า Cloud Storage)
+                        </p>
+                      )}
                     </div>
                   </label>
                 )}

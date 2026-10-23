@@ -275,11 +275,13 @@ export interface DirectUploadResult {
  * Uploads an image directly to Google Cloud Storage via V4 Presigned PUT URL.
  * Bypasses Vercel servers completely (0 bytes transferred through Vercel).
  * Accepts either a base64 Data URL string or a File/Blob.
+ * Supports optional onProgress callback (0-100%).
  */
 export async function uploadDirectToStorage(
   category: "slips" | "delivery" | "shops" | "locations" | "general",
   fileOrDataUrl: string | File | Blob,
-  customFilename?: string
+  customFilename?: string,
+  onProgress?: (percent: number) => void
 ): Promise<DirectUploadResult> {
   let blob: Blob;
   let mimeType = "image/jpeg";
@@ -294,6 +296,7 @@ export async function uploadDirectToStorage(
   }
 
   // 1. Ask our backend for a secure 10-minute Presigned PUT URL
+  onProgress?.(5);
   const presignRes = await fetch("/api/upload/presign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -314,18 +317,37 @@ export async function uploadDirectToStorage(
     throw new Error("Missing upload URL in presign response");
   }
 
-  // 2. Perform direct PUT to Google Cloud Storage (zero Vercel bandwidth)
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": mimeType,
-    },
-    body: blob,
-  });
+  onProgress?.(15);
 
-  if (!putRes.ok) {
-    throw new Error(`Direct upload to cloud storage failed with status ${putRes.status}`);
-  }
+  // 2. Perform direct PUT to Google Cloud Storage with real-time byte progress (zero Vercel bandwidth)
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl, true);
+    xhr.setRequestHeader("Content-Type", mimeType);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        // Map upload byte progress from 15% to 95%
+        const percent = Math.min(95, Math.round(15 + (e.loaded / e.total) * 80));
+        onProgress?.(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+      } else {
+        reject(new Error(`Direct upload to cloud storage failed with status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Direct upload network error"));
+    };
+
+    xhr.send(blob);
+  });
 
   return {
     filePath,
