@@ -2029,6 +2029,10 @@ export default function AdminClient({
                 <span className="rounded bg-purple-900 px-1.5 py-0.5 text-[10px] font-bold text-white">
                   M4 ADMIN
                 </span>
+                <span className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-900 border border-purple-200/80 px-1.5 py-0.5 text-[10px] font-mono font-semibold" title={`Git Commit: ${process.env.NEXT_PUBLIC_GIT_COMMIT || "dev"}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {process.env.NEXT_PUBLIC_GIT_COMMIT || "dev"}
+                </span>
                 <h1 className="text-sm sm:text-base font-black text-gray-900">
                   VEATEC Hub &mdash; จัดการระบบ
                 </h1>
