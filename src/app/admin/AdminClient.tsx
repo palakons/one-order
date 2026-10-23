@@ -4891,7 +4891,23 @@ export default function AdminClient({
                   อัปโหลดรูปภาพ QR Code พร้อมเพย์ของร้านสำหรับให้สมาชิกลงขันโอนเงิน
                 </p>
 
-                {shopPromptPayQrUrl ? (
+                {uploadingShopImageField === "qr" ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-purple-400 bg-purple-50/60 p-4 text-center">
+                    <RefreshCw className="h-6 w-6 animate-spin text-purple-900" />
+                    <div className="w-full max-w-xs space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-purple-950">
+                        <span>กำลังอัปโหลด QR พร้อมเพย์...</span>
+                        <span>{shopImageProgress}%</span>
+                      </div>
+                      <div className="w-full bg-purple-200/80 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-purple-900 h-2 rounded-full transition-all duration-200"
+                          style={{ width: `${shopImageProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : shopPromptPayQrUrl ? (
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-purple-200 shadow-2xs">
                     <div className="relative h-24 w-24 shrink-0 rounded-lg border border-purple-100 overflow-hidden bg-gray-50">
                       <img src={shopPromptPayQrUrl} alt="QR Preview" className="h-full w-full object-contain p-1" />
@@ -4933,28 +4949,13 @@ export default function AdminClient({
                       className="hidden"
                     />
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform">
-                      {uploadingShopImageField === "qr" ? (
-                        <RefreshCw className="h-5 w-5 animate-spin text-purple-900" />
-                      ) : (
-                        <Upload className="h-5 w-5" />
-                      )}
+                      <Upload className="h-5 w-5" />
                     </div>
                     <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-purple-950">
-                        {uploadingShopImageField === "qr"
-                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
-                          : "กดเพื่ออัปโหลดรูป QR พร้อมเพย์"}
+                        กดเพื่ออัปโหลดรูป QR พร้อมเพย์
                       </p>
-                      {uploadingShopImageField === "qr" ? (
-                        <div className="w-full bg-purple-100 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-purple-900 h-1.5 rounded-full transition-all duration-200"
-                            style={{ width: `${shopImageProgress}%` }}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-500">ถ่ายภาพ หรือเลือกรูป QR สลิปจากเครื่อง</p>
-                      )}
+                      <p className="text-[11px] text-gray-500">ถ่ายภาพ หรือเลือกรูป QR สลิปจากเครื่อง</p>
                     </div>
                   </label>
                 )}
@@ -4970,7 +4971,23 @@ export default function AdminClient({
                   อัปโหลดรูป QR Code บัญชี LINE ของร้านค้า เพื่อให้ลูกค้ากดสแกนแอดไลน์ร้านได้สะดวกรวดเร็ว
                 </p>
 
-                {shopLineQrUrl ? (
+                {uploadingShopImageField === "lineQr" ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/60 p-4 text-center">
+                    <RefreshCw className="h-6 w-6 animate-spin text-emerald-800" />
+                    <div className="w-full max-w-xs space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
+                        <span>กำลังอัปโหลด LINE QR...</span>
+                        <span>{shopImageProgress}%</span>
+                      </div>
+                      <div className="w-full bg-emerald-200/80 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-emerald-600 h-2 rounded-full transition-all duration-200"
+                          style={{ width: `${shopImageProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : shopLineQrUrl ? (
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs">
                     <div className="relative h-24 w-24 shrink-0 rounded-lg border border-emerald-100 overflow-hidden bg-gray-50">
                       <img src={shopLineQrUrl} alt="LINE QR Preview" className="h-full w-full object-contain p-1" />
@@ -5012,28 +5029,13 @@ export default function AdminClient({
                       className="hidden"
                     />
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 group-hover:scale-105 transition-transform">
-                      {uploadingShopImageField === "lineQr" ? (
-                        <RefreshCw className="h-5 w-5 animate-spin text-emerald-800" />
-                      ) : (
-                        <Upload className="h-5 w-5" />
-                      )}
+                      <Upload className="h-5 w-5" />
                     </div>
                     <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-emerald-950">
-                        {uploadingShopImageField === "lineQr"
-                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
-                          : "กดเพื่ออัปโหลด LINE QR Code"}
+                        กดเพื่ออัปโหลด LINE QR Code
                       </p>
-                      {uploadingShopImageField === "lineQr" ? (
-                        <div className="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-emerald-600 h-1.5 rounded-full transition-all duration-200"
-                            style={{ width: `${shopImageProgress}%` }}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-500">รูปภาพ QR บัญชี LINE ของร้าน</p>
-                      )}
+                      <p className="text-[11px] text-gray-500">รูปภาพ QR บัญชี LINE ของร้าน</p>
                     </div>
                   </label>
                 )}
@@ -5045,7 +5047,23 @@ export default function AdminClient({
                   รูปโลโก้ / ภาพถ่ายหน้าร้าน / เมนู
                 </label>
 
-                {shopMenuImageUrl ? (
+                {uploadingShopImageField === "menu" ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-purple-400 bg-purple-50/60 p-4 text-center">
+                    <RefreshCw className="h-6 w-6 animate-spin text-purple-900" />
+                    <div className="w-full max-w-xs space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-purple-950">
+                        <span>กำลังอัปโหลดรูปภาพ...</span>
+                        <span>{shopImageProgress}%</span>
+                      </div>
+                      <div className="w-full bg-purple-200/80 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-purple-900 h-2 rounded-full transition-all duration-200"
+                          style={{ width: `${shopImageProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : shopMenuImageUrl ? (
                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
                     <div className="relative h-20 w-24 shrink-0 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
                       <img src={shopMenuImageUrl} alt="Shop Preview" className="h-full w-full object-cover" />
@@ -5087,28 +5105,13 @@ export default function AdminClient({
                       className="hidden"
                     />
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform shadow-xs">
-                      {uploadingShopImageField === "menu" ? (
-                        <RefreshCw className="h-5 w-5 animate-spin text-purple-900" />
-                      ) : (
-                        <Camera className="h-5 w-5" />
-                      )}
+                      <Camera className="h-5 w-5" />
                     </div>
                     <div className="w-full max-w-xs space-y-1">
                       <p className="text-xs font-bold text-gray-800">
-                        {uploadingShopImageField === "menu"
-                          ? `กำลังอัปโหลดเข้าคลาวด์... (${shopImageProgress}%)`
-                          : "กดเพื่ออัปโหลดรูปภาพหน้าร้านหรือเมนู"}
+                        กดเพื่ออัปโหลดรูปภาพหน้าร้านหรือเมนู
                       </p>
-                      {uploadingShopImageField === "menu" ? (
-                        <div className="w-full bg-purple-100 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-purple-900 h-1.5 rounded-full transition-all duration-200"
-                            style={{ width: `${shopImageProgress}%` }}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-500">ระบบจะบีบอัดและอัปโหลดเข้า Cloud Storage โดยตรง</p>
-                      )}
+                      <p className="text-[11px] text-gray-500">ระบบจะบีบอัดและอัปโหลดเข้า Cloud Storage โดยตรง</p>
                     </div>
                   </label>
                 )}
@@ -5365,7 +5368,26 @@ export default function AdminClient({
                   รูปภาพจุดวางอาหารประจำอาคาร
                 </label>
 
-                {locPhotoUrl ? (
+                {uploadingLocPhoto ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-purple-400 bg-purple-50/60 p-6 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 shadow-xs">
+                      <RefreshCw className="h-6 w-6 animate-spin text-purple-900" />
+                    </div>
+                    <div className="w-full max-w-xs space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-purple-950">
+                        <span>กำลังอัปโหลดเข้า Cloud Storage...</span>
+                        <span>{locPhotoProgress}%</span>
+                      </div>
+                      <div className="w-full bg-purple-200/80 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="bg-purple-900 h-2.5 rounded-full transition-all duration-200 ease-out"
+                          style={{ width: `${locPhotoProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-purple-700">กำลังส่งตรงเข้า Google Cloud Storage (0 bytes Vercel)</p>
+                    </div>
+                  </div>
+                ) : locPhotoUrl ? (
                   <div className="relative rounded-2xl border-2 border-purple-200 bg-purple-50/40 p-3">
                     <div className="flex items-center gap-3">
                       <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl border border-purple-200 bg-white shadow-2xs">
@@ -5415,30 +5437,15 @@ export default function AdminClient({
                       className="hidden"
                     />
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform shadow-xs">
-                      {uploadingLocPhoto ? (
-                        <RefreshCw className="h-6 w-6 animate-spin text-purple-900" />
-                      ) : (
-                        <Camera className="h-6 w-6" />
-                      )}
+                      <Camera className="h-6 w-6" />
                     </div>
                     <div className="w-full max-w-xs space-y-1.5">
                       <p className="text-xs font-bold text-gray-800">
-                        {uploadingLocPhoto
-                          ? `กำลังอัปโหลดเข้า Cloud Storage... (${locPhotoProgress}%)`
-                          : "กดเพื่อถ่ายภาพ หรือเลือกรูปจุดวางอาหาร"}
+                        กดเพื่อถ่ายภาพ หรือเลือกรูปจุดวางอาหาร
                       </p>
-                      {uploadingLocPhoto ? (
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-purple-900 h-2 rounded-full transition-all duration-200 ease-out"
-                            style={{ width: `${locPhotoProgress}%` }}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-500">
-                          รองรับ JPEG, PNG, WebP, HEIC (ระบบจะบีบอัดและอัปโหลดตรงเข้า Cloud Storage)
-                        </p>
-                      )}
+                      <p className="text-[11px] text-gray-500">
+                        รองรับ JPEG, PNG, WebP, HEIC (ระบบจะบีบอัดและอัปโหลดตรงเข้า Cloud Storage)
+                      </p>
                     </div>
                   </label>
                 )}
