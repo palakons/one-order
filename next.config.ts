@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["v9", "*.v9", "localhost", "127.0.0.1", "*.google.internal", "*.cloud.google.com"],
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    agentUpgrade: "security",
+  },
   turbopack: {
     rules: {
       "*.css": {
