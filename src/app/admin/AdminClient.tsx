@@ -616,6 +616,7 @@ export default function AdminClient({
   const [shopPromptPayQrUrl, setShopPromptPayQrUrl] = useState("");
   const [shopLineQrUrl, setShopLineQrUrl] = useState("");
   const [shopMenuImageUrl, setShopMenuImageUrl] = useState("");
+  const [uploadingShopImageField, setUploadingShopImageField] = useState<"menu" | "qr" | "lineQr" | null>(null);
   const [shopMinDelivery, setShopMinDelivery] = useState("200");
   const [shopDefaultCutoff, setShopDefaultCutoff] = useState("11:15");
   const [shopIsActive, setShopIsActive] = useState(true);
@@ -651,6 +652,7 @@ export default function AdminClient({
   const [locColor, setLocColor] = useState("bg-[#432874]");
   const [locIsActive, setLocIsActive] = useState(true);
   const [savingLocation, setSavingLocation] = useState(false);
+  const [uploadingLocPhoto, setUploadingLocPhoto] = useState(false);
   const [togglingLocationActiveId, setTogglingLocationActiveId] = useState<string | null>(null);
   const [togglingBatchTestId, setTogglingBatchTestId] = useState<string | null>(null);
 
@@ -1254,6 +1256,7 @@ export default function AdminClient({
     const file = e.target.files?.[0];
     if (file) {
       try {
+        setUploadingShopImageField(targetField);
         const isQr = targetField === "qr" || targetField === "lineQr";
         const maxDim = isQr ? 480 : 640;
         const quality = isQr ? 0.70 : 0.68;
@@ -1273,8 +1276,11 @@ export default function AdminClient({
         if (targetField === "lineQr") setShopLineQrUrl(finalUrl);
       } catch (err) {
         console.error("Image upload compression error:", err);
+      } finally {
+        setUploadingShopImageField(null);
       }
     }
+    e.target.value = "";
   };
 
   // -------------------------------------------------------------
@@ -1885,6 +1891,7 @@ export default function AdminClient({
     const file = e.target.files?.[0];
     if (file) {
       try {
+        setUploadingLocPhoto(true);
         const compressed = await compressImage(file, 800, 0.75);
 
         // Immediate direct cloud upload to GCS (Zero Vercel bandwidth)
@@ -1899,8 +1906,11 @@ export default function AdminClient({
         setLocPhotoUrl(finalUrl);
       } catch (err) {
         console.error("Location image compression error:", err);
+      } finally {
+        setUploadingLocPhoto(false);
       }
     }
+    e.target.value = "";
   };
 
   // -------------------------------------------------------------
@@ -4860,34 +4870,65 @@ export default function AdminClient({
                   <span>รูปภาพ QR Code พร้อมเพย์ร้าน (PromptPay QR Image)</span>
                 </div>
                 <p className="text-[11px] text-gray-600">
-                  อัปโหลดรูปภาพ QR Code พร้อมเพย์ของร้านสำหรับให้สมาชิกลงขันโอนเงิน (ระบบเรียบง่าย ไม่ต้องระบุเบอร์หรือชื่อบัญชี)
+                  อัปโหลดรูปภาพ QR Code พร้อมเพย์ของร้านสำหรับให้สมาชิกลงขันโอนเงิน
                 </p>
 
-                {shopPromptPayQrUrl && (
-                  <div className="relative h-28 w-28 rounded-xl border border-purple-200 overflow-hidden bg-white shadow-2xs">
-                    <img src={shopPromptPayQrUrl} alt="QR Preview" className="h-full w-full object-contain p-1" />
+                {shopPromptPayQrUrl ? (
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-purple-200 shadow-2xs">
+                    <div className="relative h-24 w-24 shrink-0 rounded-lg border border-purple-100 overflow-hidden bg-gray-50">
+                      <img src={shopPromptPayQrUrl} alt="QR Preview" className="h-full w-full object-contain p-1" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-1 text-xs font-bold text-purple-900">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>แนบ QR พร้อมเพย์แล้ว</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">พร้อมแสดงในหน้าชำระเงินของลูกค้า</p>
+                      <div className="flex gap-2 pt-0.5">
+                        <label className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white px-2.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-50 cursor-pointer shadow-2xs">
+                          <Upload className="h-3 w-3" />
+                          <span>เปลี่ยนรูป</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleUploadShopImageFile(e, "qr")}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShopPromptPayQrUrl("")}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0 shadow-2xs">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>อัปโหลดรูป QR ร้าน</span>
+                ) : (
+                  <label className="group flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-purple-300 bg-white p-4 text-center hover:border-purple-600 hover:bg-purple-50/50 cursor-pointer transition-all">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleUploadShopImageFile(e, "qr")}
                       className="hidden"
                     />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform">
+                      {uploadingShopImageField === "qr" ? (
+                        <RefreshCw className="h-5 w-5 animate-spin text-purple-900" />
+                      ) : (
+                        <Upload className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-purple-950">
+                        {uploadingShopImageField === "qr" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลดรูป QR พร้อมเพย์"}
+                      </p>
+                      <p className="text-[11px] text-gray-500">ถ่ายภาพ หรือเลือกรูป QR สลิปจากเครื่อง</p>
+                    </div>
                   </label>
-                  <input
-                    type="url"
-                    placeholder="หรือวางลิงก์รูป QR Image URL"
-                    value={shopPromptPayQrUrl}
-                    onChange={(e) => setShopPromptPayQrUrl(e.target.value)}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
-                  />
-                </div>
+                )}
               </div>
 
               {/* LINE Official / Shop LINE QR Section */}
@@ -4897,65 +4938,129 @@ export default function AdminClient({
                   <span>รูปภาพ QR Code LINE ร้านค้า (Shop LINE QR Image)</span>
                 </div>
                 <p className="text-[11px] text-gray-600">
-                  อัปโหลดรูป QR Code บัญชี LINE ของร้านค้า (LINE Official / LINE ส่วนตัว) เพื่อให้ลูกค้ากดดูและแอดไลน์ร้านได้สะดวก
+                  อัปโหลดรูป QR Code บัญชี LINE ของร้านค้า เพื่อให้ลูกค้ากดสแกนแอดไลน์ร้านได้สะดวกรวดเร็ว
                 </p>
 
-                {shopLineQrUrl && (
-                  <div className="relative h-28 w-28 rounded-xl border border-emerald-200 overflow-hidden bg-white shadow-2xs">
-                    <img src={shopLineQrUrl} alt="LINE QR Preview" className="h-full w-full object-contain p-1" />
+                {shopLineQrUrl ? (
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs">
+                    <div className="relative h-24 w-24 shrink-0 rounded-lg border border-emerald-100 overflow-hidden bg-gray-50">
+                      <img src={shopLineQrUrl} alt="LINE QR Preview" className="h-full w-full object-contain p-1" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-1 text-xs font-bold text-emerald-900">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>แนบ QR LINE แล้ว</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">พร้อมแสดงในหน้ารายละเอียดร้าน</p>
+                      <div className="flex gap-2 pt-0.5">
+                        <label className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-50 cursor-pointer shadow-2xs">
+                          <Upload className="h-3 w-3" />
+                          <span>เปลี่ยนรูป</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleUploadShopImageFile(e, "lineQr")}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShopLineQrUrl("")}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-[#06C755] text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-[#05b34c] transition-colors shrink-0 shadow-2xs">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>อัปโหลด LINE QR</span>
+                ) : (
+                  <label className="group flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-emerald-300 bg-white p-4 text-center hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer transition-all">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleUploadShopImageFile(e, "lineQr")}
                       className="hidden"
                     />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 group-hover:scale-105 transition-transform">
+                      {uploadingShopImageField === "lineQr" ? (
+                        <RefreshCw className="h-5 w-5 animate-spin text-emerald-800" />
+                      ) : (
+                        <Upload className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-emerald-950">
+                        {uploadingShopImageField === "lineQr" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลด LINE QR Code"}
+                      </p>
+                      <p className="text-[11px] text-gray-500">รูปภาพ QR บัญชี LINE ของร้าน</p>
+                    </div>
                   </label>
-                  <input
-                    type="url"
-                    placeholder="หรือวางลิงก์รูป LINE QR Image URL"
-                    value={shopLineQrUrl}
-                    onChange={(e) => setShopLineQrUrl(e.target.value)}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
-                  />
-                </div>
+                )}
               </div>
 
               {/* Shop Logo / Menu Image Box */}
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-2">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-3">
                 <label className="text-xs font-bold text-gray-900 block">
                   รูปโลโก้ / ภาพถ่ายหน้าร้าน / เมนู
                 </label>
-                {shopMenuImageUrl && (
-                  <div className="relative h-24 w-24 rounded-xl border overflow-hidden bg-white mb-2">
-                    <img src={shopMenuImageUrl} alt="Shop Preview" className="h-full w-full object-cover" />
+
+                {shopMenuImageUrl ? (
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+                    <div className="relative h-20 w-24 shrink-0 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                      <img src={shopMenuImageUrl} alt="Shop Preview" className="h-full w-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-1 text-xs font-bold text-gray-900">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>แนบรูปโลโก้/เมนูแล้ว</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">บันทึกบน Google Cloud Storage</p>
+                      <div className="flex gap-2 pt-0.5">
+                        <label className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer shadow-2xs">
+                          <Camera className="h-3 w-3" />
+                          <span>เปลี่ยนรูป</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleUploadShopImageFile(e, "menu")}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShopMenuImageUrl("")}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0">
-                    <Camera className="h-3.5 w-3.5" />
-                    <span>อัปโหลดรูปภาพ</span>
+                ) : (
+                  <label className="group flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white p-4 text-center hover:border-purple-600 hover:bg-purple-50/40 cursor-pointer transition-all">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleUploadShopImageFile(e, "menu")}
                       className="hidden"
                     />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform shadow-xs">
+                      {uploadingShopImageField === "menu" ? (
+                        <RefreshCw className="h-5 w-5 animate-spin text-purple-900" />
+                      ) : (
+                        <Camera className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">
+                        {uploadingShopImageField === "menu" ? "กำลังอัปโหลดเข้าคลาวด์..." : "กดเพื่ออัปโหลดรูปภาพหน้าร้านหรือเมนู"}
+                      </p>
+                      <p className="text-[11px] text-gray-500">ระบบจะบีบอัดและอัปโหลดเข้า Cloud Storage โดยตรง</p>
+                    </div>
                   </label>
-                  <input
-                    type="url"
-                    placeholder="หรือใส่ลิงก์ URL รูปภาพ"
-                    value={shopMenuImageUrl}
-                    onChange={(e) => setShopMenuImageUrl(e.target.value)}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
-                  />
-                </div>
+                )}
               </div>
 
               {/* Menu items */}
@@ -5208,30 +5313,73 @@ export default function AdminClient({
                 <label className="text-xs font-bold text-gray-700 block">
                   รูปภาพจุดวางอาหารประจำอาคาร
                 </label>
-                {locPhotoUrl && (
-                  <div className="relative h-28 w-full rounded-xl border overflow-hidden bg-gray-100 mb-2">
-                    <img src={locPhotoUrl} alt="Desk Preview" className="h-full w-full object-cover" />
+
+                {locPhotoUrl ? (
+                  <div className="relative rounded-2xl border-2 border-purple-200 bg-purple-50/40 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl border border-purple-200 bg-white shadow-2xs">
+                        <img
+                          src={locPhotoUrl}
+                          alt="Desk Preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-950">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span className="truncate">อัปโหลดรูปจุดวางอาหารแล้ว</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate">
+                          จัดเก็บในคลาวด์ถาวร พร้อมแสดงให้ผู้สั่งอาหารเห็น
+                        </p>
+                        <div className="flex gap-2 pt-1">
+                          <label className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-white px-2.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-50 cursor-pointer transition-colors shadow-2xs">
+                            <Camera className="h-3.5 w-3.5" />
+                            <span>เปลี่ยนรูป</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleUploadLocationPhoto}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setLocPhotoUrl("")}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>ลบออก</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-xl bg-purple-900 text-white px-3 py-1.5 text-xs font-bold cursor-pointer hover:bg-purple-800 transition-colors shrink-0">
-                    <Camera className="h-3.5 w-3.5" />
-                    <span>อัปโหลดรูปโต๊ะ</span>
+                ) : (
+                  <label className="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-6 text-center hover:border-purple-600 hover:bg-purple-50/40 cursor-pointer transition-all active:scale-[0.99]">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleUploadLocationPhoto}
                       className="hidden"
                     />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-900 group-hover:scale-105 transition-transform shadow-xs">
+                      {uploadingLocPhoto ? (
+                        <RefreshCw className="h-6 w-6 animate-spin text-purple-900" />
+                      ) : (
+                        <Camera className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">
+                        {uploadingLocPhoto ? "กำลังบีบอัดและอัปโหลดเข้าคลาวด์..." : "กดเพื่อถ่ายภาพ หรือเลือกรูปจุดวางอาหาร"}
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        รองรับ JPEG, PNG, WebP, HEIC (ระบบจะบีบอัดและอัปโหลดตรงเข้า Cloud Storage)
+                      </p>
+                    </div>
                   </label>
-                  <input
-                    type="url"
-                    placeholder="หรือใส่ลิงก์ URL รูปภาพ"
-                    value={locPhotoUrl}
-                    onChange={(e) => setLocPhotoUrl(e.target.value)}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900"
-                  />
-                </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
