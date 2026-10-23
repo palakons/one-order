@@ -5,8 +5,10 @@ import {
   deleteDeliveryLocation,
 } from "@/lib/store";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const forceFresh = searchParams.get("fresh") === "true";
     const locations = await getDeliveryLocations();
 
     // Auto-migrate legacy locations containing Base64 data URLs
@@ -30,7 +32,9 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": forceFresh
+          ? "private, no-cache, no-store, must-revalidate"
+          : "public, s-maxage=60, stale-while-revalidate=120",
       },
     });
 
@@ -84,9 +88,7 @@ export async function POST(request: Request) {
       deskDetail,
       deskDetailEn: deskDetailEn || deskDetail,
       deskDetailCn: deskDetailCn || deskDetail,
-      photoUrl:
-        photoUrl ||
-        "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=600&q=80",
+      photoUrl: photoUrl || "",
       color: color || "bg-purple-900",
       mapUrl: mapUrl ? String(mapUrl).trim() : `https://maps.google.com/?q=${encodeURIComponent(name + " VISTEC Rayong")}`,
       isActive: typeof isActive === "boolean" ? isActive : true,

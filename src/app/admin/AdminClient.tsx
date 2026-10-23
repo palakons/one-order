@@ -817,9 +817,10 @@ export default function AdminClient({
     }
   };
 
-  const fetchLocations = async () => {
+  const fetchLocations = async (fresh = false) => {
     try {
-      const res = await fetch("/api/locations");
+      const url = fresh ? "/api/locations?fresh=true" : "/api/locations";
+      const res = await fetch(url, { cache: fresh ? "no-store" : "default" });
       const data = await res.json();
       if (data.success && data.locations) {
         setLocations(data.locations);
@@ -1887,9 +1888,20 @@ export default function AdminClient({
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
+      // Immediately update local UI state so image & details update with zero delay
+      if (data.location) {
+        setLocations((prev) => {
+          const exists = prev.some((l) => l.id === data.location.id);
+          if (exists) {
+            return prev.map((l) => (l.id === data.location.id ? data.location : l));
+          }
+          return [...prev, data.location];
+        });
+      }
+
       alert(editingLocationId ? `แก้ไขจุดส่ง "${locName}" สำเร็จ!` : `เพิ่มจุดส่ง "${locName}" สำเร็จ!`);
       setShowLocationModal(false);
-      fetchLocations();
+      fetchLocations(true);
     } catch (err: any) {
       alert(err.message || "Failed to save location");
     } finally {
